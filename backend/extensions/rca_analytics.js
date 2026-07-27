@@ -2,7 +2,7 @@
 // ROOT CAUSE ANALYSIS (RCA) AND CORRELATION SERVICE
 // =========================================================================
 
-const simulations = require('../simulations');
+const simulations = require('../../config/simulations');
 
 const baselineCorrelations = [
   { source: "PostgreSQL DB Latency", target: "Bitbucket API Response Time", coefficient: 0.89, status: "High" },

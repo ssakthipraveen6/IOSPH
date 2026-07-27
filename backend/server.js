@@ -5,13 +5,13 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
-const db = require('./db');
-const collector = require('./collector_coordinator');
-const postgresDb = require('./database/postgres');
-const snowflakeDb = require('./database/snowflake');
-const customChecks = require('./extensions/custom_checks');
-const predictive = require('./predictive'); // imports runPredictiveAnalysis and attaches globally
-const recovery = require('./recovery');     // imports runSelfHealingOrchestrator and attaches globally
+const db = require('../database/db');
+const collector = require('../metrics_collection/collector_coordinator');
+const postgresDb = require('../database/postgres');
+const snowflakeDb = require('../database/snowflake');
+const customChecks = require('../remediation/custom_checks');
+const predictive = require('../ai_analysis/predictive'); // imports runPredictiveAnalysis and attaches globally
+const recovery = require('../remediation/recovery');     // imports runSelfHealingOrchestrator and attaches globally
 
 const app = express();
 const server = http.createServer(app);
