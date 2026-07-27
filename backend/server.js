@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const db = require('./db');
 const collector = require('./collector_coordinator');

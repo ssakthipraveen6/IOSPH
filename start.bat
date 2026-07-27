@@ -26,6 +26,11 @@ if not exist "node_modules\" (
       )
 )
 
+if exist "frontend\dist\index.html" (
+    echo [INFO] Pre-compiled frontend assets found. Skipping installation and compile steps.
+    goto :start_server
+)
+
 if not exist "frontend\node_modules\" (
     echo [INFO] Installing frontend dependencies...
     cd frontend
@@ -48,6 +53,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:start_server
 :: Start the application
 echo.
 echo [INFO] Starting observability daemon server...
