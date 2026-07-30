@@ -1,0 +1,15 @@
+[Unit]
+Description=Project Sentinel - Autonomous Observability Framework Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/project-sentinel
+ExecStart=/bin/bash /opt/project-sentinel/start.sh
+Restart=on-failure
+RestartSec=10
+Environment=NODE_ENV=production PORT=3001
+
+[Install]
+WantedBy=multi-user.target
