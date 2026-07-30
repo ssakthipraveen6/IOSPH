@@ -979,3 +979,15 @@
 [2026-07-30 18:48:22] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.21, jitter: 0.23
 [2026-07-30 18:48:32] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 2.02, jitter: -0.04
 [2026-07-30 18:48:42] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 2.08, jitter: 0.07
+[2026-07-30 18:48:52] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.08, jitter: -0.09
+[2026-07-30 18:49:02] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.17, jitter: 0.03
+[2026-07-30 18:49:12] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 0.66, jitter: 0.4
+[2026-07-30 18:49:22] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.84, jitter: 0.33
+[2026-07-30 18:49:32] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.54, jitter: 0.38
+[2026-07-30 18:49:42] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 2.02, jitter: 0.17
+[2026-07-30 18:49:52] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 2.21, jitter: -0.08
+[2026-07-30 18:50:02] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.64, jitter: 0.32
+[2026-07-30 18:50:12] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.58, jitter: 0.37
+[2026-07-30 18:50:22] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 2.2, jitter: 0.29
+[2026-07-30 18:50:32] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.82, jitter: 0.36
+[2026-07-30 18:50:42] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.82, jitter: 0.34

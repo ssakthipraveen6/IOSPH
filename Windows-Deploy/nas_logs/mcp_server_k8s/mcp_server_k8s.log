@@ -979,3 +979,15 @@
 [2026-07-30 18:48:22] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.9, latency: 62, replicas: 3
 [2026-07-30 18:48:32] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.62, latency: 61, replicas: 3
 [2026-07-30 18:48:42] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.08, latency: 60, replicas: 3
+[2026-07-30 18:48:52] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.21, latency: 58, replicas: 3
+[2026-07-30 18:49:02] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.51, latency: 61, replicas: 3
+[2026-07-30 18:49:12] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.31, latency: 62, replicas: 3
+[2026-07-30 18:49:22] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.13, latency: 60, replicas: 3
+[2026-07-30 18:49:32] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 26.91, latency: 57, replicas: 3
+[2026-07-30 18:49:42] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 27.15, latency: 61, replicas: 3
+[2026-07-30 18:49:52] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.16, latency: 58, replicas: 3
+[2026-07-30 18:50:02] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 27.66, latency: 62, replicas: 3
+[2026-07-30 18:50:12] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.53, latency: 58, replicas: 3
+[2026-07-30 18:50:22] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 27.87, latency: 59, replicas: 3
+[2026-07-30 18:50:32] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.25, latency: 57, replicas: 3
+[2026-07-30 18:50:42] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.55, latency: 59, replicas: 3

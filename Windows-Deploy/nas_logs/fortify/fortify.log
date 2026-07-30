@@ -979,3 +979,15 @@
 [2026-07-30 18:48:22] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.59, failures: 0
 [2026-07-30 18:48:32] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 16, failures: 0
 [2026-07-30 18:48:42] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.28, failures: 0
+[2026-07-30 18:48:52] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 16.04, failures: 0
+[2026-07-30 18:49:02] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 13.66, failures: 0
+[2026-07-30 18:49:12] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.95, failures: 0
+[2026-07-30 18:49:22] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 13.59, failures: 0
+[2026-07-30 18:49:32] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 13.88, failures: 0
+[2026-07-30 18:49:42] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 13.54, failures: 0
+[2026-07-30 18:49:52] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 13.85, failures: 0
+[2026-07-30 18:50:02] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 13.61, failures: 0
+[2026-07-30 18:50:12] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.84, failures: 0
+[2026-07-30 18:50:22] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.33, failures: 0
+[2026-07-30 18:50:32] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.15, failures: 0
+[2026-07-30 18:50:42] [INFO] [APP_SIMULATOR] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 16.22, failures: 0

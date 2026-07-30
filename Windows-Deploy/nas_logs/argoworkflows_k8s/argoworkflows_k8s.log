@@ -979,3 +979,15 @@
 [2026-07-30 18:48:22] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 93
 [2026-07-30 18:48:32] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 96
 [2026-07-30 18:48:42] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3, failedWorkflows: 0, responseTime: 97
+[2026-07-30 18:48:52] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 93
+[2026-07-30 18:49:02] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3, failedWorkflows: 0, responseTime: 98
+[2026-07-30 18:49:12] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 95
+[2026-07-30 18:49:22] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3, failedWorkflows: 0, responseTime: 91
+[2026-07-30 18:49:32] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 94
+[2026-07-30 18:49:42] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3, failedWorkflows: 0, responseTime: 97
+[2026-07-30 18:49:52] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3, failedWorkflows: 0, responseTime: 96
+[2026-07-30 18:50:02] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3, failedWorkflows: 0, responseTime: 91
+[2026-07-30 18:50:12] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 93
+[2026-07-30 18:50:22] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 91
+[2026-07-30 18:50:32] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 96
+[2026-07-30 18:50:42] [INFO] [APP_SIMULATOR] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2, failedWorkflows: 0, responseTime: 92

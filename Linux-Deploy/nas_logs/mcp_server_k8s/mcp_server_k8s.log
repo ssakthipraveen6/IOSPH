@@ -966,3 +966,16 @@
 [2026-07-30 18:48:15] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.62, latency: 59, replicas: 3
 [2026-07-30 18:48:25] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.89, latency: 62, replicas: 3
 [2026-07-30 18:48:35] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.76, latency: 58, replicas: 3
+[2026-07-30 18:48:45] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 26.66, latency: 57, replicas: 3
+[2026-07-30 18:48:55] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.73, latency: 60, replicas: 3
+[2026-07-30 18:49:05] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.3, latency: 62, replicas: 3
+[2026-07-30 18:49:15] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 27.32, latency: 59, replicas: 3
+[2026-07-30 18:49:25] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.56, latency: 60, replicas: 3
+[2026-07-30 18:49:35] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.85, latency: 62, replicas: 3
+[2026-07-30 18:49:45] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.02, latency: 58, replicas: 3
+[2026-07-30 18:49:55] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.48, latency: 60, replicas: 3
+[2026-07-30 18:50:05] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.5, latency: 62, replicas: 3
+[2026-07-30 18:50:15] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.49, latency: 58, replicas: 3
+[2026-07-30 18:50:25] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.52, latency: 58, replicas: 3
+[2026-07-30 18:50:35] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 26.92, latency: 62, replicas: 3
+[2026-07-30 18:50:45] [INFO] [APP_SIMULATOR] mcp_server_k8s | Status: Healthy | Metrics: cpu: 30.27, latency: 57, replicas: 3

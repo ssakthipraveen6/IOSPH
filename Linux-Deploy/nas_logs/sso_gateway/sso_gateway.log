@@ -966,3 +966,16 @@
 [2026-07-30 18:48:15] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 119.18, activeSessions: 4187, failedAuthentications: 4
 [2026-07-30 18:48:25] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 122.98, activeSessions: 4204, failedAuthentications: 4
 [2026-07-30 18:48:35] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 118.33, activeSessions: 4218, failedAuthentications: 4
+[2026-07-30 18:48:45] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 120.25, activeSessions: 4199, failedAuthentications: 4
+[2026-07-30 18:48:55] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 120.12, activeSessions: 4185, failedAuthentications: 4
+[2026-07-30 18:49:05] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 119.59, activeSessions: 4220, failedAuthentications: 4
+[2026-07-30 18:49:15] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 118.73, activeSessions: 4221, failedAuthentications: 4
+[2026-07-30 18:49:25] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 118.21, activeSessions: 4189, failedAuthentications: 4
+[2026-07-30 18:49:35] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 120.57, activeSessions: 4184, failedAuthentications: 4
+[2026-07-30 18:49:45] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 120.31, activeSessions: 4210, failedAuthentications: 4
+[2026-07-30 18:49:55] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 122.51, activeSessions: 4186, failedAuthentications: 4
+[2026-07-30 18:50:05] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 118.66, activeSessions: 4222, failedAuthentications: 4
+[2026-07-30 18:50:15] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 120.02, activeSessions: 4186, failedAuthentications: 4
+[2026-07-30 18:50:25] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 121.57, activeSessions: 4190, failedAuthentications: 4
+[2026-07-30 18:50:35] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 120.58, activeSessions: 4216, failedAuthentications: 4
+[2026-07-30 18:50:45] [INFO] [INFRA_SIMULATOR] sso_gateway | Status: Healthy | Metrics: authLatency: 122.44, activeSessions: 4209, failedAuthentications: 4

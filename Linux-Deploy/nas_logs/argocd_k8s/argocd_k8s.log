@@ -1208,3 +1208,20 @@
 [2026-07-30 18:48:15] [INFO] [LOG_AGENT] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
 [2026-07-30 18:48:25] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 47, clusterCount: 4
 [2026-07-30 18:48:35] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44, clusterCount: 4
+[2026-07-30 18:48:45] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43, clusterCount: 4
+[2026-07-30 18:48:55] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42, clusterCount: 4
+[2026-07-30 18:48:55] [INFO] [LOG_AGENT] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-07-30 18:49:05] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45, clusterCount: 4
+[2026-07-30 18:49:05] [INFO] [LOG_AGENT] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-07-30 18:49:15] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43, clusterCount: 4
+[2026-07-30 18:49:15] [INFO] [LOG_AGENT] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-07-30 18:49:25] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45, clusterCount: 4
+[2026-07-30 18:49:35] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43, clusterCount: 4
+[2026-07-30 18:49:45] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46, clusterCount: 4
+[2026-07-30 18:49:55] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42, clusterCount: 4
+[2026-07-30 18:50:05] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 47, clusterCount: 4
+[2026-07-30 18:50:05] [INFO] [LOG_AGENT] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-07-30 18:50:15] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46, clusterCount: 4
+[2026-07-30 18:50:25] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44, clusterCount: 4
+[2026-07-30 18:50:35] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45, clusterCount: 4
+[2026-07-30 18:50:45] [INFO] [APP_SIMULATOR] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46, clusterCount: 4

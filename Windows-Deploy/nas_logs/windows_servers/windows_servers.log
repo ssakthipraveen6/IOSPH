@@ -1193,3 +1193,16 @@
 [2026-07-30 18:48:32] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 25.28, memory: 49.83, disk: 62.1, fortify_cpu: 18.8, fortify_mem: 32.61, iis_threads: 252, iis_sessions: 1416
 [2026-07-30 18:48:42] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 21.15, memory: 49.03, disk: 62.1, fortify_cpu: 18.68, fortify_mem: 32.59, iis_threads: 250, iis_sessions: 1429
 [2026-07-30 18:48:42] [INFO] [LOG_AGENT] [IIS-SERVER] GET /api/health - Client IP: 10.194.22.45 - Status 200 OK (elapsed: 15ms)
+[2026-07-30 18:48:52] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 22.15, memory: 48.9, disk: 62.1, fortify_cpu: 18.99, fortify_mem: 32.48, iis_threads: 245, iis_sessions: 1416
+[2026-07-30 18:48:52] [INFO] [LOG_AGENT] [IIS-SERVER] GET /api/health - Client IP: 10.194.22.45 - Status 200 OK (elapsed: 15ms)
+[2026-07-30 18:49:02] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 24.87, memory: 48.02, disk: 62.1, fortify_cpu: 17.52, fortify_mem: 32.38, iis_threads: 249, iis_sessions: 1417
+[2026-07-30 18:49:12] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 18.41, memory: 48.79, disk: 62.1, fortify_cpu: 19.17, fortify_mem: 32.63, iis_threads: 253, iis_sessions: 1411
+[2026-07-30 18:49:22] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 22.26, memory: 49.77, disk: 62.1, fortify_cpu: 19.44, fortify_mem: 32.63, iis_threads: 247, iis_sessions: 1429
+[2026-07-30 18:49:32] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 23.77, memory: 49.36, disk: 62.1, fortify_cpu: 18.34, fortify_mem: 32.59, iis_threads: 246, iis_sessions: 1414
+[2026-07-30 18:49:42] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 25.87, memory: 47.65, disk: 62.1, fortify_cpu: 19.27, fortify_mem: 32.33, iis_threads: 250, iis_sessions: 1410
+[2026-07-30 18:49:52] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 24.32, memory: 48.5, disk: 62.1, fortify_cpu: 18.95, fortify_mem: 32.43, iis_threads: 248, iis_sessions: 1415
+[2026-07-30 18:50:02] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 21.34, memory: 49.27, disk: 62.1, fortify_cpu: 18.3, fortify_mem: 32.63, iis_threads: 252, iis_sessions: 1414
+[2026-07-30 18:50:12] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 25.34, memory: 48.91, disk: 62.1, fortify_cpu: 17.93, fortify_mem: 32.29, iis_threads: 252, iis_sessions: 1425
+[2026-07-30 18:50:22] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 21.36, memory: 47.86, disk: 62.1, fortify_cpu: 17.67, fortify_mem: 32.23, iis_threads: 253, iis_sessions: 1429
+[2026-07-30 18:50:32] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 24.4, memory: 47.71, disk: 62.1, fortify_cpu: 19.49, fortify_mem: 32.55, iis_threads: 245, iis_sessions: 1414
+[2026-07-30 18:50:42] [INFO] [INFRA_SIMULATOR] windows_servers | Status: Healthy | Metrics: cpu: 21.15, memory: 47.97, disk: 62.1, fortify_cpu: 17.58, fortify_mem: 32.61, iis_threads: 251, iis_sessions: 1429

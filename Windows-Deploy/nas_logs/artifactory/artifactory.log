@@ -1206,3 +1206,18 @@
 [2026-07-30 18:48:22] [INFO] [LOG_AGENT] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
 [2026-07-30 18:48:32] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 51.89, space: 72.8, latency: 44
 [2026-07-30 18:48:42] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 51.99, space: 72.8, latency: 47
+[2026-07-30 18:48:52] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 51.87, space: 72.8, latency: 46
+[2026-07-30 18:49:02] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 53.02, space: 72.8, latency: 43
+[2026-07-30 18:49:12] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 52.29, space: 72.8, latency: 42
+[2026-07-30 18:49:22] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 52.22, space: 72.8, latency: 44
+[2026-07-30 18:49:22] [INFO] [LOG_AGENT] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
+[2026-07-30 18:49:32] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 52.9, space: 72.8, latency: 45
+[2026-07-30 18:49:42] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 51.75, space: 72.8, latency: 43
+[2026-07-30 18:49:42] [INFO] [LOG_AGENT] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
+[2026-07-30 18:49:52] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 53.12, space: 72.8, latency: 45
+[2026-07-30 18:50:02] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 53.01, space: 72.8, latency: 44
+[2026-07-30 18:50:12] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 53.09, space: 72.8, latency: 47
+[2026-07-30 18:50:22] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 53.1, space: 72.8, latency: 44
+[2026-07-30 18:50:32] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 53.03, space: 72.8, latency: 47
+[2026-07-30 18:50:42] [INFO] [APP_SIMULATOR] artifactory | Status: Healthy | Metrics: heap: 52.49, space: 72.8, latency: 43
+[2026-07-30 18:50:42] [INFO] [LOG_AGENT] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar

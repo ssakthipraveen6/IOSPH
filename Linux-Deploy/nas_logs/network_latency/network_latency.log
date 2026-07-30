@@ -966,3 +966,16 @@
 [2026-07-30 18:48:15] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.73, jitter: 0.35
 [2026-07-30 18:48:25] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 0.79, jitter: 0.12
 [2026-07-30 18:48:35] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.36, jitter: 0.09
+[2026-07-30 18:48:45] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 0.4, jitter: 0.38
+[2026-07-30 18:48:55] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 0.9, jitter: 0.05
+[2026-07-30 18:49:05] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.67, jitter: 0.33
+[2026-07-30 18:49:15] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 2.12, jitter: -0.05
+[2026-07-30 18:49:25] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.45, jitter: -0.01
+[2026-07-30 18:49:35] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.45, jitter: 0.06
+[2026-07-30 18:49:45] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.84, jitter: 0.26
+[2026-07-30 18:49:55] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.81, jitter: 0.36
+[2026-07-30 18:50:05] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 0.83, jitter: 0.06
+[2026-07-30 18:50:15] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.28, jitter: 0.26
+[2026-07-30 18:50:25] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 2.02, jitter: 0.07
+[2026-07-30 18:50:35] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 1.48, jitter: -0.05
+[2026-07-30 18:50:45] [INFO] [INFRA_SIMULATOR] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 0.75, jitter: 0.09
