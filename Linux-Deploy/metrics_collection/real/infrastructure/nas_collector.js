@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 24 (PROD_URLS.nas_mount)
+// - config/config.js: Line 139 (STG_URLS.nas_mount)
+// Purpose: Network Attached Storage (NAS) mount path.
+// =========================================================================
+
 const config = require('../../../config/config');
 const fs = require('fs');
 

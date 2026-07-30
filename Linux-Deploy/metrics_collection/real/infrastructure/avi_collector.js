@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 22 (PROD_URLS.avi_api)
+// - config/config.js: Line 137 (STG_URLS.avi_api)
+// Purpose: Avi Load Balancer API metrics endpoint.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {

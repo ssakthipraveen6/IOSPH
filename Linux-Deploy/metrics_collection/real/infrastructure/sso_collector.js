@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 23 (PROD_URLS.sso_api)
+// - config/config.js: Line N/A (STG_URLS.sso_api)
+// Purpose: LDAP SSO gateway credentials auth latency endpoint.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {

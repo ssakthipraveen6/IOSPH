@@ -1,0 +1,62 @@
+graph TD
+    subgraph Frontend [Presentation Layer - Web Browser]
+        UI[React NOC Dashboard] <-->|1. WebSockets / REST API| API[API Gateway]
+    end
+
+    subgraph Backend [Orchestrator Layer - Node.js Cluster]
+        API <--> Cache[(Redis Session Cache)]
+        API --> DB[(TimescaleDB Hypertable)]
+        
+        subgraph Daemon [Telemetry Engine]
+            Loop[Collection Daemon] -->|2. Write Snapshots| DB
+            Loop -->|3. Trigger Alerts| Mail[SMTP Mail Worker]
+            Loop -->|4. Push Task| Queue[RabbitMQ Task Queue]
+            LogCollector[Fluentd Log Agent] -->|8. Write Log Aggregation| NAS[(NAS Mount Drives)]
+        end
+    end
+
+    subgraph Workers [Distributed Scraping Nodes]
+        Queue -->|5. Dequeue Task| W[Python Selenium Scrapers]
+        W -->|6. Latency Write| DB
+    end
+
+    subgraph TargetEnv [DevOps Environment under Observability]
+        subgraph Apps [DevOps Applications Layer]
+            Bitbucket[Bitbucket API]
+            Artifactory[Artifactory API]
+            Nexus[Nexus IQ API]
+            Fortify[Fortify API]
+            TeamCity[TeamCity API]
+            ArgoCD[ArgoCD API]
+            Sonar[SonarQube API]
+            CloudBees[CloudBees Jenkins Controllers]
+        end
+
+        subgraph Infra [Infrastructure & Network Layer]
+            Avi[Avi Load Balancers]
+            SSO[SSO Gateway / LDAP]
+            Linux[Linux VM Cluster]
+            Windows[Windows VM Cluster]
+            DBs[(PostgreSQL Databases)]
+            S3[(S3 Storage Buckets)]
+        end
+    end
+
+    W -.->|Scrape Portal UI| Bitbucket
+    W -.->|Scrape Portal UI| Artifactory
+    W -.->|Scrape Portal UI| CloudBees
+
+    Loop -->|Query API Telemetry| Apps
+    Loop -->|Check Node Metrics & Latencies| Infra
+    
+    LogCollector -.->|7. Read Log Files| Apps
+    LogCollector -.->|7. Read Log Files| Infra
+
+    Trigger[Self-Healing Handler] -->|Trigger Recovery Job| CloudBees
+    Trigger -->|Execute Remediation Script| Linux
+    Loop --> Trigger
+
+    classDef db fill:#2f3b52,stroke:#1a2333,color:#fff;
+    classDef worker fill:#3b5998,stroke:#263a63,color:#fff;
+    class DB,Cache,NAS db;
+    class W worker;

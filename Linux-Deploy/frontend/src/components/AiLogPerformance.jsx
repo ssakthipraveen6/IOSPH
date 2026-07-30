@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SelfRunbook from './SelfRunbook';
 
 const classifierRules = [
   { pattern: '/OOMKilled|OutOfMemoryError/i', classification: 'Memory Leak Outage', severity: 'Critical', action: 'artifactory-jvm-recycle' },
@@ -7,7 +8,7 @@ const classifierRules = [
   { pattern: '/Ingress network bottleneck/i', classification: 'Traffic Gateway Saturation', severity: 'Warning', action: 'avi-ingress-scale' }
 ];
 
-export default function AiLogPerformance() {
+export default function AiLogPerformance({ onSimulate }) {
   const [remediations, setRemediations] = useState([
     { id: "RUN-9921", timestamp: "2026-07-27 16:32:00", job: "nas-log-purge", target: "nas_performance", status: "Success", duration: "18.5s", log: "LLM Pattern Detected: Disk utilization reached 98.4%. Executing log rotation runbook. Cleared 42GB of build caches. Status verified: Health restored." },
     { id: "RUN-9918", timestamp: "2026-07-27 14:12:05", job: "artifactory-jvm-recycle", target: "artifactory", status: "Success", duration: "44.2s", log: "LLM Pattern Detected: Heap leak signature [OutOfMemoryError] in JVM logs. Compacting garbage collector spaces. JVM Heap stabilized at 52.4%." },
@@ -161,7 +162,8 @@ export default function AiLogPerformance() {
           <h4 style={{ fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '8px' }}>Colleague AI Remediations Module</h4>
           Example: ColleagueAiModule remediations={remediations} stats={aiStats}
         </div>
-      */}
+      {/* Embedded Self-Healing Runbooks Registry */}
+      <SelfRunbook onSimulate={onSimulate} />
 
     </div>
   );

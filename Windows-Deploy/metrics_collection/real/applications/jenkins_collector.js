@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 17 (PROD_URLS.jenkins_master_url)
+// - config/config.js: Line 162 (STG_URLS.jenkins_master_url)
+// Purpose: CloudBees Jenkins Master / CJOC server URL.
+// =========================================================================
+
 const config = require('../../../config/config');
 const { runSeleniumCheck } = require('../python_checks/runner');
 

@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 26 (PROD_URLS.unix_api / linux_api)
+// - config/config.js: Line 140 (STG_URLS.unix_api / linux_api)
+// Purpose: Linux/Unix compute CPU and memory telemetry endpoints.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {

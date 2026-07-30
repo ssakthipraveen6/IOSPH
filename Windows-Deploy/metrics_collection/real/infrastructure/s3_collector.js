@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 34 (PROD_URLS.s3_endpoint)
+// - config/config.js: Line 142 (STG_URLS.s3_endpoint)
+// Purpose: AWS S3 object storage telemetry endpoints.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {

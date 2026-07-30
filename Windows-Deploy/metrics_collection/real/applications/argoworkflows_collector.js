@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 16 (PROD_URLS.argoworkflows_api)
+// - config/config.js: Line N/A (STG_URLS.argoworkflows_api)
+// Purpose: Argo Workflows batch engine query endpoint prefix.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {

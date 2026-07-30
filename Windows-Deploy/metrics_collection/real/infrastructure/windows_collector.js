@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 25 (PROD_URLS.windows_api)
+// - config/config.js: Line 141 (STG_URLS.windows_api)
+// Purpose: Windows Compute server inventory metric endpoint.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {

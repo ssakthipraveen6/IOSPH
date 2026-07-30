@@ -1,157 +1,65 @@
-# Production Integration Plan: Enterprise Telemetry & SSO Connectors
+# Production Integration Plan: One-Stop Enterprise Telemetry Registry
 
-This document provides a detailed blueprint, steps, code file paths, and exact configurations to transition the Intelligent Observability Framework from simulated baselines to real production endpoints.
+This document serves as the absolute, one-stop reference blueprint for migrating the Intelligent Observability Framework from simulated baselines to real production endpoints. 
 
----
-
-## ⚙️ Unified Endpoint Configuration Directory
-All endpoints, JDBC connection strings, credentials, and tokens are centralized in:
-*   **Target File**: [`config/config.js`](file:///c:/Users/admin/project/Desktop/iosph2/config/config.js)
-*   **Step**: Set `USE_SIMULATED_COLLECTORS: false` to redirect the framework's collector loop to live endpoints.
-*   **Production Configurations**: Update connection secrets and URLs under the newly added `PROD_URLS` block.
+To enable live collection and datastore queries:
+1. Set `USE_SIMULATED_COLLECTORS: false` inside [`config/config.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/config/config.js) (Line 9).
+2. Use the map below to configure the target database schema, system endpoints, and connection secrets.
 
 ---
 
-## 🛠️ Application Layer Integration Blueprints
+## 🗄️ Database Setup Schema (TimescaleDB / PostgreSQL)
+Before activating live collection, execute the following script on your target PostgreSQL instance to enable time-partitioned hypertables for historical metrics:
 
-### 1. Bitbucket
-*   **Target File**: [`metrics_collection/real/applications/bitbucket_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/bitbucket_collector.js)
-*   **API Path**: `GET https://bitbucket-prod.internal.corp/rest/api/1.0/projects`
-*   **Auth Schema**: Bearer Personal Access Token (PAT)
-*   **Implementation Steps**:
-    ```javascript
-    const res = await fetch(`${config.PROD_URLS.bitbucket_api}/projects`, {
-      headers: { 'Authorization': `Bearer ${config.PROD_URLS.bitbucket_token}` }
-    });
-    const data = await res.json();
-    ```
+```sql
+-- 1. Create the base metrics table
+CREATE TABLE metrics (
+    timestamp TIMESTAMPTZ NOT NULL,
+    component VARCHAR(100) NOT NULL, -- e.g., 'bitbucket', 'database', 'sso_gateway'
+    metric_name VARCHAR(100) NOT NULL, -- e.g., 'cpu', 'latency_ms', 'connections'
+    value DOUBLE PRECISION NOT NULL
+);
 
-### 2. Artifactory
-*   **Target File**: [`metrics_collection/real/applications/artifactory_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/artifactory_collector.js)
-*   **API Path**: `GET https://artifactory-prod.internal.corp/artifactory/api/system/storage`
-*   **Auth Schema**: Basic Admin Auth / Token
-*   **Implementation Steps**:
-    *   Query the system storage state to get disk space and binary store metrics.
-    *   Query `/api/system/ping` to record JVM response latency.
+-- 2. Convert table into a TimescaleDB hypertable partitioned by time (7-day intervals)
+SELECT create_hypertable('metrics', 'timestamp', chunk_time_interval => INTERVAL '7 days');
 
-### 3. ArgoCD
-*   **Target File**: [`metrics_collection/real/applications/argocd_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/argocd_collector.js)
-*   **API Path**: `GET https://argocd-prod.internal.corp/api/v1/applications`
-*   **Auth Schema**: JWT Bearer Token
-*   **Implementation Steps**:
-    *   Parse the sync status of all monitored target git repositories:
-    ```javascript
-    const appState = data.items.map(app => ({
-      name: app.metadata.name,
-      status: app.status.sync.status // e.g. "Synced", "OutOfSync"
-    }));
-    ```
-
-### 4. ArgoWorkflows [NEW MODULE]
-*   **Target File**: Create [`metrics_collection/real/applications/argoworkflows_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/argoworkflows_collector.js)
-*   **API Path**: `GET https://argo-workflows.internal.corp/api/v1/workflows/{namespace}`
-*   **Implementation Steps**:
-    *   Verify the completion state of batch pipeline runs.
-    *   Count running, succeeded, or failed workflows in the target namespace.
-
-### 5. Jenkins Master & CJOC
-*   **Target File**: [`metrics_collection/real/applications/jenkins_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/jenkins_collector.js)
-*   **API Path**: `GET https://jenkins-prod.internal.corp/api/json?tree=executors[idle,currentExecutable],queue[items[id]]`
-*   **Implementation Steps**:
-    *   Query build executor status and queue size.
-    *   Trigger self-healing POST requests via [`remediation/real/jenkins/jenkins_trigger.js`](file:///c:/Users/admin/project/Desktop/iosph2/remediation/real/jenkins/jenkins_trigger.js) passing standard crumb tokens.
-
-### 6. TeamCity
-*   **Target File**: [`metrics_collection/real/applications/teamcity_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/teamcity_collector.js)
-*   **API Path**: `GET https://teamcity-prod.internal.corp/app/rest/agents`
-*   **Implementation Steps**:
-    *   Validate build pool workloads and retrieve active running vs. idle agent ratios.
-
-### 7. SonarQube [NEW MODULE]
-*   **Target File**: Create [`metrics_collection/real/applications/sonarqube_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/sonarqube_collector.js)
-*   **API Path**: `GET https://sonar.internal.corp/api/system/status`
-*   **Implementation Steps**:
-    *   Retrieve database connectivity health and verify quality gate scanner threads are operational.
-
-### 8. NexusIQ
-*   **Target File**: [`metrics_collection/real/applications/nexusiq_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/nexusiq_collector.js)
-*   **API Path**: `GET https://nexus-iq-prod.internal.corp/api/v2/applications`
-*   **Implementation Steps**:
-    *   Collect vulnerability scanner job queue states and count unresolved policy violations.
-
-### 9. Fortify SSC
-*   **Target File**: [`metrics_collection/real/applications/fortify_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/applications/fortify_collector.js)
-*   **API Path**: `GET https://fortify-ssc-prod.internal.corp/ssc/api/v1/projectVersions`
-*   **Implementation Steps**:
-    *   Synchronize security code review states and capture processing delays.
+-- 3. Create index for fast query lookups
+CREATE INDEX idx_metrics_query ON metrics (component, metric_name, timestamp DESC);
+```
 
 ---
 
-## 📡 Infrastructure Layer Integration Blueprints
+## 🗺️ One-Stop Source Code Integration Reference Map
 
-### 10. AVI Endpoints & Load Balancers
-*   **Target File**: [`metrics_collection/real/infrastructure/avi_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/avi_collector.js)
-*   **API Path**: `GET https://avi-prod.internal.corp/api/v1/virtualservice-inventory`
-*   **Implementation Steps**:
-    *   Inspect ingress packet rates, connection volume, and throughput saturation to verify network metrics.
+| Component Category | Source Code File Path | config/config.js Variable | PROD Line | STG Line | Config / Setup Description |
+| :--- | :--- | :--- | :---: | :---: | :--- |
+| **Telemetry Database** | [`database/postgres.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/database/postgres.js) | `db_jdbc` | **Line 27** | **Line 138** | PostgreSQL JDBC connection URL. Username/Password read from OS Env (`PGUSER`/`PGPASSWORD`). |
+| **Bitbucket** | [`metrics_collection/real/applications/bitbucket_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/bitbucket_collector.js) | `bitbucket_api` | **Line 13** | **Line 145** | REST base URL. Authenticates via Bearer Personal Access Token (PAT). |
+| **Artifactory** | [`metrics_collection/real/applications/artifactory_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/artifactory_collector.js) | `artifactory_api` | **Line 14** | **Line 146** | Queries system/storage stats and system ping latencies. |
+| **ArgoCD** | [`metrics_collection/real/applications/argocd_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/argocd_collector.js) | `argocd_api` | **Line 15** | **Line 150** | Queries Git repository synchronization status mapping. |
+| **Argo Workflows** | [`metrics_collection/real/applications/argoworkflows_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/argoworkflows_collector.js) | `argoworkflows_api` | **Line 16** | **N/A** | Monitors batch pipeline status and completion counts. |
+| **Jenkins Master** | [`metrics_collection/real/applications/jenkins_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/jenkins_collector.js) | `jenkins_master_url` | **Line 17** | **Line 162** | Pulls build executor usage states and task queue delays. |
+| **TeamCity** | [`metrics_collection/real/applications/teamcity_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/teamcity_collector.js) | `teamcity_api` | **Line 18** | **Line 149** | Inspects active agent workloads and pool ratios. |
+| **SonarQube** | [`metrics_collection/real/applications/sonarqube_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/sonarqube_collector.js) | `sonarqube_api` | **Line 19** | **N/A** | Inspects quality gates status and scanner queues. |
+| **Nexus IQ** | [`metrics_collection/real/applications/nexusiq_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/nexusiq_collector.js) | `nexusiq_api` | **Line 20** | **Line 147** | Scans vulnerability metrics and policy violations. |
+| **Fortify SSC** | [`metrics_collection/real/applications/fortify_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/fortify_collector.js) | `fortify_api` | **Line 21** | **Line 148** | Synchronizes static security review queue status. |
+| **Avi Load Balancer** | [`metrics_collection/real/infrastructure/avi_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/avi_collector.js) | `avi_api` | **Line 22** | **Line 137** | Reads network flow, bandwidth load, and connection drops. |
+| **SSO / LDAP Auth** | [`metrics_collection/real/infrastructure/sso_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/sso_collector.js) | `sso_api` | **Line 23** | **N/A** | Monitors credentials validation and LDAP sync response delay. |
+| **NAS File Share** | [`metrics_collection/real/infrastructure/nas_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/nas_collector.js) | `nas_mount` | **Line 24** | **Line 139** | Local or UNC path to write/archive aggregated application logs. |
+| **Windows Compute** | [`metrics_collection/real/infrastructure/windows_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/windows_collector.js) | `windows_api` | **Line 25** | **Line 141** | Queries target Windows servers for CPU, RAM, and Disk space. |
+| **Linux Compute** | [`metrics_collection/real/infrastructure/linux_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/linux_collector.js) | `unix_api / linux_api` | **Line 26** | **Line 140** | Queries target Linux cluster VMs for system load factors. |
+| **Kubernetes API** | [`metrics_collection/real/infrastructure/k8s_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/k8s_collector.js) | `k8s_api` | **Line 28** | **N/A** | Connects using local Kubeconfig files or container roles. |
+| **S3 Storage** | [`metrics_collection/real/infrastructure/s3_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/s3_collector.js) | `s3_endpoint` | **Line 34** | **Line 142** | Connects using standard AWS SDK to list bucket stats. |
+| **ICMP Ping Targets**| [`metrics_collection/real/infrastructure/network_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/network_collector.js) | `network_latency_hosts` | **Lines 29-33** | **N/A** | Hostnames checked for raw network ping round-trip times. |
 
-### 11. SSO Gateway & eLDAP
-*   **Target File**: Create [`metrics_collection/real/infrastructure/sso_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/sso_collector.js)
-*   **API Path**: Ping target LDAP portals or issue quick GET queries to authentication callback endpoints.
-*   **Metric Captured**: Authentication latency (measured via precise stopwatch timers around network pings).
+---
 
-### 12. NAS storage performance
-*   **Target File**: [`metrics_collection/real/infrastructure/nas_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/nas_collector.js)
-*   **System Action**: Disk I/O scans.
-*   **Implementation Steps**:
-    *   For Windows Server paths, run native Node `fs` checks.
-    *   For Linux mounts, execute `df -h` via SSH or parse the statistics inside `/proc/mounts`.
+## 🛠️ Step-by-Step Production Verification
 
-### 13. Windows Host Compute
-*   **Target File**: [`metrics_collection/real/infrastructure/windows_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/windows_collector.js)
-*   **Implementation Steps**:
-    *   Execute command lines using `child_process.exec` to get WMI details:
-    ```powershell
-    wmic cpu get LoadPercentage /value
-    wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /value
-    ```
-
-### 14. Unix / Linux Host Compute
-*   **Target File**: [`metrics_collection/real/infrastructure/linux_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/linux_collector.js)
-*   **Implementation Steps**:
-    *   Parse local compute states directly from `/proc/loadavg`, `/proc/meminfo`, and run commands such as:
-    ```bash
-    free -m | awk '/Mem:/ {print $3/$2 * 100}'
-    ```
-
-### 15. PostgreSQL / Snowflake Databases
-*   **Target File**: [`database/db.js`](file:///c:/Users/admin/project/Desktop/iosph2/database/db.js)
-*   **Query engine**: Use NPM client drivers `pg` (Postgres client pools) and `snowflake-sdk` (Snowflake database pools) to run query checks on the production servers.
-
-### 16. Kubernetes Clusters (K8s)
-*   **Target File**: Create [`metrics_collection/real/infrastructure/k8s_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/k8s_collector.js)
-*   **Integration Library**: Use the official `@kubernetes/client-node` SDK to load configuration credentials locally from `~/.kube/config`.
-*   **Implementation Steps**:
-    *   Query namespaces and Pod states:
-    ```javascript
-    const k8sApi = kc.makeApiClient(k8s.CoreV1Api);
-    const pods = await k8sApi.listNamespacedPod('observability');
-    ```
-
-### 17. Network Latency & TCP Timings [NEW MODULE]
-*   **Target File**: Create [`metrics_collection/real/infrastructure/network_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/network_collector.js)
-*   **System Action**: Execute socket connection checks:
-    ```javascript
-    const net = require('net');
-    const start = Date.now();
-    const socket = net.createConnection(port, host, () => {
-      const latency = Date.now() - start;
-      socket.destroy();
-    });
-    ```
-
-### 18. AWS S3 Buckets
-*   **Target File**: [`metrics_collection/real/infrastructure/s3_collector.js`](file:///c:/Users/admin/project/Desktop/iosph2/metrics_collection/real/infrastructure/s3_collector.js)
-*   **Integration Library**: Use `@aws-sdk/client-s3`.
-*   **Implementation Steps**:
-    *   Load credentials from environment profiles and issue `ListObjectsV2Command` queries to measure bucket sizes, upload speeds, and transaction response times.
+1. **Deploy Databases**: Run the SQL schema to initialize the TimescaleDB hypertable.
+2. **Assign Credentials**: Set OS variables (`PGUSER`, `PGPASSWORD`) on the host system.
+3. **Configure Targets**: Open [`config/config.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/config/config.js), modify the lines mapped above, and set `USE_SIMULATED_COLLECTORS` to `false`.
+4. **Launch Application**:
+   - On Windows: Run `start.bat`
+   - On Linux: Run `./start.sh`
+5. **Monitor Logs**: Review the telemetry logs written to the path configured in `nas_mount`.

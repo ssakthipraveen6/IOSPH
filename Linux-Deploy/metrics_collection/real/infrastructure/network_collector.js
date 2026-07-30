@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 29-33 (PROD_URLS.network_latency_hosts)
+// - config/config.js: Line N/A (STG_URLS.network_latency_hosts)
+// Purpose: Network ICMP ping latency hostnames.
+// =========================================================================
+
 const config = require('../../../config/config');
 const net = require('net');
 

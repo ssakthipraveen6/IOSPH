@@ -6,7 +6,6 @@ import PowerBiDashboard from './components/PowerBiDashboard';
 import AiLogPerformance from './components/AiLogPerformance';
 import UnifiedHealthMatrix from './components/UnifiedHealthMatrix';
 import RcaDashboard from './components/RcaDashboard';
-import SelfRunbook from './components/SelfRunbook';
 import './App.css';
 
 export default function App() {
@@ -336,14 +335,6 @@ export default function App() {
             <span>🧠</span>
             {sidebarOpen && " Root Cause Analytics (RCA)"}
           </button>
-          <button 
-            className={`nav-tab-btn ${activeTab === 'runbook' ? 'active' : ''}`}
-            onClick={() => setActiveTab('runbook')}
-            title="NOC Self Runbook Registry"
-          >
-            <span>📋</span>
-            {sidebarOpen && " NOC Self Runbook Registry"}
-          </button>
           
           {/* Theme mode toggle */}
           <button 
@@ -426,7 +417,7 @@ export default function App() {
           )}
 
           {activeTab === 'ailogs' && (
-            <AiLogPerformance />
+            <AiLogPerformance onSimulate={handleSimulate} />
           )}
 
           {activeTab === 'matrix' && (
@@ -439,10 +430,6 @@ export default function App() {
 
           {activeTab === 'rca' && (
             <RcaDashboard />
-          )}
-
-          {activeTab === 'runbook' && (
-            <SelfRunbook onSimulate={handleSimulate} />
           )}
         </main>
 

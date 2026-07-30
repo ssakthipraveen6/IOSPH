@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 14 (PROD_URLS.artifactory_api)
+// - config/config.js: Line 146 (STG_URLS.artifactory_api)
+// Purpose: JFrog Artifactory storage and system status endpoint prefix.
+// =========================================================================
+
 const config = require('../../../config/config');
 const { runSeleniumCheck } = require('../python_checks/runner');
 

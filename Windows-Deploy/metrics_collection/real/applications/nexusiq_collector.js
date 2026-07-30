@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 20 (PROD_URLS.nexusiq_api)
+// - config/config.js: Line 147 (STG_URLS.nexusiq_api)
+// Purpose: Nexus IQ policy violation query endpoint prefix.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {

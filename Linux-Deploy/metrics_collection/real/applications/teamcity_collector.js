@@ -1,3 +1,11 @@
+// === PRODUCTION INTEGRATION REFERENCE HEADER ===
+// Configuration parameters for this file are defined in config/config.js.
+// Update the actual production/staging endpoints at:
+// - config/config.js: Line 18 (PROD_URLS.teamcity_api)
+// - config/config.js: Line 149 (STG_URLS.teamcity_api)
+// Purpose: TeamCity build agent workload api endpoint prefix.
+// =========================================================================
+
 const config = require('../../../config/config');
 
 module.exports = {
