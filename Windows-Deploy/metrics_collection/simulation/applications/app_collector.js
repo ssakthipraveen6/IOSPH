@@ -13,6 +13,9 @@ const mcpCollector = require('./mcp_collector');
 const argoworkflowsCollector = require('./argoworkflows_collector');
 const sonarqubeCollector = require('./sonarqube_collector');
 const githubCollector = require('./github_collector');
+const bitbucketExternalCollector = require('./bitbucket_external_collector');
+const otkrCollector = require('./otkr_collector');
+const performanceCenterCollector = require('./performance_center_collector');
 
 // Baseline values for applications
 const baselines = {
@@ -26,7 +29,10 @@ const baselines = {
   argocd_k8s: { syncStatus: 'Synced', latency: 45, clusterCount: 4, status: 'Healthy' },
   argoworkflows_k8s: { activeWorkflows: 3, failedWorkflows: 0, responseTime: 95, status: 'Healthy' },
   sonarqube: { qualityGatesPassed: 1, analysisQueue: 0, responseTime: 110, status: 'Healthy' },
-  github: { apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 75, status: 'Healthy' }
+  github: { apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 75, status: 'Healthy' },
+  bitbucket_external: { responseTime: 95, successRate: 99.6, requests: 32, status: 'Healthy' },
+  otkr: { scanQueue: 2, findings: 8, responseTime: 160, status: 'Healthy' },
+  performance_center: { activeTests: 5, avgResponseTime: 450, throughput: 120, status: 'Healthy' }
 };
 
 function collectAppMetrics(simulations, db, writeNasLog) {
@@ -43,7 +49,10 @@ function collectAppMetrics(simulations, db, writeNasLog) {
     { key: 'mcp_server_k8s', collector: mcpCollector },
     { key: 'argoworkflows_k8s', collector: argoworkflowsCollector },
     { key: 'sonarqube', collector: sonarqubeCollector },
-    { key: 'github', collector: githubCollector }
+    { key: 'github', collector: githubCollector },
+    { key: 'bitbucket_external', collector: bitbucketExternalCollector },
+    { key: 'otkr', collector: otkrCollector },
+    { key: 'performance_center', collector: performanceCenterCollector }
   ];
 
   appsList.forEach(({ key, collector }) => {

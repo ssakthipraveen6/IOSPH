@@ -6,6 +6,7 @@ import PowerBiDashboard from './components/PowerBiDashboard';
 import AiLogPerformance from './components/AiLogPerformance';
 import UnifiedHealthMatrix from './components/UnifiedHealthMatrix';
 import RcaDashboard from './components/RcaDashboard';
+import AdminManagement from './components/AdminManagement';
 import './App.css';
 
 export default function App() {
@@ -35,6 +36,26 @@ export default function App() {
   const [clocks, setClocks] = useState({
     sg: '', ist: '', est: '', gmt: ''
   });
+
+  // Admin Users synchronization state
+  const [adminUsers, setAdminUsers] = useState(() => {
+    const saved = localStorage.getItem('sentinel_admin_users');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    const syncUsers = () => {
+      const saved = localStorage.getItem('sentinel_admin_users');
+      if (saved) {
+        try { setAdminUsers(JSON.parse(saved)); } catch (e) {}
+      }
+    };
+    window.addEventListener('sentinel_users_updated', syncUsers);
+    return () => window.removeEventListener('sentinel_users_updated', syncUsers);
+  }, []);
 
   // Sync theme selection to localStorage and apply theme class to document.body
   useEffect(() => {
@@ -252,27 +273,22 @@ export default function App() {
   return (
     <div className={`sentinel-app-layout ${theme === 'dark' ? 'dark-mode' : 'light-mode'}`}>
       
-      {/* Collapse Drawer Arrow/Hamburger toggle switch */}
-      <button 
-        className={`drawer-toggle-overlay-btn ${sidebarOpen ? 'drawer-open' : ''}`}
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        title={sidebarOpen ? "Collapse Navigation to Icons Only" : "Expand Navigation Menu"}
-      >
-        {sidebarOpen ? '◀' : '☰'}
-      </button>
-
       {/* Collapsible Left Side Navigation Drawer */}
       <aside className={`sentinel-sidebar ${sidebarOpen ? '' : 'collapsed'}`}>
-        <div className="sidebar-brand" onClick={() => setActiveTab('health')}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        
+        {/* Sidebar Header Brand (Top) */}
+        <div className="sidebar-header-row">
+          <div className="sidebar-brand-group" onClick={() => setActiveTab('health')}>
             <span className="brand-pulse"></span>
             {sidebarOpen ? (
-              <h1 style={{ fontSize: '1.25rem', letterSpacing: '1.5px', fontWeight: '900', color: 'var(--primary)' }}>SENTINEL</h1>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <h1 style={{ fontSize: '1.1rem', letterSpacing: '1.5px', fontWeight: '900', color: '#ffffff' }}>SENTINEL</h1>
+                <span className="brand-subtitle">Enterprise NOC</span>
+              </div>
             ) : (
               <h1 style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--primary)', letterSpacing: '0.5px' }}>SNTL</h1>
             )}
           </div>
-          {sidebarOpen && <span className="brand-subtitle">Enterprise NOC</span>}
         </div>
 
         <nav className="sidebar-links">
@@ -280,6 +296,7 @@ export default function App() {
             className={`nav-tab-btn ${activeTab === 'health' ? 'active' : ''}`}
             onClick={() => setActiveTab('health')}
             title="NOC System Dashboard"
+            data-tooltip="NOC System Dashboard"
           >
             <span>📊</span>
             {sidebarOpen && " NOC System Dashboard"}
@@ -288,6 +305,7 @@ export default function App() {
             className={`nav-tab-btn ${activeTab === 'metrics' ? 'active' : ''}`}
             onClick={() => setActiveTab('metrics')}
             title="Telemetry Detailed Analysis"
+            data-tooltip="Telemetry Detailed Analysis"
           >
             <span>🔍</span>
             {sidebarOpen && " Telemetry Detailed Analysis"}
@@ -296,6 +314,7 @@ export default function App() {
             className={`nav-tab-btn ${activeTab === 'command' ? 'active' : ''}`}
             onClick={() => setActiveTab('command')}
             title="Autonomous Recovery Center"
+            data-tooltip="Autonomous Recovery Center"
           >
             <span>⚡</span>
             {sidebarOpen && " Autonomous Recovery Center"}
@@ -306,15 +325,17 @@ export default function App() {
           <button 
             className={`nav-tab-btn ${activeTab === 'pbi' ? 'active' : ''}`}
             onClick={() => setActiveTab('pbi')}
-            title="PowerBI Predictive Intelligence"
+            title="Historical Telemetry Analytics"
+            data-tooltip="Historical Telemetry Analytics"
           >
             <span>📈</span>
-            {sidebarOpen && " PowerBI Predictive Intelligence"}
+            {sidebarOpen && " Historical Telemetry Analytics"}
           </button>
           <button 
             className={`nav-tab-btn ${activeTab === 'ailogs' ? 'active' : ''}`}
             onClick={() => setActiveTab('ailogs')}
             title="Auto Remediation Orchestrator"
+            data-tooltip="Auto Remediation Orchestrator"
           >
             <span>⚙️</span>
             {sidebarOpen && " Auto Remediation Orchestrator"}
@@ -323,6 +344,7 @@ export default function App() {
             className={`nav-tab-btn ${activeTab === 'matrix' ? 'active' : ''}`}
             onClick={() => setActiveTab('matrix')}
             title="Enterprise Health Matrix"
+            data-tooltip="Enterprise Health Matrix"
           >
             <span>🌍</span>
             {sidebarOpen && " Enterprise Health Matrix"}
@@ -331,30 +353,71 @@ export default function App() {
             className={`nav-tab-btn ${activeTab === 'rca' ? 'active' : ''}`}
             onClick={() => setActiveTab('rca')}
             title="Root Cause Analytics (RCA)"
+            data-tooltip="Root Cause Analytics (RCA)"
           >
             <span>🧠</span>
             {sidebarOpen && " Root Cause Analytics (RCA)"}
           </button>
+
+          <button 
+            className={`nav-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
+            onClick={() => setActiveTab('admin')}
+            title="DevSecOps Admin Control"
+            data-tooltip="DevSecOps Admin Control"
+          >
+            <span>🛡️</span>
+            {sidebarOpen && " DevSecOps Admin Control"}
+          </button>
           
+          {/* Navigation Collapse/Expand Item */}
+          <button 
+            className="nav-tab-btn sidebar-collapse-link-btn"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            title={sidebarOpen ? "Collapse Navigation Menu" : "Expand Navigation Menu"}
+            data-tooltip={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+          >
+            <span>{sidebarOpen ? '◀' : '▶'}</span>
+            {sidebarOpen && " Collapse Sidebar"}
+          </button>
+
           {/* Theme mode toggle */}
           <button 
             className="nav-tab-btn theme-toggle-btn"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            data-tooltip={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
             <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
             {sidebarOpen && (theme === 'dark' ? ' Light Mode' : ' Dark Mode')}
           </button>
         </nav>
 
-        {sidebarOpen && (
-          <div className="sidebar-status-block">
+        {/* Sidebar Bottom: User Profile Details & Live Connection Status */}
+        <div className="sidebar-user-block">
+          <div 
+            className="user-profile-card" 
+            onClick={() => setActiveTab('admin')}
+            data-tooltip="DevSecops Admin (Click to Manage Permissions)"
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="user-avatar-badge">
+              <span>🛡️</span>
+              <span className={`user-status-dot ${wsConnected ? 'online' : 'offline'}`}></span>
+            </div>
+            {sidebarOpen && (
+              <div className="user-info-text">
+                <span className="user-name">DevSecops Admin</span>
+                <span className="user-role">NOC Security Lead</span>
+              </div>
+            )}
+          </div>
+          {sidebarOpen && (
             <div className="navbar-status">
               <div className={`status-dot ${wsConnected ? 'connected' : 'disconnected'}`}></div>
-              <span className="status-text">{wsConnected ? 'Live Connection' : 'Disconnected'}</span>
+              <span className="status-text">{wsConnected ? 'Live Telemetry Engine' : 'Disconnected'}</span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
 
       {/* Main Content Area Container Frame */}
@@ -430,6 +493,10 @@ export default function App() {
 
           {activeTab === 'rca' && (
             <RcaDashboard />
+          )}
+
+          {activeTab === 'admin' && (
+            <AdminManagement />
           )}
         </main>
 

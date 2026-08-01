@@ -105,7 +105,8 @@ function calculateHealthState() {
   const components = [
     'avi_load_balancer', 'database', 'windows_servers', 'linux_servers', 's3_storage', 'nas_performance',
     'bitbucket', 'jenkins_k8s', 'artifactory', 'nexusiq', 'fortify', 'teamcity', 'servicenow', 'dynatrace',
-    'mcp_server_k8s', 'argocd_k8s', 'argoworkflows_k8s', 'sonarqube', 'github', 'sso_gateway', 'network_latency'
+    'mcp_server_k8s', 'argocd_k8s', 'argoworkflows_k8s', 'sonarqube', 'github', 'sso_gateway', 'network_latency',
+    'bitbucket_external', 'otkr', 'performance_center'
   ];
   
   components.forEach(comp => {
@@ -214,8 +215,8 @@ app.get('/api/custom-checks', (req, res) => {
   res.json(customChecks.runCustomChecks(collector.getSimulations()));
 });
 
-// PowerBI metrics historical endpoint (Postgres simulated source)
-app.get('/api/pbi/metrics', (req, res) => {
+// Historical Telemetry Analytics metrics endpoint (Postgres simulated source)
+app.get('/api/pbi/metrics', async (req, res) => {
   const { component, metricName, hours } = req.query;
   const hoursLimit = hours ? parseInt(hours) : 24;
   
@@ -223,13 +224,13 @@ app.get('/api/pbi/metrics', (req, res) => {
     return res.status(400).json({ error: 'Missing component or metricName' });
   }
   
-  const data = postgresDb.fetchHistoricalMetricsFromPostgres(component, metricName, hoursLimit);
+  const data = await postgresDb.fetchHistoricalMetricsFromPostgres(component, metricName, hoursLimit);
   res.json(data);
 });
 
-// PowerBI logs analytics data warehouse endpoint (Snowflake simulated source)
-app.get('/api/pbi/logs', (req, res) => {
-  const data = snowflakeDb.fetchLogAnalyticsFromSnowflake();
+// Historical Telemetry Analytics logs endpoint (Snowflake simulated source)
+app.get('/api/pbi/logs', async (req, res) => {
+  const data = await snowflakeDb.fetchLogAnalyticsFromSnowflake();
   res.json(data);
 });
 

@@ -21,16 +21,19 @@ export default function UnifiedHealthMatrix({
 
   // Core application systems definition
   const appItems = [
-    { key: 'bitbucket', name: 'Bitbucket Code Repo', host: 'git-prod.internal.corp', port: '443' },
-    { key: 'artifactory', name: 'Artifactory Registry', host: 'artifactory-prod.internal.corp', port: '8081' },
-    { key: 'argocd_k8s', name: 'ArgoCD Deployment Hub', host: 'argo-prod.internal.corp', port: '443' },
-    { key: 'argoworkflows_k8s', name: 'Argo Workflows Pipeline', host: 'argo-workflows.internal.corp', port: '80' },
-    { key: 'jenkins_k8s', name: 'Jenkins Build Master', host: 'jenkins-prod.internal.corp', port: '8080' },
-    { key: 'teamcity', name: 'TeamCity Build Agents', host: 'teamcity-prod.internal.corp', port: '8111' },
-    { key: 'sonarqube', name: 'SonarQube Quality Gate', host: 'sonar-prod.internal.corp', port: '9000' },
-    { key: 'nexusiq', name: 'NexusIQ Policy Scanner', host: 'nexus-prod.internal.corp', port: '8083' },
-    { key: 'fortify', name: 'Fortify SSC Engine', host: 'fortify-prod.internal.corp', port: '8443' },
-    { key: 'github', name: 'GitHub Enterprise Pool', host: 'api.github.com', port: '443' }
+    { key: 'bitbucket', name: 'Atlassian Bitbucket', host: 'git-prod.internal.corp', port: '443' },
+    { key: 'artifactory', name: 'JFrog Artifactory', host: 'artifactory-prod.internal.corp', port: '8081' },
+    { key: 'fortify', name: 'OpenText Fortify SSC', host: 'fortify-prod.internal.corp', port: '8443' },
+    { key: 'nexusiq', name: 'Sonatype NexusIQ', host: 'nexus-prod.internal.corp', port: '8083' },
+    { key: 'sonarqube', name: 'SonarQube Enterprise', host: 'sonar-prod.internal.corp', port: '9000' },
+    { key: 'jenkins_k8s', name: 'CloudBees Jenkins CI', host: 'jenkins-prod.internal.corp', port: '8080' },
+    { key: 'teamcity', name: 'JetBrains TeamCity', host: 'teamcity-prod.internal.corp', port: '8111' },
+    { key: 'argocd_k8s', name: 'ArgoCD Hub', host: 'argo-prod.internal.corp', port: '443' },
+    { key: 'argoworkflows_k8s', name: 'Argo Workflows', host: 'argo-workflows.internal.corp', port: '80' },
+    { key: 'github', name: 'GitHub Enterprise', host: 'api.github.com', port: '443' },
+    { key: 'bitbucket_external', name: 'Atlassian Bitbucket External', host: 'bitbucket-external-prod.internal.corp', port: '443' },
+    { key: 'otkr', name: 'OTKR Security Engine', host: 'otkr-prod.internal.corp', port: '8443' },
+    { key: 'performance_center', name: 'Micro Focus Performance Center', host: 'perfcenter-prod.internal.corp', port: '8080' }
   ];
 
   const getStatusClass = (status) => {

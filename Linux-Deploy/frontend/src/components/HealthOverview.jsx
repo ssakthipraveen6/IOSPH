@@ -25,18 +25,21 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
     return 'status-healthy';
   };
 
-  // Exact component specifications mapped from user's attached image table
+  // Exact component specifications mapped from vendor suggested infrastructure layers
   const appRegistry = {
+    bitbucket: { name: "Atlassian Bitbucket", login: "SSO Only", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
     artifactory: { name: "JFrog Artifactory", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "S3 Bucket" },
-    bitbucket: { name: "Bitbucket Server", login: "SSO Only", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
-    argocd: { name: "ArgoCD GitOps", login: "SSO & eLDAP with Dax", server: "Kubernetes (K8s)", avi: "External & Internal AVI", cert: "URL & license validity check", db: "No", nas: "No Storage" },
-    argoworkflows: { name: "Argo Workflows", login: "SSO & eLDAP with Dax", server: "Kubernetes (K8s)", avi: "External & Internal AVI", cert: "URL & license validity check", db: "No", nas: "No Storage" },
+    fortify: { name: "OpenText Fortify SSC", login: "SSO and eLDAP", server: "Windows Server", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
+    nexusiq: { name: "Sonatype NexusIQ", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
+    sonarqube: { name: "SonarQube Enterprise", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
     jenkins: { name: "CloudBees Jenkins", login: "SSO Only", server: "Kubernetes (K8s)", avi: "External & Internal AVI", cert: "URL & license validity check", db: "No", nas: "NAS Mount" },
-    teamcity: { name: "TeamCity Build Pool", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
-    fortify: { name: "Fortify SSC scans", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
-    nexusiq: { name: "NexusIQ Scanner", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
-    sonarqube: { name: "SonarQube Quality Gate", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
-    github: { name: "GitHub Enterprise", login: "SSO and eLDAP", server: "Kubernetes (K8s)", avi: "External & Internal AVI", cert: "URL & license validity check", db: "Unknown", nas: "NAS Mount" }
+    teamcity: { name: "JetBrains TeamCity", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
+    argocd: { name: "ArgoCD Hub", login: "SSO & eLDAP with Dax", server: "Kubernetes (K8s)", avi: "External & Internal AVI", cert: "URL & license validity check", db: "No", nas: "No Storage" },
+    argoworkflows: { name: "Argo Workflows", login: "SSO & eLDAP with Dax", server: "Kubernetes (K8s)", avi: "External & Internal AVI", cert: "URL & license validity check", db: "No", nas: "No Storage" },
+    github: { name: "GitHub Enterprise", login: "SSO and eLDAP", server: "Kubernetes (K8s)", avi: "External & Internal AVI", cert: "URL & license validity check", db: "Unknown", nas: "NAS Mount" },
+    bitbucket_external: { name: "Atlassian Bitbucket External", login: "SSO Only", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
+    otkr: { name: "OTKR Security Engine", login: "SSO and eLDAP", server: "RHEL VM", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" },
+    performance_center: { name: "Micro Focus Performance Center", login: "SSO and eLDAP", server: "Windows Server", avi: "External AVI", cert: "URL & license validity check", db: "Yes", nas: "NAS Mount" }
   };
 
   const appKeys = {
@@ -49,7 +52,10 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
     fortify: 'fortify',
     nexusiq: 'nexusiq',
     sonarqube: 'sonarqube',
-    github: 'github'
+    github: 'github',
+    bitbucket_external: 'bitbucket_external',
+    otkr: 'otkr',
+    performance_center: 'performance_center'
   };
 
   const activeApp = appRegistry[selectedFlowApp];
@@ -61,7 +67,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
   const dbStatus = activeApp.db === 'Yes' ? (componentStatuses['database'] || 'Healthy') : 'Inactive';
   
   let hostKey = 'linux_servers';
-  if (selectedFlowApp === 'fortify') hostKey = 'windows_servers';
+  if (selectedFlowApp === 'fortify' || selectedFlowApp === 'performance_center') hostKey = 'windows_servers';
   const hostStatus = componentStatuses[hostKey] || 'Healthy';
   
   let nasStatus = 'Inactive';

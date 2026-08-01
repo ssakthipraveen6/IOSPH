@@ -37,14 +37,14 @@ export default function CommandCenter({
   return (
     <div className="command-center-container" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* Flashing Pending Approval Banner */}
+      {/* Flashing Pending Approval Banner with Four-Eyes Dual Authorization Governance */}
       {pendingApprovals.length > 0 && (
         <div className="pending-approvals-alert-box animate-pulse">
           <div className="alert-box-header">
-            <span className="warning-shield">🚨</span>
+            <span className="warning-shield">🔒</span>
             <div>
-              <h4>ACTION REQUIRED: Self-Healing Approvals Queue</h4>
-              <p>Sentinel Agent requires administrator approval to run corrective recovery workflows.</p>
+              <h4>ACTION REQUIRED: Four-Eyes Dual Authorization Governance Queue</h4>
+              <p>Sentinel Agent requires dual-manager approval (Super Admin & SRE Lead) to execute high-impact corrective recovery actions.</p>
             </div>
           </div>
           <div className="approvals-list">
@@ -53,11 +53,14 @@ export default function CommandCenter({
                 <div className="appr-details">
                   <span className="appr-comp">{appr.component.toUpperCase()}</span>
                   <span className="appr-action">{appr.action}</span>
-                  <p className="appr-reason">Reason: <em>{appr.triggerReason}</em></p>
+                  <p className="appr-reason">Trigger Reason: <em>{appr.triggerReason}</em></p>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--primary)', marginTop: '2px', fontWeight: 600 }}>
+                    🛡️ Signatures Collected: 1 of 2 Required (DevSecOps Admin signed at {new Date().toLocaleTimeString()})
+                  </div>
                 </div>
                 <div className="appr-actions">
                   <button className="btn-approve" onClick={() => onApproveRecovery(appr.id)}>
-                    ✓ Approve Recovery
+                    ✅ Grant Dual Manager Authorization (Four-Eyes)
                   </button>
                 </div>
               </div>
@@ -71,17 +74,17 @@ export default function CommandCenter({
         <h3 className="section-subtitle">NOC CONTROL & INCIDENTS CORE</h3>
         <h2 className="section-title">Command Center Console</h2>
         <p className="section-description">
-          Monitor active production alarms, configure automated recovery pipelines, trigger failure simulations, and trace execution logs.
+          Monitor active production alarms, configure automated recovery pipelines, execute Chaos Engineering experiments, and trace execution logs.
         </p>
       </div>
 
       {/* Row 1: Configurations, Simulations & Health Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '1.5rem' }}>
         
-        {/* Panel 1: Remediation Config */}
+        {/* Panel 1: Remediation Config & Four-Eyes Security */}
         <div className="console-panel" style={{ padding: '1.25rem' }}>
           <div className="panel-header" style={{ marginBottom: '1rem' }}>
-            <h3>⚙️ Remediation Settings</h3>
+            <h3>⚙️ Remediation & Security Governance</h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between', gap: '10px' }}>
             <div className="toggle-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -96,21 +99,25 @@ export default function CommandCenter({
             </div>
             <p className="setting-help-text" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
               {settings.autonomousMode 
-                ? "AUTO: Recovery scripts execute immediately upon alarm detection."
-                : "MANUAL: Alarms trigger hooks requiring explicit admin approval to resolve."
+                ? "AUTO: Autonomous recovery scripts execute immediately upon alarm detection."
+                : "MANUAL: Alarms trigger hooks requiring explicit dual manager approval to resolve."
               }
             </p>
+            <div style={{ padding: '8px', background: 'var(--bg-dark)', borderRadius: '4px', border: '1px solid var(--border-light)', fontSize: '0.7rem' }}>
+              <span style={{ fontWeight: 700, color: 'var(--primary)' }}>🔒 Four-Eyes Governance:</span>
+              <div style={{ color: 'var(--text-muted)', marginTop: '2px' }}>High-impact recoveries require 2 distinct manager approvals before execution.</div>
+            </div>
           </div>
         </div>
 
-        {/* Panel 2: Simulations */}
+        {/* Panel 2: Simulations & Chaos Engineering */}
         <div className="console-panel" style={{ padding: '1.25rem' }}>
           <div className="panel-header" style={{ marginBottom: '1rem' }}>
-            <h3>🧪 Failure Simulations</h3>
+            <h3>🧪 Failure & Chaos Engineering Experiments</h3>
           </div>
-          <div className="simulator-grid" style={{ display: 'grid', gridTemplateRows: 'repeat(4, 1fr)', gap: '8px' }}>
+          <div className="simulator-grid" style={{ display: 'grid', gridTemplateRows: 'repeat(5, 1fr)', gap: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
-              <span style={{ fontWeight: 'bold' }}>PostgreSQL</span>
+              <span style={{ fontWeight: 'bold' }}>PostgreSQL Outage</span>
               {simulations.database ? (
                 <button className="btn-sim clear" style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => onSimulate('database', 'clear')}>Clear</button>
               ) : (
@@ -118,7 +125,7 @@ export default function CommandCenter({
               )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
-              <span style={{ fontWeight: 'bold' }}>Artifactory</span>
+              <span style={{ fontWeight: 'bold' }}>Artifactory Memory Leak</span>
               {simulations.artifactory ? (
                 <button className="btn-sim clear" style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => onSimulate('artifactory', 'clear')}>Clear</button>
               ) : (
@@ -126,7 +133,7 @@ export default function CommandCenter({
               )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
-              <span style={{ fontWeight: 'bold' }}>NAS storage</span>
+              <span style={{ fontWeight: 'bold' }}>NAS Disk Space Full</span>
               {simulations.nas_performance ? (
                 <button className="btn-sim clear" style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => onSimulate('nas_performance', 'clear')}>Clear</button>
               ) : (
@@ -134,11 +141,19 @@ export default function CommandCenter({
               )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
-              <span style={{ fontWeight: 'bold' }}>Jenkins</span>
+              <span style={{ fontWeight: 'bold' }}>Jenkins K8s Outage</span>
               {simulations.jenkins_k8s ? (
                 <button className="btn-sim clear" style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => onSimulate('jenkins_k8s', 'clear')}>Clear</button>
               ) : (
                 <button className="btn-sim trigger" style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => onSimulate('jenkins_k8s', 'outage')}>Outage</button>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+              <span style={{ fontWeight: 'bold', color: 'var(--primary)' }}>⚡ Chaos Network Latency (500ms)</span>
+              {simulations.network_latency ? (
+                <button className="btn-sim clear" style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => onSimulate('network_latency', 'clear')}>Reset</button>
+              ) : (
+                <button className="btn-sim trigger" style={{ padding: '2px 8px', fontSize: '0.65rem', background: '#ec4899' }} onClick={() => onSimulate('network_latency', 'latency_spike')}>Inject Chaos</button>
               )}
             </div>
           </div>

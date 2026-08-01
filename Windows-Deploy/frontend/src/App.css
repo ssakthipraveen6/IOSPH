@@ -88,77 +88,162 @@ body {
   display: flex;
   flex-direction: column;
   padding: 1.75rem 1.25rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   overflow-y: auto;
   flex-shrink: 0;
   height: 100vh;
-  position: sticky;
+  position: fixed;
   top: 0;
+  bottom: 0;
+  left: 0;
   z-index: 100;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Collapsed Mini Sidebar State showing only Icons */
 .sentinel-sidebar.collapsed {
-  width: 72px;
-  padding: 1.75rem 0.5rem;
+  width: 76px;
+  padding: 1.5rem 0.5rem;
   align-items: center;
-  pointer-events: auto;
+}
+
+.sentinel-sidebar.collapsed .sidebar-header-row {
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 1rem;
+}
+
+.sentinel-sidebar.collapsed .sidebar-toggle-inside-btn {
+  width: 36px;
+  height: 36px;
+  background-color: var(--primary);
+  color: #ffffff;
+  border: 1px solid var(--primary);
+  font-size: 0.85rem;
+  box-shadow: 0 0 10px var(--primary-glow);
 }
 
 .sentinel-sidebar.collapsed .sidebar-links {
   align-items: center;
   width: 100%;
+  gap: 8px;
 }
 
 .sentinel-sidebar.collapsed .nav-tab-btn {
   justify-content: center;
   padding: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  font-size: 1.25rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  font-size: 1.35rem;
+  position: relative;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.sentinel-sidebar.collapsed .sidebar-brand {
-  margin-bottom: 2rem;
+.sentinel-sidebar.collapsed .nav-tab-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
+}
+
+.sentinel-sidebar.collapsed .nav-tab-btn.active {
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 0 14px var(--primary);
+}
+
+/* Floating CSS Tooltip on Hover when Sidebar is Collapsed */
+.sentinel-sidebar.collapsed .nav-tab-btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1000;
+}
+
+.sentinel-sidebar.collapsed .nav-tab-btn[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Sidebar Inside Header & Toggle Control Row */
+.sidebar-header-row {
   display: flex;
-  justify-content: center;
   align-items: center;
-  align-self: auto;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   width: 100%;
 }
 
-/* Hamburger overlay button */
-.drawer-toggle-overlay-btn {
-  position: fixed;
-  left: 87px; /* Sits next to collapsed sidebar by default (72px + 15px) */
-  top: 1rem;
-  background-color: var(--primary);
-  color: #ffffff;
-  border: none;
-  width: 38px;
-  height: 38px;
+.sidebar-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+.sidebar-toggle-inside-btn {
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  width: 30px;
+  height: 30px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
-.drawer-toggle-overlay-btn.drawer-open {
-  left: 295px; /* Sits next to expanded sidebar (280px + 15px) */
+.sidebar-toggle-inside-btn:hover {
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+
+.sidebar-collapse-link-btn {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  color: #94a3b8;
+}
+
+.sidebar-collapse-link-btn:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Top Brand & Clocks Header Banner */
 .sentinel-top-brand-header {
   background-color: var(--bg-panel);
   border-bottom: 1px solid var(--border-light);
-  padding: 0.75rem 1.5rem 0.75rem 4.5rem; /* Leaves space for absolute toggle button */
+  padding: 0.85rem 1.75rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -313,14 +398,127 @@ body {
   margin-left: auto;
 }
 
-/* Sidebar bottom status block */
-.sidebar-status-block {
+/* Sidebar Bottom User Profile Block */
+.sidebar-user-block {
   margin-top: auto;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 1rem;
+  padding-top: 0.85rem;
   display: flex;
   flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.user-profile-card {
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.user-profile-card:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.user-avatar-badge {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  background: rgba(13, 148, 136, 0.15);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.user-status-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+}
+
+.user-status-dot.online {
+  background-color: var(--healthy);
+  box-shadow: 0 0 6px var(--healthy);
+}
+
+.user-status-dot.offline {
+  background-color: var(--critical);
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  letter-spacing: 0.2px;
+}
+
+.user-role {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+/* Collapsed state user card tooltip */
+.sentinel-sidebar.collapsed .sidebar-user-block {
+  align-items: center;
+}
+
+.sentinel-sidebar.collapsed .user-profile-card {
+  padding: 4px;
+  justify-content: center;
+  background: transparent;
+  border: none;
+}
+
+.sentinel-sidebar.collapsed .user-profile-card[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 1000;
+}
+
+.sentinel-sidebar.collapsed .user-profile-card[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
 }
 
 .navbar-status {
@@ -376,12 +574,15 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0; /* Prevents layout overflows */
-  transition: padding-left 0.3s ease;
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Add padding offset when sidebar drawer is collapsed */
+/* Offset when sidebar drawer is collapsed */
 .sentinel-main-frame.collapsed-padding {
-  padding-left: 3rem;
+  margin-left: 72px;
+  width: calc(100% - 72px);
 }
 
 /* Content Container */

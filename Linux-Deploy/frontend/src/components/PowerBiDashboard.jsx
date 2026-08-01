@@ -18,7 +18,10 @@ const metricOptions = {
   argocd_k8s: ['latency', 'clusterCount'],
   argoworkflows_k8s: ['activeWorkflows', 'failedWorkflows', 'responseTime'],
   sonarqube: ['analysisQueue', 'responseTime'],
-  github: ['apiRateLimitRemaining', 'pendingPullRequests', 'responseTime']
+  github: ['apiRateLimitRemaining', 'pendingPullRequests', 'responseTime'],
+  bitbucket_external: ['responseTime', 'successRate', 'requests'],
+  otkr: ['scanQueue', 'findings', 'responseTime'],
+  performance_center: ['activeTests', 'avgResponseTime', 'throughput']
 };
 
 export default function PowerBiDashboard() {
@@ -45,17 +48,17 @@ export default function PowerBiDashboard() {
       const mRes = await fetch(`/api/pbi/metrics?component=${component}&metricName=${metricName}&hours=${timeRange}`);
       if (mRes.ok) {
         const data = await mRes.json();
-        setHistoricalData(data);
+        setHistoricalData(Array.isArray(data) ? data : []);
       }
       
       // 2. Fetch Snowflake log events statistics
       const lRes = await fetch('/api/pbi/logs');
       if (lRes.ok) {
         const data = await lRes.json();
-        setLogAnalytics(data);
+        setLogAnalytics(Array.isArray(data) ? data : []);
       }
     } catch (e) {
-      console.error('Failed to load PowerBI analytics:', e);
+      console.error('Failed to load Historical Telemetry Analytics:', e);
     } finally {
       setLoading(false);
     }
@@ -69,7 +72,7 @@ export default function PowerBiDashboard() {
 
   // Calculate coordinates for SVG timeseries chart
   const renderTrendChart = () => {
-    if (historicalData.length === 0) {
+    if (!Array.isArray(historicalData) || historicalData.length === 0) {
       return <div className="empty-chart"><p>No Postgres telemetry dataset found for this filter.</p></div>;
     }
 
@@ -83,7 +86,7 @@ export default function PowerBiDashboard() {
     const valRange = maxVal - minVal === 0 ? 1 : maxVal - minVal;
 
     const points = historicalData.map((d, index) => {
-      const x = padding + (index / (historicalData.length - 1)) * (width - 2 * padding);
+      const x = padding + (historicalData.length > 1 ? (index / (historicalData.length - 1)) * (width - 2 * padding) : 0);
       const y = height - padding - ((d.value - minVal) / valRange) * (height - 2 * padding);
       return `${x},${y}`;
     }).join(' ');
@@ -128,7 +131,7 @@ export default function PowerBiDashboard() {
 
   // Render log breakdown horizontal bars (Snowflake log counts)
   const renderLogBarChart = () => {
-    if (logAnalytics.length === 0) {
+    if (!Array.isArray(logAnalytics) || logAnalytics.length === 0) {
       return <div className="empty-chart"><p>No Snowflake data lake summary loaded.</p></div>;
     }
 
@@ -157,14 +160,14 @@ export default function PowerBiDashboard() {
 
   const getKpiValues = () => {
     let kpiMetricVal = 'N/A';
-    if (historicalData.length > 0) {
+    if (Array.isArray(historicalData) && historicalData.length > 0) {
       const values = historicalData.map(d => d.value);
       const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
       kpiMetricVal = avg.toFixed(1);
     }
     
     let totalLogs = 0;
-    if (logAnalytics.length > 0) {
+    if (Array.isArray(logAnalytics) && logAnalytics.length > 0) {
       totalLogs = logAnalytics.reduce((sum, l) => sum + l.info + l.warn + l.error, 0);
     }
     
@@ -174,15 +177,43 @@ export default function PowerBiDashboard() {
     };
   };
 
+  const handleDownloadCsv = () => {
+    if (!Array.isArray(historicalData) || historicalData.length === 0) {
+      alert("No telemetry metrics dataset available to export.");
+      return;
+    }
+
+    const headers = ["Timestamp", "Component", "Metric Name", "Value", "Timeframe (Hours)", "Source DB"];
+    const rows = historicalData.map(item => [
+      `"${new Date(item.timestamp).toISOString()}"`,
+      `"${component}"`,
+      `"${metricName}"`,
+      item.value,
+      `"${timeRange}h"`,
+      `"PostgreSQL Telemetry Table"`
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Historical_Telemetry_Analytics_${component}_${metricName}_${timeRange}h.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const kpis = getKpiValues();
 
   return (
     <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
       
-      {/* PowerBI Filter Panel (Left) */}
+      {/* Historical Telemetry Filter Panel (Left) */}
       <div className="console-panel" style={{ flex: '1 1 280px', maxWidth: '320px' }}>
         <div className="panel-header">
-          <h3>📊 PowerBI Filter Pane</h3>
+          <h3>📊 Historical Telemetry Filter Pane</h3>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
           
@@ -205,16 +236,19 @@ export default function PowerBiDashboard() {
                 <option value="avi_load_balancer">🌐 Ingress Routing (AVI)</option>
               </optgroup>
               <optgroup label="Application Metrics">
-                <option value="bitbucket">📦 Bitbucket Code Repo</option>
-                <option value="artifactory">🗃️ Artifactory Registry</option>
+                <option value="bitbucket">📦 Atlassian Bitbucket</option>
+                <option value="artifactory">🗃️ JFrog Artifactory</option>
+                <option value="fortify">🔒 OpenText Fortify SSC</option>
+                <option value="nexusiq">🛡️ Sonatype NexusIQ</option>
+                <option value="sonarqube">🔍 SonarQube Enterprise</option>
+                <option value="jenkins_k8s">👴 CloudBees Jenkins</option>
+                <option value="teamcity">🏗️ JetBrains TeamCity</option>
                 <option value="argocd_k8s">🐙 ArgoCD Deployment Hub</option>
-                <option value="argoworkflows_k8s">🔄 Argo Workflows Pipeline</option>
-                <option value="jenkins_k8s">👴 Jenkins Build Master</option>
-                <option value="teamcity">🏗️ TeamCity Build Agents</option>
-                <option value="sonarqube">🔍 SonarQube Quality Gate</option>
-                <option value="nexusiq">🛡️ NexusIQ Policy Scanner</option>
-                <option value="fortify">🔒 Fortify SSC Engine</option>
-                <option value="github">🐈 GitHub Enterprise Pool</option>
+                <option value="argoworkflows_k8s">🔄 Argo Workflows</option>
+                <option value="github">🐈 GitHub Enterprise</option>
+                <option value="bitbucket_external">🌐 Atlassian Bitbucket External</option>
+                <option value="otkr">🔐 OTKR Security Scanner</option>
+                <option value="performance_center">📊 Performance Center (LoadRunner)</option>
               </optgroup>
             </select>
           </div>
@@ -248,6 +282,26 @@ export default function PowerBiDashboard() {
               <option value="168">Last 168 Hours (7 Days)</option>
             </select>
           </div>
+
+          {/* Export CSV Button */}
+          <button 
+            className="remediate-trigger-btn"
+            onClick={handleDownloadCsv}
+            style={{ 
+              width: '100%', 
+              padding: '10px', 
+              fontSize: '0.82rem', 
+              fontWeight: 700, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '8px', 
+              marginTop: '0.5rem',
+              boxShadow: '0 4px 10px var(--primary-glow)'
+            }}
+          >
+            📥 Export Metrics Report (CSV)
+          </button>
 
           <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
             <strong>Databases Configured:</strong>

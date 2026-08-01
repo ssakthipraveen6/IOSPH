@@ -11,7 +11,10 @@ const appDisplayNames = {
   mcp: "MCP Gateway",
   argoworkflows: "Argo Workflows Pipeline",
   sonarqube: "SonarQube Quality Gate",
-  github: "GitHub Enterprise Pool"
+  github: "GitHub Enterprise Pool",
+  bitbucket_external: "Bitbucket External Gateway",
+  otkr: "OTKR Security Scanner",
+  performance_center: "Performance Center"
 };
 
 export default function RcaDashboard() {

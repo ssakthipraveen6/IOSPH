@@ -9,6 +9,7 @@
     "install-all": "npm run install-backend && npm run install-frontend",
     "build-frontend": "cd frontend && (pnpm run build || yarn build || npm run build)",
     "start": "node backend/server.js",
+    "test": "node tests/e2e_qa_suite.test.js",
     "dev-backend": "node backend/server.js",
     "dev-frontend": "cd frontend && (pnpm run dev || yarn dev || npm run dev)",
     "dev": "concurrently \"npm run dev-backend\" \"npm run dev-frontend\""
