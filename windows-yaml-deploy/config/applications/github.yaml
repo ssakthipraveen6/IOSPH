@@ -1,0 +1,22 @@
+id: "github"
+display_name: "GitHub Enterprise Integration"
+category: "source_control"
+log_tag: "GITHUB"
+
+endpoints:
+  prod:
+    api: "https://api.github.com"
+  stg:
+    api: "https://api.github.com"
+
+layers:
+  sso_api: "https://sso-auth-prod-github.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "github.com"
+
+metrics_baseline:
+  apiRateLimitRemaining: 4950
+  pendingPullRequests: 14
+  responseTime: 75
+
+jenkins_remediation_job: "JOB_FLUSH_GITHUB_WEBHOOK_QUEUE"

@@ -1,0 +1,28 @@
+id: "argocd_k8s"
+display_name: "ArgoCD Continuous Delivery"
+category: "gitops_deployment"
+log_tag: "[ARGO-SYNC"
+
+endpoints:
+  prod:
+    api: "https://argocd-prod.internal.corp/api/v1"
+  stg:
+    api: "https://argocd-stg.internal.corp/api/v1"
+
+layers:
+  avi_api: "https://avi-prod-argocd.internal.corp/api/v1/telemetry"
+  sso_api: "https://sso-auth-prod-argocd.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "argocd-prod.internal.corp"
+
+servers:
+  - node: "argocd-node-1"
+    type: "linux"
+    api: "https://linux-compute-prod-argocd-1.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  syncStatus: "Synced"
+  latency: 45
+  clusterCount: 4
+
+jenkins_remediation_job: "JOB_RESYNC_ARGOCD_CLUSTERS"

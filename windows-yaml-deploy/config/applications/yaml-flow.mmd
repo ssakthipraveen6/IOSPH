@@ -1,0 +1,9 @@
+flowchart TD
+    A["YAML Config Manager (Browser UI)"] <-->|"Reads / Writes Raw YAML"| B["Disk Storage (config/global_config.yaml & config/applications/*.yaml)"]
+    B -->|"Loaded at Startup & Hot-Reloaded"| C["YAML Parser Engine (config/yaml_config.js)"]
+    C --> D["Global Config Contract (config/config.js)"]
+    
+    D --> E["1. Telemetry Collectors (collector_coordinator.js)"]
+    D --> F["2. Log Router (backend/logger.js)"]
+    D --> G["3. Self-Healing Orchestrator (remediation/recovery.js)"]
+    D --> H["4. Secondary Database Connections (database/postgres.js)"]

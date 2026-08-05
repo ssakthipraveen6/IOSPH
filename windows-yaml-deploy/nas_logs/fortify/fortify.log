@@ -1,0 +1,110 @@
+[2026-08-05T10:51:00.336Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.11, memory: 48.87, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:51:00.840Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.15, failures: 0
+[2026-08-05T10:51:10.354Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21, memory: 49.52, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:51:10.857Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.82, failures: 0
+[2026-08-05T10:51:20.366Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.89, memory: 49.21, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:51:20.879Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.67, failures: 0
+[2026-08-05T10:51:30.363Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.24, memory: 49.33, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:51:30.860Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.7, failures: 0
+[2026-08-05T10:51:40.375Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.27, memory: 48.41, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:51:40.898Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.77, failures: 0
+[2026-08-05T10:51:50.406Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.81, memory: 49.51, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:51:50.912Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.58, failures: 0
+[2026-08-05T10:52:00.405Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.6, memory: 49.44, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:52:00.912Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.86, failures: 0
+[2026-08-05T10:52:10.408Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.33, memory: 48, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:52:10.939Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.37, failures: 0
+[2026-08-05T10:52:20.431Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.81, memory: 48.51, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:52:20.960Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.06, failures: 0
+[2026-08-05T10:52:30.443Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.22, memory: 48.9, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:52:30.962Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.31, failures: 0
+[2026-08-05T10:52:40.432Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.05, memory: 47.61, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:52:40.940Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.57, failures: 0
+[2026-08-05T10:52:50.458Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.24, memory: 48.53, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:52:50.964Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.93, failures: 0
+[2026-08-05T10:53:00.466Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.87, memory: 49.01, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:53:01.083Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.15, failures: 0
+[2026-08-05T10:53:10.469Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.55, memory: 49.26, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:53:11.050Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.95, failures: 0
+[2026-08-05T10:53:20.476Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.99, memory: 47.64, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:53:21.076Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.63, failures: 0
+[2026-08-05T10:53:32.403Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.63, memory: 48.75, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:53:32.982Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.1, failures: 0
+[2026-08-05T10:53:42.403Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.34, memory: 48.1, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:53:42.934Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.06, failures: 0
+[2026-08-05T10:53:52.476Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.17, memory: 49.07, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:53:53.004Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.31, failures: 0
+[2026-08-05T10:54:02.407Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 20.87, memory: 49.55, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:54:02.926Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.56, failures: 0
+[2026-08-05T10:54:12.424Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 20.69, memory: 47.63, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:54:12.947Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.64, failures: 0
+[2026-08-05T10:54:22.412Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 20.42, memory: 48, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:54:22.938Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.8, failures: 0
+[2026-08-05T10:54:32.442Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.01, memory: 49.45, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:54:32.964Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.77, failures: 0
+[2026-08-05T10:54:42.434Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.14, memory: 47.97, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:54:42.967Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.3, failures: 0
+[2026-08-05T10:54:52.436Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.59, memory: 49.47, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:54:52.982Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.42, failures: 0
+[2026-08-05T10:55:02.451Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.04, memory: 48.37, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:55:02.999Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.08, failures: 0
+[2026-08-05T10:55:12.460Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.79, memory: 49.51, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:55:13.050Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.58, failures: 0
+[2026-08-05T10:55:22.482Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.23, memory: 48.94, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:55:23.028Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.03, failures: 0
+[2026-08-05T10:55:32.475Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.88, memory: 49.18, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:55:33.003Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 16, failures: 0
+[2026-08-05T10:55:42.503Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 20.64, memory: 47.65, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:55:43.253Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.24, failures: 0
+[2026-08-05T10:55:59.258Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.33, memory: 48.18, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:55:59.953Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.41, failures: 0
+[2026-08-05T10:56:09.278Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.37, memory: 48.58, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:56:09.824Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.55, failures: 0
+[2026-08-05T10:56:19.262Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.53, memory: 49.55, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:56:19.799Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.56, failures: 0
+[2026-08-05T10:56:29.260Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.19, memory: 47.75, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:56:29.807Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.92, failures: 0
+[2026-08-05T10:56:39.263Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.01, memory: 48.08, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:56:39.781Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.89, failures: 0
+[2026-08-05T10:56:49.275Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.29, memory: 48.74, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:56:49.829Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.65, failures: 0
+[2026-08-05T10:56:59.290Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.76, memory: 49.37, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:56:59.855Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.14, failures: 0
+[2026-08-05T10:57:09.295Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.85, memory: 48.09, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:09.831Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.1, failures: 0
+[2026-08-05T10:57:19.310Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.17, memory: 47.99, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:19.870Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.25, failures: 0
+[2026-08-05T10:57:29.318Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.93, memory: 49.14, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:29.864Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.52, failures: 0
+[2026-08-05T10:57:39.312Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.42, memory: 48.73, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:40.087Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.71, failures: 0
+[2026-08-05T10:57:51.915Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.88, memory: 47.87, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:52.574Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.41, failures: 0
+[2026-08-05T10:58:01.908Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.91, memory: 48.06, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:02.488Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.86, failures: 0
+[2026-08-05T10:58:11.935Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.33, memory: 49.45, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:12.491Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.24, failures: 0
+[2026-08-05T10:58:21.937Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.9, memory: 48.83, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:22.615Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.59, failures: 0
+[2026-08-05T10:58:31.933Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.93, memory: 48.85, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:32.495Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.55, failures: 0
+[2026-08-05T10:58:41.945Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.41, memory: 48.89, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:42.525Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.43, failures: 0
+[2026-08-05T10:58:51.957Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.27, memory: 47.85, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:52.549Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.56, failures: 0
+[2026-08-05T10:59:01.970Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.27, memory: 48.96, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:02.672Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.54, failures: 0
+[2026-08-05T10:59:11.982Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.41, memory: 48.58, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:12.536Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.66, failures: 0
+[2026-08-05T10:59:22.000Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.02, memory: 48.67, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:22.678Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.97, failures: 0
+[2026-08-05T10:59:32.010Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.14, memory: 48.21, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:32.558Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.63, failures: 0
+[2026-08-05T10:59:42.026Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 20.55, memory: 47.73, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:42.570Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.11, failures: 0
+[2026-08-05T10:59:52.049Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.16, memory: 47.71, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:52.713Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.22, failures: 0
+[2026-08-05T11:00:02.052Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.4, memory: 48.63, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T11:00:02.692Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.82, failures: 0
+[2026-08-05T11:00:12.051Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.48, memory: 49.26, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T11:00:12.602Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.45, failures: 0

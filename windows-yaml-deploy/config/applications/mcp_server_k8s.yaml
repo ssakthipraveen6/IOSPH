@@ -1,0 +1,27 @@
+id: "mcp_server_k8s"
+display_name: "MCP Gateway Server Cluster"
+category: "ai_infrastructure"
+log_tag: "MCP"
+
+endpoints:
+  prod:
+    api: "https://mcp-gateway-prod.internal.corp/api"
+  stg:
+    api: "https://mcp-gateway-stg.internal.corp/api"
+
+layers:
+  sso_api: "https://sso-auth-prod-mcp.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "mcp-gateway-prod.internal.corp"
+
+servers:
+  - node: "mcp-node-1"
+    type: "linux"
+    api: "https://linux-compute-prod-mcp-1.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  cpu: 28.6
+  latency: 60
+  replicas: 3
+
+jenkins_remediation_job: "JOB_RESCALE_MCP_REPLICAS"

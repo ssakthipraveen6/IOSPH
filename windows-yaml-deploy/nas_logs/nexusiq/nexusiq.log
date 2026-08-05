@@ -1,0 +1,83 @@
+[2026-08-05T10:49:30.808Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 179
+[2026-08-05T10:49:40.805Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183
+[2026-08-05T10:49:40.836Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:49:50.819Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 183
+[2026-08-05T10:49:50.844Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:50:00.841Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 176
+[2026-08-05T10:50:10.840Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 182
+[2026-08-05T10:50:20.810Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 180
+[2026-08-05T10:50:30.828Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 182
+[2026-08-05T10:50:30.859Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:50:40.905Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183
+[2026-08-05T10:50:50.881Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 175
+[2026-08-05T10:51:00.856Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 184
+[2026-08-05T10:51:10.870Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 183
+[2026-08-05T10:51:20.894Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 184
+[2026-08-05T10:51:30.877Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T10:51:40.913Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 182
+[2026-08-05T10:51:50.927Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:52:00.927Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T10:52:10.954Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 183
+[2026-08-05T10:52:20.974Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 175
+[2026-08-05T10:52:30.980Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 176
+[2026-08-05T10:52:31.010Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:52:40.956Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183
+[2026-08-05T10:52:50.980Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 176
+[2026-08-05T10:52:51.009Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:53:01.103Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 176
+[2026-08-05T10:53:11.070Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 175
+[2026-08-05T10:53:21.094Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 181
+[2026-08-05T10:53:21.133Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:53:33.001Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 176
+[2026-08-05T10:53:42.948Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 175
+[2026-08-05T10:53:53.018Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 184
+[2026-08-05T10:53:53.052Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:54:02.939Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 175
+[2026-08-05T10:54:12.959Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:54:12.985Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:54:22.953Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 184
+[2026-08-05T10:54:22.980Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:54:32.979Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 175
+[2026-08-05T10:54:42.984Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 177
+[2026-08-05T10:54:43.010Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:54:53.000Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 176
+[2026-08-05T10:55:03.013Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:55:03.040Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:55:13.069Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 179
+[2026-08-05T10:55:13.101Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:55:13.104Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:55:23.053Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 180
+[2026-08-05T10:55:23.099Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:55:33.018Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 181
+[2026-08-05T10:55:43.275Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 179
+[2026-08-05T10:55:59.972Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 179
+[2026-08-05T10:56:09.842Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 177
+[2026-08-05T10:56:19.818Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 183
+[2026-08-05T10:56:29.824Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:56:39.796Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183
+[2026-08-05T10:56:39.830Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:56:49.845Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 182
+[2026-08-05T10:56:59.874Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 182
+[2026-08-05T10:57:09.848Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 184
+[2026-08-05T10:57:19.888Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 175
+[2026-08-05T10:57:29.877Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 182
+[2026-08-05T10:57:40.111Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:57:52.595Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 176
+[2026-08-05T10:58:02.508Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T10:58:12.507Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T10:58:22.641Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 176
+[2026-08-05T10:58:22.686Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:58:32.520Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 176
+[2026-08-05T10:58:42.540Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 180
+[2026-08-05T10:58:52.564Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 184
+[2026-08-05T10:59:02.686Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 180
+[2026-08-05T10:59:02.713Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:59:12.550Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:59:22.699Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 181
+[2026-08-05T10:59:32.575Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 176
+[2026-08-05T10:59:32.604Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:59:42.584Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:59:52.729Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T11:00:02.716Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183
+[2026-08-05T11:00:02.749Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T11:00:12.617Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183

@@ -1,0 +1,40 @@
+id: "bitbucket"
+display_name: "Bitbucket Enterprise SCM"
+category: "source_control"
+log_tag: "[BB-NET]"
+
+endpoints:
+  prod:
+    api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
+  stg:
+    api: "https://bitbucket-stg.internal.corp/rest/api/1.0"
+
+layers:
+  avi_api: "https://avi-prod-bitbucket.internal.corp/api/v1/telemetry"
+  db_jdbc: "jdbc:postgresql://db-prod-bitbucket.internal.corp:5432/bitbucket_db"
+  nas_mount: "d:\\production_shares\\nas_logs\\bitbucket"
+  s3_endpoint: "https://s3.prod-bitbucket-us-east-1.amazonaws.com"
+  sso_api: "https://sso-auth-prod-bitbucket.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "bitbucket-prod.internal.corp"
+  # Extensible Application Layer Example: VPN Tunnel
+  vpn_connection:
+    enabled: true
+    gateway: "vpn-gw-bitbucket.internal.corp"
+    health_endpoint: "https://vpn-gw-bitbucket.internal.corp/health"
+    jenkins_remediation_job: "JOB_REBOOT_BITBUCKET_VPN"
+
+servers:
+  - node: "bitbucket-node-1"
+    type: "linux"
+    api: "https://linux-compute-prod-bitbucket-1.internal.corp/api/v1/metrics"
+  - node: "bitbucket-node-2"
+    type: "linux"
+    api: "https://linux-compute-prod-bitbucket-2.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  responseTime: 85
+  successRate: 99.8
+  requests: 45
+
+jenkins_remediation_job: "JOB_RESTART_BITBUCKET_SERVICE"

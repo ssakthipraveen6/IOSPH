@@ -1,0 +1,34 @@
+id: "bitbucket_external"
+display_name: "Bitbucket External Partner SCM"
+category: "source_control"
+log_tag: "[BB-EXT]"
+
+endpoints:
+  prod:
+    api: "https://bitbucket-external-prod.internal.corp/rest/api/1.0"
+  stg:
+    api: "https://bitbucket-external-stg.internal.corp/rest/api/1.0"
+
+layers:
+  avi_api: "https://avi-prod-bitbucket-ext.internal.corp/api/v1/telemetry"
+  db_jdbc: "jdbc:postgresql://db-prod-bitbucket-ext.internal.corp:5432/bitbucket_ext_db"
+  nas_mount: "d:\\production_shares\\nas_logs\\bitbucket_external"
+  s3_endpoint: "https://s3.prod-bitbucket-ext-us-east-1.amazonaws.com"
+  sso_api: "https://sso-auth-prod-bitbucket-ext.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "bitbucket-external-prod.internal.corp"
+
+servers:
+  - node: "bitbucket-ext-node-1"
+    type: "linux"
+    api: "https://linux-compute-prod-bitbucket-ext-1.internal.corp/api/v1/metrics"
+  - node: "bitbucket-ext-node-2"
+    type: "linux"
+    api: "https://linux-compute-prod-bitbucket-ext-2.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  responseTime: 95
+  successRate: 99.6
+  requests: 32
+
+jenkins_remediation_job: "JOB_RESTART_BITBUCKET_EXT_SERVICE"

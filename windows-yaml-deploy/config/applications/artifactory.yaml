@@ -1,0 +1,34 @@
+id: "artifactory"
+display_name: "JFrog Artifactory Repository"
+category: "artifact_repository"
+log_tag: "[ART-"
+
+endpoints:
+  prod:
+    api: "https://artifactory-prod.internal.corp/artifactory/api"
+  stg:
+    api: "https://artifactory-stg.internal.corp/artifactory/api"
+
+layers:
+  avi_api: "https://avi-prod-artifactory.internal.corp/api/v1/telemetry"
+  db_jdbc: "jdbc:postgresql://db-prod-artifactory.internal.corp:5432/artifactory_db"
+  nas_mount: "d:\\production_shares\\nas_logs\\artifactory"
+  s3_endpoint: "https://s3.prod-artifactory-us-east-1.amazonaws.com"
+  sso_api: "https://sso-auth-prod-artifactory.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "artifactory-prod.internal.corp"
+
+servers:
+  - node: "artifactory-node-1"
+    type: "linux"
+    api: "https://linux-compute-prod-artifactory-1.internal.corp/api/v1/metrics"
+  - node: "artifactory-node-2"
+    type: "linux"
+    api: "https://linux-compute-prod-artifactory-2.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  heap: 52.4
+  space: 72.8
+  latency: 45
+
+jenkins_remediation_job: "JOB_CLEANUP_ARTIFACTORY_HEAP"

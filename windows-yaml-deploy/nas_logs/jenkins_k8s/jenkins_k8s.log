@@ -1,0 +1,75 @@
+[2026-08-05T10:49:20.774Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.28, queue: 0, responseTime: 126.71, podsOnline: 4.99, podsTotal: 4.8
+[2026-08-05T10:49:30.801Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.04, queue: 0, responseTime: 126.86, podsOnline: 4.76, podsTotal: 5.1
+[2026-08-05T10:49:40.796Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.13, queue: 0, responseTime: 128.33, podsOnline: 5.21, podsTotal: 4.79
+[2026-08-05T10:49:50.812Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.94, queue: 0, responseTime: 120.23, podsOnline: 5.05, podsTotal: 4.89
+[2026-08-05T10:50:00.833Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.76, queue: 0, responseTime: 121.41, podsOnline: 5.13, podsTotal: 4.91
+[2026-08-05T10:50:00.868Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:50:10.832Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.06, queue: 0, responseTime: 123.25, podsOnline: 5.14, podsTotal: 5.17
+[2026-08-05T10:50:20.803Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.14, queue: 0, responseTime: 128.91, podsOnline: 4.78, podsTotal: 5.24
+[2026-08-05T10:50:30.822Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.29, queue: 0, responseTime: 129.29, podsOnline: 4.92, podsTotal: 4.87
+[2026-08-05T10:50:40.897Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.11, queue: 0, responseTime: 125.64, podsOnline: 4.93, podsTotal: 4.8
+[2026-08-05T10:50:50.873Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.94, queue: 0, responseTime: 126.76, podsOnline: 4.96, podsTotal: 4.85
+[2026-08-05T10:51:00.848Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.64, queue: 0, responseTime: 125.95, podsOnline: 5.07, podsTotal: 5.11
+[2026-08-05T10:51:00.881Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:51:10.863Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.22, queue: 0, responseTime: 121.83, podsOnline: 4.91, podsTotal: 5.22
+[2026-08-05T10:51:10.901Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:51:20.886Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.72, queue: 0, responseTime: 120.16, podsOnline: 4.91, podsTotal: 5.23
+[2026-08-05T10:51:30.868Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.16, queue: 0, responseTime: 129.79, podsOnline: 5.02, podsTotal: 4.77
+[2026-08-05T10:51:40.907Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.39, queue: 0, responseTime: 121.42, podsOnline: 5.02, podsTotal: 5.22
+[2026-08-05T10:51:50.920Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.8, queue: 0, responseTime: 125.23, podsOnline: 4.97, podsTotal: 4.79
+[2026-08-05T10:51:50.952Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:52:00.920Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.06, queue: 0, responseTime: 125.51, podsOnline: 5.22, podsTotal: 4.8
+[2026-08-05T10:52:10.947Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.96, queue: 0, responseTime: 124.96, podsOnline: 4.9, podsTotal: 4.79
+[2026-08-05T10:52:10.981Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:52:20.967Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.3, queue: 0, responseTime: 128.6, podsOnline: 5.13, podsTotal: 4.9
+[2026-08-05T10:52:30.970Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.97, queue: 0, responseTime: 124.18, podsOnline: 4.96, podsTotal: 5.03
+[2026-08-05T10:52:40.948Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.26, queue: 0, responseTime: 121.8, podsOnline: 5.1, podsTotal: 5.01
+[2026-08-05T10:52:50.972Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.36, queue: 0, responseTime: 128.6, podsOnline: 5.21, podsTotal: 4.88
+[2026-08-05T10:53:01.094Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.83, queue: 0, responseTime: 124.66, podsOnline: 5.05, podsTotal: 4.81
+[2026-08-05T10:53:11.060Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.14, queue: 0, responseTime: 119.19, podsOnline: 4.75, podsTotal: 4.93
+[2026-08-05T10:53:21.085Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.13, queue: 0, responseTime: 123.98, podsOnline: 4.89, podsTotal: 4.95
+[2026-08-05T10:53:32.991Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.83, queue: 0, responseTime: 122.29, podsOnline: 4.84, podsTotal: 4.91
+[2026-08-05T10:53:33.036Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:53:42.942Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.98, queue: 0, responseTime: 128.73, podsOnline: 4.84, podsTotal: 4.83
+[2026-08-05T10:53:53.011Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.91, queue: 0, responseTime: 125.69, podsOnline: 5.21, podsTotal: 4.78
+[2026-08-05T10:54:02.933Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.25, queue: 0, responseTime: 120.72, podsOnline: 5, podsTotal: 4.86
+[2026-08-05T10:54:12.953Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.95, queue: 0, responseTime: 128.58, podsOnline: 5.22, podsTotal: 5
+[2026-08-05T10:54:22.946Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.7, queue: 0, responseTime: 123, podsOnline: 4.77, podsTotal: 5.02
+[2026-08-05T10:54:32.972Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.37, queue: 0, responseTime: 129.1, podsOnline: 4.79, podsTotal: 4.99
+[2026-08-05T10:54:42.975Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.32, queue: 0, responseTime: 125.86, podsOnline: 5.06, podsTotal: 5
+[2026-08-05T10:54:52.991Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.8, queue: 0, responseTime: 129.79, podsOnline: 5.16, podsTotal: 5.07
+[2026-08-05T10:55:03.007Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.91, queue: 0, responseTime: 127.94, podsOnline: 4.85, podsTotal: 5.11
+[2026-08-05T10:55:13.060Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.37, queue: 0, responseTime: 129.77, podsOnline: 5, podsTotal: 4.85
+[2026-08-05T10:55:23.039Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.88, queue: 0, responseTime: 123.34, podsOnline: 4.78, podsTotal: 5.09
+[2026-08-05T10:55:33.011Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.85, queue: 0, responseTime: 118.9, podsOnline: 5.02, podsTotal: 4.78
+[2026-08-05T10:55:43.264Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.16, queue: 0, responseTime: 127.88, podsOnline: 4.91, podsTotal: 5.08
+[2026-08-05T10:55:59.962Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.03, queue: 0, responseTime: 125.79, podsOnline: 4.96, podsTotal: 5.04
+[2026-08-05T10:56:09.833Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.65, queue: 0, responseTime: 128.49, podsOnline: 4.77, podsTotal: 5.17
+[2026-08-05T10:56:19.808Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.03, queue: 0, responseTime: 120.22, podsOnline: 5.24, podsTotal: 4.96
+[2026-08-05T10:56:29.816Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.81, queue: 0, responseTime: 128.86, podsOnline: 4.98, podsTotal: 4.95
+[2026-08-05T10:56:39.789Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.86, queue: 0, responseTime: 129.49, podsOnline: 5.02, podsTotal: 4.88
+[2026-08-05T10:56:49.837Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.16, queue: 0, responseTime: 128.86, podsOnline: 5.1, podsTotal: 4.95
+[2026-08-05T10:56:59.864Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.21, queue: 0, responseTime: 129.71, podsOnline: 5.04, podsTotal: 5.16
+[2026-08-05T10:57:09.840Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.07, queue: 0, responseTime: 121.88, podsOnline: 4.86, podsTotal: 5.12
+[2026-08-05T10:57:19.879Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.34, queue: 0, responseTime: 125.64, podsOnline: 5.24, podsTotal: 5.15
+[2026-08-05T10:57:29.871Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.8, queue: 0, responseTime: 130.14, podsOnline: 4.89, podsTotal: 4.96
+[2026-08-05T10:57:40.099Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.69, queue: 0, responseTime: 124.67, podsOnline: 5.06, podsTotal: 4.85
+[2026-08-05T10:57:52.585Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.18, queue: 0, responseTime: 124.97, podsOnline: 5.23, podsTotal: 5.2
+[2026-08-05T10:57:52.628Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:58:02.498Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.65, queue: 0, responseTime: 129.79, podsOnline: 4.93, podsTotal: 5.09
+[2026-08-05T10:58:02.540Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:58:12.499Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.27, queue: 0, responseTime: 126.3, podsOnline: 5.09, podsTotal: 5.01
+[2026-08-05T10:58:22.627Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.73, queue: 0, responseTime: 119.66, podsOnline: 5.19, podsTotal: 5.09
+[2026-08-05T10:58:32.507Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.7, queue: 0, responseTime: 119.01, podsOnline: 5.19, podsTotal: 4.88
+[2026-08-05T10:58:42.533Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.61, queue: 0, responseTime: 124.77, podsOnline: 4.85, podsTotal: 4.9
+[2026-08-05T10:58:42.569Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:58:52.556Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.39, queue: 0, responseTime: 126.65, podsOnline: 4.94, podsTotal: 4.78
+[2026-08-05T10:59:02.679Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.77, queue: 0, responseTime: 121.35, podsOnline: 5.2, podsTotal: 4.77
+[2026-08-05T10:59:12.544Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.1, queue: 0, responseTime: 126.47, podsOnline: 4.88, podsTotal: 4.99
+[2026-08-05T10:59:22.690Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.96, queue: 0, responseTime: 119.09, podsOnline: 5.15, podsTotal: 5.18
+[2026-08-05T10:59:32.567Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.67, queue: 0, responseTime: 126.47, podsOnline: 4.91, podsTotal: 5.08
+[2026-08-05T10:59:42.577Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.75, queue: 0, responseTime: 125.75, podsOnline: 5.24, podsTotal: 4.96
+[2026-08-05T10:59:52.720Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.72, queue: 0, responseTime: 127.02, podsOnline: 4.77, podsTotal: 5.12
+[2026-08-05T10:59:52.757Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T11:00:02.706Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.06, queue: 0, responseTime: 130.81, podsOnline: 5.02, podsTotal: 4.84
+[2026-08-05T11:00:12.610Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.29, queue: 0, responseTime: 122.97, podsOnline: 4.86, podsTotal: 4.75

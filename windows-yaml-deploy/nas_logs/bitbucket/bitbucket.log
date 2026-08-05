@@ -1,0 +1,93 @@
+[2026-08-05T10:49:01.021Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:49:10.728Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 44
+[2026-08-05T10:49:10.897Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:49:20.640Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 46
+[2026-08-05T10:49:20.812Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:49:30.663Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 44
+[2026-08-05T10:49:30.834Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:49:40.663Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 44
+[2026-08-05T10:49:40.833Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:49:50.682Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 44
+[2026-08-05T10:50:00.697Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 45
+[2026-08-05T10:50:10.701Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:50:20.675Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 45
+[2026-08-05T10:50:30.690Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.78, requests: 43
+[2026-08-05T10:50:30.856Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:50:40.759Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 43
+[2026-08-05T10:50:50.731Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 44
+[2026-08-05T10:51:00.711Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 43
+[2026-08-05T10:51:10.728Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 44
+[2026-08-05T10:51:10.897Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:51:20.753Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 44
+[2026-08-05T10:51:20.923Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:51:30.733Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 46
+[2026-08-05T10:51:30.906Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:51:40.766Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 44
+[2026-08-05T10:51:40.944Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:51:50.786Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 44
+[2026-08-05T10:51:50.956Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:52:00.781Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 45
+[2026-08-05T10:52:10.812Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 45
+[2026-08-05T10:52:20.827Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 43
+[2026-08-05T10:52:30.831Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 43
+[2026-08-05T10:52:40.812Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 44
+[2026-08-05T10:52:50.834Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 46
+[2026-08-05T10:53:00.920Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 44
+[2026-08-05T10:53:10.887Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.8, requests: 43
+[2026-08-05T10:53:20.924Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.8, requests: 46
+[2026-08-05T10:53:21.137Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:53:32.830Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:53:33.032Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:53:42.803Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 46
+[2026-08-05T10:53:42.979Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:53:52.875Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 44
+[2026-08-05T10:53:53.048Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:54:02.798Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 43
+[2026-08-05T10:54:12.811Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 46
+[2026-08-05T10:54:22.807Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.75, requests: 44
+[2026-08-05T10:54:22.983Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:54:32.830Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 43
+[2026-08-05T10:54:33.010Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:54:42.835Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.75, requests: 45
+[2026-08-05T10:54:43.014Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:54:52.854Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 45
+[2026-08-05T10:54:53.026Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:55:02.867Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 44
+[2026-08-05T10:55:12.885Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 43
+[2026-08-05T10:55:22.895Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.76, requests: 43
+[2026-08-05T10:55:32.862Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.76, requests: 43
+[2026-08-05T10:55:33.050Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:55:43.096Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 45
+[2026-08-05T10:55:59.802Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.77, requests: 46
+[2026-08-05T10:56:09.693Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 45
+[2026-08-05T10:56:09.873Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:56:19.669Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 43
+[2026-08-05T10:56:29.673Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.75, requests: 45
+[2026-08-05T10:56:39.651Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 43
+[2026-08-05T10:56:39.826Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:56:49.698Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 43
+[2026-08-05T10:56:59.719Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.79, requests: 43
+[2026-08-05T10:57:09.702Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 44
+[2026-08-05T10:57:19.724Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:57:29.729Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.75, requests: 46
+[2026-08-05T10:57:29.907Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:57:39.900Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.78, requests: 45
+[2026-08-05T10:57:40.150Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:57:52.419Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.75, requests: 44
+[2026-08-05T10:58:02.354Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 44
+[2026-08-05T10:58:12.356Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 44
+[2026-08-05T10:58:22.386Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:58:32.344Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 44
+[2026-08-05T10:58:42.381Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.79, requests: 44
+[2026-08-05T10:58:52.412Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 43
+[2026-08-05T10:59:02.540Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:59:12.392Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 46
+[2026-08-05T10:59:12.573Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:59:22.529Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.75, requests: 44
+[2026-08-05T10:59:32.418Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.78, requests: 45
+[2026-08-05T10:59:32.600Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:59:42.425Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.79, requests: 46
+[2026-08-05T10:59:52.578Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 43
+[2026-08-05T11:00:02.529Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.79, requests: 43
+[2026-08-05T11:00:12.459Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.75, requests: 45
+[2026-08-05T11:00:12.648Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin

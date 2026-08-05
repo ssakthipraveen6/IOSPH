@@ -1,0 +1,82 @@
+[2026-08-05T10:49:20.398Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.59, clusterCount: 4.17
+[2026-08-05T10:49:30.409Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.89, clusterCount: 3.95
+[2026-08-05T10:49:40.416Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42.82, clusterCount: 4.18
+[2026-08-05T10:49:50.440Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.18, clusterCount: 4.17
+[2026-08-05T10:50:00.439Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.44, clusterCount: 4.15
+[2026-08-05T10:50:10.451Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.97, clusterCount: 4.18
+[2026-08-05T10:50:10.867Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:50:20.432Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.33, clusterCount: 3.86
+[2026-08-05T10:50:30.445Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.42, clusterCount: 4.04
+[2026-08-05T10:50:40.517Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42.92, clusterCount: 4.09
+[2026-08-05T10:50:50.480Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.85, clusterCount: 3.94
+[2026-08-05T10:51:00.463Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.54, clusterCount: 3.81
+[2026-08-05T10:51:10.481Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.68, clusterCount: 3.97
+[2026-08-05T10:51:20.510Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.88, clusterCount: 3.8
+[2026-08-05T10:51:20.919Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:51:30.485Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.31, clusterCount: 4.19
+[2026-08-05T10:51:40.519Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.81, clusterCount: 4.08
+[2026-08-05T10:51:40.940Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:51:50.540Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.69, clusterCount: 4.16
+[2026-08-05T10:52:00.528Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.09, clusterCount: 4.07
+[2026-08-05T10:52:00.957Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:52:10.554Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.6, clusterCount: 4.17
+[2026-08-05T10:52:20.581Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.83, clusterCount: 4.03
+[2026-08-05T10:52:30.583Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.03, clusterCount: 3.98
+[2026-08-05T10:52:40.557Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.03, clusterCount: 3.82
+[2026-08-05T10:52:50.583Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.89, clusterCount: 3.89
+[2026-08-05T10:52:51.006Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:53:00.601Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.33, clusterCount: 3.83
+[2026-08-05T10:53:01.138Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:53:10.598Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.83, clusterCount: 3.94
+[2026-08-05T10:53:20.631Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.07, clusterCount: 3.94
+[2026-08-05T10:53:32.538Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.47, clusterCount: 4.06
+[2026-08-05T10:53:42.541Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.24, clusterCount: 4.13
+[2026-08-05T10:53:52.616Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.33, clusterCount: 4.09
+[2026-08-05T10:54:02.538Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.83, clusterCount: 4.04
+[2026-08-05T10:54:12.548Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.6, clusterCount: 4.14
+[2026-08-05T10:54:12.989Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:54:22.544Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42.79, clusterCount: 4.16
+[2026-08-05T10:54:32.573Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.35, clusterCount: 4.12
+[2026-08-05T10:54:42.572Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.26, clusterCount: 4.14
+[2026-08-05T10:54:52.581Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.51, clusterCount: 4.14
+[2026-08-05T10:54:53.029Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:55:02.586Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.6, clusterCount: 4.14
+[2026-08-05T10:55:12.592Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42.96, clusterCount: 4.02
+[2026-08-05T10:55:22.626Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.15, clusterCount: 4.18
+[2026-08-05T10:55:32.604Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42.9, clusterCount: 4
+[2026-08-05T10:55:33.046Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:55:42.671Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 42.94, clusterCount: 4.12
+[2026-08-05T10:55:59.432Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.39, clusterCount: 3.8
+[2026-08-05T10:56:00.008Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:56:09.425Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.29, clusterCount: 3.91
+[2026-08-05T10:56:19.397Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.55, clusterCount: 3.89
+[2026-08-05T10:56:29.407Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.25, clusterCount: 3.82
+[2026-08-05T10:56:39.387Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.12, clusterCount: 4.11
+[2026-08-05T10:56:49.422Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.25, clusterCount: 4.07
+[2026-08-05T10:56:59.456Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 47.22, clusterCount: 4.17
+[2026-08-05T10:57:09.439Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 47.23, clusterCount: 4.14
+[2026-08-05T10:57:19.467Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.21, clusterCount: 4.12
+[2026-08-05T10:57:19.928Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:57:29.456Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.18, clusterCount: 3.97
+[2026-08-05T10:57:29.903Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:57:39.482Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.24, clusterCount: 3.89
+[2026-08-05T10:57:40.155Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:57:52.109Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.83, clusterCount: 4.01
+[2026-08-05T10:58:02.053Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.79, clusterCount: 4.03
+[2026-08-05T10:58:02.536Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:58:12.087Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.22, clusterCount: 4.01
+[2026-08-05T10:58:22.095Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.62, clusterCount: 4.01
+[2026-08-05T10:58:32.063Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.62, clusterCount: 3.85
+[2026-08-05T10:58:42.094Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.03, clusterCount: 3.99
+[2026-08-05T10:58:52.134Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.09, clusterCount: 4.04
+[2026-08-05T10:59:02.109Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.06, clusterCount: 4.16
+[2026-08-05T10:59:12.119Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.54, clusterCount: 4.15
+[2026-08-05T10:59:12.577Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:59:22.158Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.95, clusterCount: 3.85
+[2026-08-05T10:59:22.736Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:59:32.149Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.69, clusterCount: 3.86
+[2026-08-05T10:59:42.156Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.05, clusterCount: 4.2
+[2026-08-05T10:59:42.609Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:59:52.221Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.36, clusterCount: 3.91
+[2026-08-05T11:00:02.232Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.44, clusterCount: 3.95
+[2026-08-05T11:00:12.190Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.75, clusterCount: 3.98

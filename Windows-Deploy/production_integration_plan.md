@@ -87,3 +87,118 @@ CREATE INDEX IF NOT EXISTS IDX_LOG_ANALYTICS ON LOG_ANALYTICS (COMPONENT, TIMEST
    - On Windows: Run `npm start` or execute `start.bat`
    - On Linux: Run `npm start` or execute `./start.sh`
 6. **Verify Four-Eyes Governance**: Open [Admin Management](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/frontend/src/components/AdminManagement.jsx) to confirm RBAC roles and dual approval requirements.
+
+---
+
+## 4. 📦 Sample Custom Application Onboarding (`testdemoapp.yaml`)
+
+This sample reference implementation demonstrates how to onboard a new microservice/application (`testdemoapp`) into the Intelligent Observability & Autonomous Recovery Framework.
+
+### Step 1: Create Declarative Application YAML Configuration
+Create [`config/applications/testdemoapp.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/applications/testdemoapp.yaml):
+
+```yaml
+id: "testdemoapp"
+display_name: "Test Demo Application"
+category: "custom_microservice"
+log_tag: "[TEST-DEMO-APP]"
+
+endpoints:
+  prod:
+    api: "https://testdemoapp-prod.internal.corp/api/v1"
+  stg:
+    api: "https://testdemoapp-stg.internal.corp/api/v1"
+
+layers:
+  avi_api: "https://avi-prod-testdemoapp.internal.corp/api/v1/telemetry"
+  db_jdbc: "jdbc:postgresql://db-prod-testdemoapp.internal.corp:5432/testdemoapp_db"
+  nas_mount: "d:\\production_shares\\nas_logs\\testdemoapp"
+  s3_endpoint: "https://s3.prod-testdemoapp-us-east-1.amazonaws.com"
+  sso_api: "https://sso-auth-prod-testdemoapp.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "testdemoapp-prod.internal.corp"
+
+servers:
+  - node: "testdemoapp-node-1"
+    type: "linux"
+    api: "https://linux-compute-prod-testdemoapp-1.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  activeBuilds: 5
+  agents: 8
+  load: 30.0
+
+jenkins_remediation_job: "JOB_RESTART_TESTDEMOAPP_SERVICE"
+```
+
+### Step 2: Create Custom Application Metrics Collector
+Create [`metrics_collection/simulation/applications/testdemoapp_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/simulation/applications):
+
+```javascript
+function collect(simulations, baseMetrics) {
+  const isOutage = simulations.testdemoapp && simulations.testdemoapp.type === 'outage';
+
+  return {
+    activeBuilds: isOutage ? 0 : Math.floor((baseMetrics.activeBuilds || 5) + (Math.random() * 2 - 1)),
+    agents: baseMetrics.agents || 8,
+    load: isOutage ? 99.9 : parseFloat(((baseMetrics.load || 30) + (Math.random() * 4 - 2)).toFixed(2))
+  };
+}
+
+module.exports = { collect };
+```
+
+### Step 3: Register Log Simulation Templates
+In [`logs_collection/simulation/fluentd/fluentd_log_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/logs_collection/simulation/fluentd/fluentd_log_collector.js):
+
+- Add standard log stream entry to `normalLogs`:
+  `"[TESTDEMOAPP] Processed request on /api/v1/demo - Status 200 OK (elapsed: 18ms)"`
+
+- Add error templates to `errorLogs.testdemoapp`:
+  ```javascript
+  errorLogs.testdemoapp = [
+    "[TESTDEMOAPP-FATAL] java.lang.OutOfMemoryError: Container memory limit exceeded on node-1.",
+    "[TESTDEMOAPP-CRASH] Application service crashed with exit code 137."
+  ];
+  ```
+
+### Step 4: Configure AI Anomaly Detection Signature
+In [`ai_analysis/simulation_analyzer.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/simulation_analyzer.js):
+
+Append rule to `ANOMALY_PATTERNS`:
+```javascript
+{
+  regex: /TESTDEMOAPP-FATAL|Container memory limit exceeded/i,
+  category: 'TestDemoApp Memory Anomaly',
+  component: 'testdemoapp',
+  jenkinsJob: 'JOB_RESTART_TESTDEMOAPP_SERVICE',
+  severity: 'Critical',
+  message: 'Local AI Anomaly: Detected memory limit exhaustion in testdemoapp logs.'
+}
+```
+
+### Step 5: Register Autonomous Self-Healing Workflow
+In [`remediation/recovery.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation/recovery.js):
+
+- Add workflow definition to `workflows`:
+  ```javascript
+  testdemoapp: {
+    actionName: 'Restart Test Demo App Service and recycle JVM pool',
+    steps: [
+      'Analyzing container crash logs for testdemoapp...',
+      'Restarting testdemoapp service instances...',
+      'Verifying health check http://testdemoapp-prod.internal.corp/api/v1... HTTP 200 OK',
+      'Incident resolved and Dynatrace status updated.'
+    ]
+  }
+  ```
+
+- Map Jenkins Job inside `executeRecoveryWorkflow`:
+  ```javascript
+  if (component === 'testdemoapp') jobName = 'JOB_RESTART_TESTDEMOAPP_SERVICE';
+  ```
+
+### Step 6: Verify Dynamic UI & API Auto-Discovery
+Once the YAML configuration is placed in `config/applications/testdemoapp.yaml`:
+1. **Backend Integration**: [`backend/server.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/backend/server.js) dynamically loads all YAML applications via `yamlConfig.loadAllApplications()` and incorporates `testdemoapp` into the system health matrix score and component status map.
+2. **GitOps UI Integration**: [`frontend/src/components/YamlConfigManager.jsx`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/components/YamlConfigManager.jsx) automatically lists `testdemoapp.yaml` under application declarations and enables GitOps Bitbucket Pull Request creation for config changes.

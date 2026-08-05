@@ -1,0 +1,33 @@
+id: "performance_center"
+display_name: "Micro Focus Performance Center"
+category: "performance_testing"
+log_tag: "[PERF-CTR]"
+
+endpoints:
+  prod:
+    api: "https://perfcenter-prod.internal.corp/api/v2"
+  stg:
+    api: "https://perfcenter-stg.internal.corp/api/v2"
+
+layers:
+  avi_api: "https://avi-prod-perfcenter.internal.corp/api/v1/telemetry"
+  db_jdbc: "jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db"
+  nas_mount: "d:\\production_shares\\nas_logs\\performance_center"
+  sso_api: "https://sso-auth-prod-perfcenter.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "perfcenter-prod.internal.corp"
+
+servers:
+  - node: "perfcenter-node-1"
+    type: "windows"
+    api: "https://win-compute-prod-perfcenter-1.internal.corp/api/v1/metrics"
+  - node: "perfcenter-node-2"
+    type: "windows"
+    api: "https://win-compute-prod-perfcenter-2.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  activeTests: 5
+  avgResponseTime: 450
+  throughput: 120
+
+jenkins_remediation_job: "JOB_RESET_PERFORMANCE_CENTER_CONTROLLER"

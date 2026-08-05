@@ -1,0 +1,475 @@
+[2026-08-05T10:57:09.192Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 36.5, memory: 58.1, transactions: 446, iops: 797, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:57:09.263Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 17.29, memory: 40.27, load: 1.21, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:57:09.295Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.85, memory: 48.09, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:09.301Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1188, throughput: 346, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:57:09.357Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.45, space: 1420, bandwidth: 83, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:57:09.361Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:57:09.432Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.57, jitter: 0.15
+[2026-08-05T10:57:09.439Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 47.23, clusterCount: 4.14
+[2026-08-05T10:57:09.442Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.91, failedWorkflows: 0, responseTime: 99.08
+[2026-08-05T10:57:09.577Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.04, space: 72.8, latency: 1
+[2026-08-05T10:57:09.702Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 44
+[2026-08-05T10:57:09.828Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.56, requests: 32
+[2026-08-05T10:57:09.831Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.1, failures: 0
+[2026-08-05T10:57:09.835Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 75
+[2026-08-05T10:57:09.840Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.07, queue: 0, responseTime: 121.88, podsOnline: 4.86, podsTotal: 5.12
+[2026-08-05T10:57:09.844Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.56, latency: 59.47, replicas: 2.99
+[2026-08-05T10:57:09.848Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 184
+[2026-08-05T10:57:09.852Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 9, responseTime: 156
+[2026-08-05T10:57:09.858Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 448, throughput: 118
+[2026-08-05T10:57:09.863Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 108
+[2026-08-05T10:57:09.869Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 23.26
+[2026-08-05T10:57:09.874Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 3 eps
+[2026-08-05T10:57:09.880Z] [INFO] [LOG_AGENT_REAL] [TC-BUILD] Build step completed successfully: Compile artifacts for project 'Remediator' (agent: node-2)
+[2026-08-05T10:57:09.884Z] [INFO] [LOG_AGENT_REAL] [IIS-SERVER] GET /api/health - Client IP: 10.194.22.45 - Status 200 OK (elapsed: 15ms)
+[2026-08-05T10:57:19.197Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1490, ingressFlow: 44.43, throughput: 118, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:57:19.202Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 34.5, memory: 59.1, transactions: 445, iops: 798, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:57:19.269Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 17.37, memory: 41, load: 1.2, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:57:19.310Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.17, memory: 47.99, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:19.315Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1207, throughput: 346, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:57:19.372Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.16, space: 1421, bandwidth: 86, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:57:19.376Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:57:19.467Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.21, clusterCount: 4.12
+[2026-08-05T10:57:19.460Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 5.36, jitter: 0.15
+[2026-08-05T10:57:19.471Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.01, failedWorkflows: 0, responseTime: 97.18
+[2026-08-05T10:57:19.597Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.79, space: 72.8, latency: 45
+[2026-08-05T10:57:19.724Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:57:19.867Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.56, requests: 31
+[2026-08-05T10:57:19.870Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.25, failures: 0
+[2026-08-05T10:57:19.875Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 72
+[2026-08-05T10:57:19.879Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.34, queue: 0, responseTime: 125.64, podsOnline: 5.24, podsTotal: 5.15
+[2026-08-05T10:57:19.883Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.26, latency: 61.53, replicas: 2.94
+[2026-08-05T10:57:19.888Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 175
+[2026-08-05T10:57:19.893Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 7, responseTime: 164
+[2026-08-05T10:57:19.899Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 5, avgResponseTime: 446, throughput: 117
+[2026-08-05T10:57:19.903Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 111
+[2026-08-05T10:57:19.907Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 24.7
+[2026-08-05T10:57:19.911Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 5 eps
+[2026-08-05T10:57:19.917Z] [INFO] [LOG_AGENT_REAL] [IIS-SERVER] GET /api/health - Client IP: 10.194.22.45 - Status 200 OK (elapsed: 15ms)
+[2026-08-05T10:57:19.928Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:57:29.209Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1514, ingressFlow: 45.4, throughput: 122, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:57:29.214Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 35.5, memory: 58.1, transactions: 445, iops: 802, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:57:29.290Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 19.36, memory: 40.78, load: 1.18, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:57:29.318Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.93, memory: 49.14, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:29.324Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1179, throughput: 354, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:57:29.378Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.02, space: 1421, bandwidth: 85, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:57:29.382Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:57:29.449Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.21, jitter: 0.15
+[2026-08-05T10:57:29.456Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.18, clusterCount: 3.97
+[2026-08-05T10:57:29.460Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.03, failedWorkflows: 0, responseTime: 98.42
+[2026-08-05T10:57:29.597Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.6, space: 72.8, latency: 1
+[2026-08-05T10:57:29.729Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.75, requests: 46
+[2026-08-05T10:57:29.860Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.56, requests: 33
+[2026-08-05T10:57:29.864Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.52, failures: 0
+[2026-08-05T10:57:29.867Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 74
+[2026-08-05T10:57:29.871Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.8, queue: 0, responseTime: 130.14, podsOnline: 4.89, podsTotal: 4.96
+[2026-08-05T10:57:29.874Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.2, latency: 57.12, replicas: 3.11
+[2026-08-05T10:57:29.877Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 182
+[2026-08-05T10:57:29.881Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 7, responseTime: 155
+[2026-08-05T10:57:29.886Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 5, avgResponseTime: 448, throughput: 117
+[2026-08-05T10:57:29.890Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 108
+[2026-08-05T10:57:29.894Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 23.51
+[2026-08-05T10:57:29.897Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 6 eps
+[2026-08-05T10:57:29.903Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:57:29.907Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:57:39.204Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1495, ingressFlow: 44.47, throughput: 120, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:57:39.211Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 36.5, memory: 58.1, transactions: 449, iops: 791, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:57:39.283Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 18.78, memory: 40.27, load: 1.2, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:57:39.312Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.42, memory: 48.73, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:39.317Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1220, throughput: 353, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:57:39.389Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.53, space: 1421, bandwidth: 84, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:57:39.395Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:57:39.475Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 5, jitter: 0.15
+[2026-08-05T10:57:39.482Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.24, clusterCount: 3.89
+[2026-08-05T10:57:39.485Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.94, failedWorkflows: 0, responseTime: 92.43
+[2026-08-05T10:57:39.657Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.7, space: 72.8, latency: 45
+[2026-08-05T10:57:39.900Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.78, requests: 45
+[2026-08-05T10:57:40.080Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.58, requests: 30
+[2026-08-05T10:57:40.087Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 15.71, failures: 0
+[2026-08-05T10:57:40.094Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 74
+[2026-08-05T10:57:40.099Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.69, queue: 0, responseTime: 124.67, podsOnline: 5.06, podsTotal: 4.85
+[2026-08-05T10:57:40.105Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.87, latency: 58.24, replicas: 3.08
+[2026-08-05T10:57:40.111Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:57:40.118Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 8, responseTime: 157
+[2026-08-05T10:57:40.124Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 5, avgResponseTime: 442, throughput: 120
+[2026-08-05T10:57:40.131Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 109
+[2026-08-05T10:57:40.137Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 25.22
+[2026-08-05T10:57:40.143Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 3 eps
+[2026-08-05T10:57:40.150Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:57:40.155Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:57:51.741Z] [INFO] [COORDINATOR] Intelligent Observability Daemon started successfully in [REAL] mode.
+[2026-08-05T10:57:51.820Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1529, ingressFlow: 46.02, throughput: 119, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:57:51.826Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 33.5, memory: 59.1, transactions: 456, iops: 790, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:57:51.890Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 19.33, memory: 40.49, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:57:51.915Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.88, memory: 47.87, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:57:51.921Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1182, throughput: 354, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:57:52.003Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.4, space: 1420, bandwidth: 84, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:57:52.007Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:57:52.102Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 6.07, jitter: 0.15
+[2026-08-05T10:57:52.109Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.83, clusterCount: 4.01
+[2026-08-05T10:57:52.114Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.12, failedWorkflows: 0, responseTime: 92.74
+[2026-08-05T10:57:52.272Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 51.91, space: 72.8, latency: 45
+[2026-08-05T10:57:52.419Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.75, requests: 44
+[2026-08-05T10:57:52.567Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.55, requests: 31
+[2026-08-05T10:57:52.574Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.41, failures: 0
+[2026-08-05T10:57:52.579Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 74
+[2026-08-05T10:57:52.585Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.18, queue: 0, responseTime: 124.97, podsOnline: 5.23, podsTotal: 5.2
+[2026-08-05T10:57:52.590Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.49, latency: 60.43, replicas: 2.98
+[2026-08-05T10:57:52.595Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 176
+[2026-08-05T10:57:52.601Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 9, responseTime: 160
+[2026-08-05T10:57:52.606Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 456, throughput: 118
+[2026-08-05T10:57:52.612Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 111
+[2026-08-05T10:57:52.617Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 23
+[2026-08-05T10:57:52.622Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 4 eps
+[2026-08-05T10:57:52.628Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:57:52.632Z] [INFO] [LOG_AGENT_REAL] [IIS-SERVER] GET /api/health - Client IP: 10.194.22.45 - Status 200 OK (elapsed: 15ms)
+[2026-08-05T10:58:01.813Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1502, ingressFlow: 44.53, throughput: 118, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:58:01.818Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 35.5, memory: 58.1, transactions: 449, iops: 790, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:58:01.885Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 17.31, memory: 40.47, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:58:01.908Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.91, memory: 48.06, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:01.913Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1201, throughput: 345, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:58:01.972Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.87, space: 1421, bandwidth: 84, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:58:01.977Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:58:02.047Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.5, jitter: 0.15
+[2026-08-05T10:58:02.053Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.79, clusterCount: 4.03
+[2026-08-05T10:58:02.058Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.1, failedWorkflows: 0, responseTime: 98.1
+[2026-08-05T10:58:02.218Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.64, space: 72.8, latency: 45
+[2026-08-05T10:58:02.354Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 44
+[2026-08-05T10:58:02.485Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 1, successRate: 99.58, requests: 33
+[2026-08-05T10:58:02.488Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.86, failures: 0
+[2026-08-05T10:58:02.493Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 77
+[2026-08-05T10:58:02.498Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.65, queue: 0, responseTime: 129.79, podsOnline: 4.93, podsTotal: 5.09
+[2026-08-05T10:58:02.503Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.39, latency: 59.14, replicas: 3.09
+[2026-08-05T10:58:02.508Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T10:58:02.514Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 8, responseTime: 162
+[2026-08-05T10:58:02.519Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 442, throughput: 121
+[2026-08-05T10:58:02.523Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 111
+[2026-08-05T10:58:02.528Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 3, agents: 10, load: 24.85
+[2026-08-05T10:58:02.531Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 4 eps
+[2026-08-05T10:58:02.536Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:58:02.540Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:58:11.822Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1546, ingressFlow: 44.88, throughput: 120, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:58:11.827Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 36.5, memory: 58.1, transactions: 446, iops: 792, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:58:11.902Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 16.92, memory: 40.88, load: 1.2, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:58:11.935Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.33, memory: 49.45, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:11.941Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1176, throughput: 346, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:58:11.997Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.22, space: 1421, bandwidth: 83, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:58:12.005Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:58:12.079Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.57, jitter: 0.15
+[2026-08-05T10:58:12.087Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.22, clusterCount: 4.01
+[2026-08-05T10:58:12.092Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.95, failedWorkflows: 0, responseTime: 97.06
+[2026-08-05T10:58:12.230Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.08, space: 72.8, latency: 45
+[2026-08-05T10:58:12.356Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 44
+[2026-08-05T10:58:12.491Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.24, failures: 0
+[2026-08-05T10:58:12.487Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.58, requests: 32
+[2026-08-05T10:58:12.494Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 72
+[2026-08-05T10:58:12.499Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.27, queue: 0, responseTime: 126.3, podsOnline: 5.09, podsTotal: 5.01
+[2026-08-05T10:58:12.502Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.3, latency: 61.35, replicas: 3.12
+[2026-08-05T10:58:12.507Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T10:58:12.512Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 7, responseTime: 160
+[2026-08-05T10:58:12.517Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 452, throughput: 118
+[2026-08-05T10:58:12.521Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 110
+[2026-08-05T10:58:12.525Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 24.11
+[2026-08-05T10:58:12.529Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 5 eps
+[2026-08-05T10:58:12.533Z] [INFO] [LOG_AGENT_REAL] [S3-BUCK] Performing multipart backup archiving snapshot sentinel_db_dump.sql (bandwidth: 84.5 MB/s)
+[2026-08-05T10:58:12.536Z] [INFO] [LOG_AGENT_REAL] [TC-BUILD] Build step completed successfully: Compile artifacts for project 'Remediator' (agent: node-2)
+[2026-08-05T10:58:21.831Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1509, ingressFlow: 44.97, throughput: 117, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:58:21.837Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 34.5, memory: 58.1, transactions: 443, iops: 801, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:58:21.905Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 18.6, memory: 40.03, load: 1.19, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:58:21.937Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.9, memory: 48.83, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:21.942Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1180, throughput: 351, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:58:22.012Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.59, space: 1421, bandwidth: 84, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:58:22.016Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:58:22.088Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.64, jitter: 0.15
+[2026-08-05T10:58:22.095Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.62, clusterCount: 4.01
+[2026-08-05T10:58:22.099Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.96, failedWorkflows: 0, responseTime: 97.8
+[2026-08-05T10:58:22.247Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.49, space: 72.8, latency: 1
+[2026-08-05T10:58:22.386Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:58:22.609Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.58, requests: 32
+[2026-08-05T10:58:22.615Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.59, failures: 0
+[2026-08-05T10:58:22.620Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 75
+[2026-08-05T10:58:22.627Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.73, queue: 0, responseTime: 119.66, podsOnline: 5.19, podsTotal: 5.09
+[2026-08-05T10:58:22.633Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 27.38, latency: 60.62, replicas: 3.04
+[2026-08-05T10:58:22.641Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 176
+[2026-08-05T10:58:22.648Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 9, responseTime: 158
+[2026-08-05T10:58:22.656Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 5, avgResponseTime: 454, throughput: 119
+[2026-08-05T10:58:22.662Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 111
+[2026-08-05T10:58:22.670Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 3, agents: 10, load: 23.98
+[2026-08-05T10:58:22.676Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 4 eps
+[2026-08-05T10:58:22.681Z] [INFO] [LOG_AGENT_REAL] [S3-BUCK] Performing multipart backup archiving snapshot sentinel_db_dump.sql (bandwidth: 84.5 MB/s)
+[2026-08-05T10:58:22.686Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:58:31.839Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1556, ingressFlow: 44.67, throughput: 121, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:58:31.845Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 32.5, memory: 58.1, transactions: 450, iops: 792, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:58:31.904Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 17.95, memory: 40.28, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:58:31.933Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.93, memory: 48.85, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:31.938Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1224, throughput: 349, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:58:31.983Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.11, space: 1421, bandwidth: 86, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:58:31.988Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:58:32.058Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.5, jitter: 0.15
+[2026-08-05T10:58:32.063Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.62, clusterCount: 3.85
+[2026-08-05T10:58:32.067Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.07, failedWorkflows: 0, responseTime: 91.03
+[2026-08-05T10:58:32.204Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.48, space: 72.8, latency: 45
+[2026-08-05T10:58:32.344Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.8, requests: 44
+[2026-08-05T10:58:32.489Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.6, requests: 30
+[2026-08-05T10:58:32.495Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.55, failures: 0
+[2026-08-05T10:58:32.502Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4949, pendingPullRequests: 14, responseTime: 75
+[2026-08-05T10:58:32.507Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.7, queue: 0, responseTime: 119.01, podsOnline: 5.19, podsTotal: 4.88
+[2026-08-05T10:58:32.514Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.48, latency: 62.94, replicas: 3.11
+[2026-08-05T10:58:32.520Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 176
+[2026-08-05T10:58:32.525Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 8, responseTime: 162
+[2026-08-05T10:58:32.529Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 444, throughput: 121
+[2026-08-05T10:58:32.534Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 110
+[2026-08-05T10:58:32.539Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 3, agents: 10, load: 25.41
+[2026-08-05T10:58:32.544Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 3 eps
+[2026-08-05T10:58:32.548Z] [INFO] [LOG_AGENT_REAL] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
+[2026-08-05T10:58:32.552Z] [INFO] [LOG_AGENT_REAL] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
+[2026-08-05T10:58:41.850Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1513, ingressFlow: 44.51, throughput: 117, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:58:41.854Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 36.5, memory: 59.1, transactions: 453, iops: 799, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:58:41.919Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 19.4, memory: 40.27, load: 1.21, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:58:41.945Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.41, memory: 48.89, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:41.951Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1201, throughput: 346, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:58:42.014Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.25, space: 1420, bandwidth: 84, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:58:42.018Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:58:42.089Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.57, jitter: 0.15
+[2026-08-05T10:58:42.094Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.03, clusterCount: 3.99
+[2026-08-05T10:58:42.098Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.06, failedWorkflows: 0, responseTime: 93.55
+[2026-08-05T10:58:42.228Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.88, space: 72.8, latency: 1
+[2026-08-05T10:58:42.381Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.79, requests: 44
+[2026-08-05T10:58:42.521Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.59, requests: 32
+[2026-08-05T10:58:42.525Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.43, failures: 0
+[2026-08-05T10:58:42.529Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 73
+[2026-08-05T10:58:42.533Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.61, queue: 0, responseTime: 124.77, podsOnline: 4.85, podsTotal: 4.9
+[2026-08-05T10:58:42.536Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 27.35, latency: 57.05, replicas: 2.9
+[2026-08-05T10:58:42.540Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 180
+[2026-08-05T10:58:42.544Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 6, responseTime: 156
+[2026-08-05T10:58:42.548Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 5, avgResponseTime: 446, throughput: 119
+[2026-08-05T10:58:42.551Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 108
+[2026-08-05T10:58:42.556Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 23.8
+[2026-08-05T10:58:42.560Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 4 eps
+[2026-08-05T10:58:42.565Z] [INFO] [LOG_AGENT_REAL] [TC-BUILD] Build step completed successfully: Compile artifacts for project 'Remediator' (agent: node-2)
+[2026-08-05T10:58:42.569Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:58:51.859Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1486, ingressFlow: 44.93, throughput: 120, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:58:51.864Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 33.5, memory: 59.1, transactions: 444, iops: 809, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:58:51.932Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 19.34, memory: 40.06, load: 1.19, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:58:51.957Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.27, memory: 47.85, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:58:51.961Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1182, throughput: 346, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:58:52.037Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.19, space: 1420, bandwidth: 83, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:58:52.041Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:58:52.129Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 5.79, jitter: 0.15
+[2026-08-05T10:58:52.134Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.09, clusterCount: 4.04
+[2026-08-05T10:58:52.137Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.03, failedWorkflows: 0, responseTime: 93.43
+[2026-08-05T10:58:52.275Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.11, space: 72.8, latency: 45
+[2026-08-05T10:58:52.412Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.77, requests: 43
+[2026-08-05T10:58:52.545Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.56, requests: 33
+[2026-08-05T10:58:52.549Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.56, failures: 0
+[2026-08-05T10:58:52.552Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 72
+[2026-08-05T10:58:52.556Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.39, queue: 0, responseTime: 126.65, podsOnline: 4.94, podsTotal: 4.78
+[2026-08-05T10:58:52.560Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.11, latency: 58.53, replicas: 2.86
+[2026-08-05T10:58:52.564Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 184
+[2026-08-05T10:58:52.568Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 6, responseTime: 155
+[2026-08-05T10:58:52.572Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 5, avgResponseTime: 443, throughput: 121
+[2026-08-05T10:58:52.576Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 108
+[2026-08-05T10:58:52.580Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 3, agents: 10, load: 24.01
+[2026-08-05T10:58:52.585Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 6 eps
+[2026-08-05T10:58:52.590Z] [INFO] [LOG_AGENT_REAL] [TC-BUILD] Build step completed successfully: Compile artifacts for project 'Remediator' (agent: node-2)
+[2026-08-05T10:58:52.593Z] [INFO] [LOG_AGENT_REAL] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
+[2026-08-05T10:59:01.875Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1540, ingressFlow: 44.39, throughput: 120, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:59:01.880Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 35.5, memory: 58.1, transactions: 453, iops: 809, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:59:01.947Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 18.03, memory: 40.49, load: 1.2, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:59:01.970Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.27, memory: 48.96, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:01.975Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1209, throughput: 352, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:59:02.024Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.85, space: 1421, bandwidth: 86, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:59:02.029Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:59:02.102Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.57, jitter: 0.15
+[2026-08-05T10:59:02.109Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 46.06, clusterCount: 4.16
+[2026-08-05T10:59:02.113Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.98, failedWorkflows: 0, responseTime: 99.36
+[2026-08-05T10:59:02.332Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.12, space: 72.8, latency: 45
+[2026-08-05T10:59:02.540Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 46
+[2026-08-05T10:59:02.669Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 1, successRate: 99.56, requests: 31
+[2026-08-05T10:59:02.672Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.54, failures: 0
+[2026-08-05T10:59:02.676Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 74
+[2026-08-05T10:59:02.679Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.77, queue: 0, responseTime: 121.35, podsOnline: 5.2, podsTotal: 4.77
+[2026-08-05T10:59:02.682Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 27.4, latency: 62.41, replicas: 3.14
+[2026-08-05T10:59:02.686Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 180
+[2026-08-05T10:59:02.690Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 6, responseTime: 156
+[2026-08-05T10:59:02.694Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 454, throughput: 119
+[2026-08-05T10:59:02.697Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 111
+[2026-08-05T10:59:02.701Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 24.54
+[2026-08-05T10:59:02.706Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 6 eps
+[2026-08-05T10:59:02.710Z] [INFO] [LOG_AGENT_REAL] [TC-BUILD] Build step completed successfully: Compile artifacts for project 'Remediator' (agent: node-2)
+[2026-08-05T10:59:02.713Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:59:11.882Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1494, ingressFlow: 44.46, throughput: 118, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:59:11.887Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 36.5, memory: 58.1, transactions: 457, iops: 797, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:59:11.944Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 18.15, memory: 40.09, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:59:11.982Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.41, memory: 48.58, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:11.989Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1186, throughput: 352, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:59:12.032Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.21, space: 1420, bandwidth: 85, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:59:12.036Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:59:12.119Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.54, clusterCount: 4.15
+[2026-08-05T10:59:12.114Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 5.14, jitter: 0.15
+[2026-08-05T10:59:12.122Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.08, failedWorkflows: 0, responseTime: 92.03
+[2026-08-05T10:59:12.259Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.24, space: 72.8, latency: 45
+[2026-08-05T10:59:12.392Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.78, requests: 46
+[2026-08-05T10:59:12.533Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 1, successRate: 99.6, requests: 32
+[2026-08-05T10:59:12.536Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.66, failures: 0
+[2026-08-05T10:59:12.540Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 73
+[2026-08-05T10:59:12.544Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.1, queue: 0, responseTime: 126.47, podsOnline: 4.88, podsTotal: 4.99
+[2026-08-05T10:59:12.547Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.78, latency: 58.68, replicas: 2.98
+[2026-08-05T10:59:12.550Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:59:12.554Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 7, responseTime: 160
+[2026-08-05T10:59:12.559Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 447, throughput: 121
+[2026-08-05T10:59:12.562Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 110
+[2026-08-05T10:59:12.566Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 3, agents: 10, load: 23.25
+[2026-08-05T10:59:12.570Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 3 eps
+[2026-08-05T10:59:12.573Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin
+[2026-08-05T10:59:12.577Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:59:21.893Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1556, ingressFlow: 44.62, throughput: 120, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:59:21.899Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 34.5, memory: 58.1, transactions: 452, iops: 800, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:59:21.966Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 18.55, memory: 40.75, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:59:22.000Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.02, memory: 48.67, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:22.005Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1189, throughput: 347, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:59:22.052Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.09, space: 1420, bandwidth: 83, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:59:22.057Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:59:22.140Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.71, jitter: 0.15
+[2026-08-05T10:59:22.158Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.95, clusterCount: 3.85
+[2026-08-05T10:59:22.163Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3, failedWorkflows: 0, responseTime: 97.32
+[2026-08-05T10:59:22.333Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.38, space: 72.8, latency: 1
+[2026-08-05T10:59:22.529Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.75, requests: 44
+[2026-08-05T10:59:22.673Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 1, successRate: 99.57, requests: 31
+[2026-08-05T10:59:22.678Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.97, failures: 0
+[2026-08-05T10:59:22.685Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 73
+[2026-08-05T10:59:22.690Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.96, queue: 0, responseTime: 119.09, podsOnline: 5.15, podsTotal: 5.18
+[2026-08-05T10:59:22.695Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.43, latency: 62.21, replicas: 2.96
+[2026-08-05T10:59:22.699Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 181
+[2026-08-05T10:59:22.705Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 9, responseTime: 164
+[2026-08-05T10:59:22.710Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 442, throughput: 119
+[2026-08-05T10:59:22.716Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 108
+[2026-08-05T10:59:22.722Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 3, agents: 10, load: 23.84
+[2026-08-05T10:59:22.728Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 4 eps
+[2026-08-05T10:59:22.732Z] [INFO] [LOG_AGENT_REAL] [IIS-SERVER] GET /api/health - Client IP: 10.194.22.45 - Status 200 OK (elapsed: 15ms)
+[2026-08-05T10:59:22.736Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:59:31.903Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1494, ingressFlow: 45.31, throughput: 118, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:59:31.909Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 36.5, memory: 58.1, transactions: 450, iops: 808, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:59:31.982Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 17.68, memory: 40.61, load: 1.21, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:59:32.010Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 24.14, memory: 48.21, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:32.015Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1206, throughput: 351, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:59:32.064Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.88, space: 1421, bandwidth: 86, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:59:32.068Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:59:32.143Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.86, jitter: 0.15
+[2026-08-05T10:59:32.149Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.69, clusterCount: 3.86
+[2026-08-05T10:59:32.152Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.98, failedWorkflows: 0, responseTime: 95.27
+[2026-08-05T10:59:32.286Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.6, space: 72.8, latency: 45
+[2026-08-05T10:59:32.418Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.78, requests: 45
+[2026-08-05T10:59:32.554Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.57, requests: 33
+[2026-08-05T10:59:32.558Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 14.63, failures: 0
+[2026-08-05T10:59:32.562Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 73
+[2026-08-05T10:59:32.567Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.67, queue: 0, responseTime: 126.47, podsOnline: 4.91, podsTotal: 5.08
+[2026-08-05T10:59:32.571Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.49, latency: 60.48, replicas: 3.11
+[2026-08-05T10:59:32.575Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 176
+[2026-08-05T10:59:32.579Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 6, responseTime: 164
+[2026-08-05T10:59:32.584Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 447, throughput: 119
+[2026-08-05T10:59:32.588Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 112
+[2026-08-05T10:59:32.592Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 23.14
+[2026-08-05T10:59:32.596Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 5 eps
+[2026-08-05T10:59:32.600Z] [INFO] [LOG_AGENT_REAL] [DB-POOL] Acquired active transaction thread for client: bitbucket (elapsed: 2ms)
+[2026-08-05T10:59:32.604Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T10:59:41.919Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1539, ingressFlow: 44.75, throughput: 119, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:59:41.924Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 36.5, memory: 59.1, transactions: 453, iops: 793, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:59:41.997Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 17.07, memory: 40.84, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:59:42.026Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 20.55, memory: 47.73, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:42.033Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1213, throughput: 345, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:59:42.076Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.56, space: 1420, bandwidth: 85, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:59:42.081Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:59:42.151Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.36, jitter: 0.15
+[2026-08-05T10:59:42.156Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.05, clusterCount: 4.2
+[2026-08-05T10:59:42.159Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.85, failedWorkflows: 0, responseTime: 98.19
+[2026-08-05T10:59:42.292Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.47, space: 72.8, latency: 45
+[2026-08-05T10:59:42.425Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.79, requests: 46
+[2026-08-05T10:59:42.566Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.59, requests: 33
+[2026-08-05T10:59:42.570Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.11, failures: 0
+[2026-08-05T10:59:42.573Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4950, pendingPullRequests: 14, responseTime: 77
+[2026-08-05T10:59:42.577Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.75, queue: 0, responseTime: 125.75, podsOnline: 5.24, podsTotal: 4.96
+[2026-08-05T10:59:42.580Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 29.68, latency: 57.78, replicas: 2.9
+[2026-08-05T10:59:42.584Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 1, violations: 12, responseTime: 178
+[2026-08-05T10:59:42.588Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 6, responseTime: 164
+[2026-08-05T10:59:42.592Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 443, throughput: 122
+[2026-08-05T10:59:42.597Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 112
+[2026-08-05T10:59:42.601Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 25.72
+[2026-08-05T10:59:42.605Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 4 eps
+[2026-08-05T10:59:42.609Z] [INFO] [LOG_AGENT_REAL] [ARGO-SYNC] Comparing application state git rev: b492ac9d with cluster K8s resources... Sync OK
+[2026-08-05T10:59:42.612Z] [INFO] [LOG_AGENT_REAL] [TC-BUILD] Build step completed successfully: Compile artifacts for project 'Remediator' (agent: node-2)
+[2026-08-05T10:59:51.927Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1526, ingressFlow: 45.66, throughput: 121, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T10:59:51.933Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 32.5, memory: 58.1, transactions: 456, iops: 799, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T10:59:52.023Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 17.4, memory: 40.74, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T10:59:52.049Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 23.16, memory: 47.71, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T10:59:52.055Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1177, throughput: 350, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T10:59:52.135Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.5, space: 1420, bandwidth: 83, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T10:59:52.140Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T10:59:52.215Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.79, jitter: 0.15
+[2026-08-05T10:59:52.221Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 45.36, clusterCount: 3.91
+[2026-08-05T10:59:52.225Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.99, failedWorkflows: 0, responseTime: 96
+[2026-08-05T10:59:52.427Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.13, space: 72.8, latency: 45
+[2026-08-05T10:59:52.578Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 85, successRate: 99.76, requests: 43
+[2026-08-05T10:59:52.709Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.6, requests: 32
+[2026-08-05T10:59:52.713Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.22, failures: 0
+[2026-08-05T10:59:52.717Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 73
+[2026-08-05T10:59:52.720Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 7.72, queue: 0, responseTime: 127.02, podsOnline: 4.77, podsTotal: 5.12
+[2026-08-05T10:59:52.724Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.78, latency: 57.62, replicas: 2.96
+[2026-08-05T10:59:52.729Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 178
+[2026-08-05T10:59:52.734Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 6, responseTime: 159
+[2026-08-05T10:59:52.738Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 443, throughput: 117
+[2026-08-05T10:59:52.743Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 107
+[2026-08-05T10:59:52.748Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 3, agents: 10, load: 24.56
+[2026-08-05T10:59:52.752Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 5 eps
+[2026-08-05T10:59:52.757Z] [INFO] [LOG_AGENT_REAL] [JENKINS-EVC] Executor #3 polling Jenkins Git Hook trigger queue... Empty
+[2026-08-05T10:59:52.761Z] [INFO] [LOG_AGENT_REAL] [IIS-SERVER] GET /api/health - Client IP: 10.194.22.45 - Status 200 OK (elapsed: 15ms)
+[2026-08-05T11:00:01.934Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1521, ingressFlow: 45.35, throughput: 119, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T11:00:01.942Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 32.5, memory: 58.1, transactions: 457, iops: 796, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T11:00:02.017Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 16.82, memory: 40.79, load: 1.22, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T11:00:02.052Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 21.4, memory: 48.63, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T11:00:02.057Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1175, throughput: 349, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T11:00:02.130Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.79, space: 1420, bandwidth: 83, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T11:00:02.135Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T11:00:02.225Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 5.79, jitter: 0.15
+[2026-08-05T11:00:02.232Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 44.44, clusterCount: 3.95
+[2026-08-05T11:00:02.237Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 2.88, failedWorkflows: 0, responseTime: 97.28
+[2026-08-05T11:00:02.383Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 51.94, space: 72.8, latency: 45
+[2026-08-05T11:00:02.529Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.79, requests: 43
+[2026-08-05T11:00:02.687Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.57, requests: 30
+[2026-08-05T11:00:02.692Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 1, cpu: 14.82, failures: 0
+[2026-08-05T11:00:02.698Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4948, pendingPullRequests: 14, responseTime: 77
+[2026-08-05T11:00:02.706Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.06, queue: 0, responseTime: 130.81, podsOnline: 5.02, podsTotal: 4.84
+[2026-08-05T11:00:02.710Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.33, latency: 60.93, replicas: 3.11
+[2026-08-05T11:00:02.716Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183
+[2026-08-05T11:00:02.722Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 2, findings: 8, responseTime: 156
+[2026-08-05T11:00:02.729Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 4, avgResponseTime: 442, throughput: 117
+[2026-08-05T11:00:02.734Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 110
+[2026-08-05T11:00:02.738Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 25.4
+[2026-08-05T11:00:02.742Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 6 eps
+[2026-08-05T11:00:02.746Z] [INFO] [LOG_AGENT_REAL] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
+[2026-08-05T11:00:02.749Z] [INFO] [LOG_AGENT_REAL] [NEX-VIOL] Scanned jar 'spring-core-5.3.9.jar'. Found 0 critical policy violations
+[2026-08-05T11:00:11.943Z] [INFO] [INFRA_REAL] avi_load_balancer | Status: Healthy | Metrics: connections: 1528, ingressFlow: 45.56, throughput: 119, bitbucket_ingressFlow: 18.4, jenkins_ingressFlow: 4.8, artifactory_ingressFlow: 15.6, argocd_ingressFlow: 6.4, bitbucket_latency: 45, jenkins_latency: 110, artifactory_latency: 85, argocd_latency: 55
+[2026-08-05T11:00:11.948Z] [INFO] [INFRA_REAL] database | Status: Healthy | Metrics: cpu: 33.5, memory: 59.1, transactions: 442, iops: 809, bitbucket_connections: 45, jenkins_connections: 18, artifactory_connections: 80, teamcity_connections: 12, bitbucket_tps: 180, jenkins_tps: 10, artifactory_tps: 120, teamcity_tps: 35, bitbucket_dbLatency: 12.4, jenkins_dbLatency: 24.5, artifactory_dbLatency: 15.2, teamcity_dbLatency: 8.5
+[2026-08-05T11:00:12.024Z] [INFO] [INFRA_REAL] linux_servers | Status: Healthy | Metrics: cpu: 18.2, memory: 40.26, load: 1.19, bitbucket_cpu: 22.5, jenkins_cpu: 35.4, artifactory_cpu: 48.2, nexusiq_cpu: 15, teamcity_cpu: 25.1, mcp_cpu: 10.4, argocd_cpu: 6.5, bitbucket_mem: 8.2, jenkins_mem: 12.4, artifactory_mem: 24.5, nexusiq_mem: 6.1, teamcity_mem: 8.4, mcp_mem: 4.2, argocd_mem: 2.1
+[2026-08-05T11:00:12.051Z] [INFO] [INFRA_REAL] windows_servers | Status: Healthy | Metrics: cpu: 22.48, memory: 49.26, disk: 62.1, fortify_cpu: 18.5, fortify_mem: 32.4, iis_threads: 250, iis_sessions: 1420
+[2026-08-05T11:00:12.058Z] [INFO] [INFRA_REAL] nas_performance | Status: Healthy | Metrics: iops: 1224, throughput: 351, spaceUsed: 54.2, bitbucket_spaceUsed: 15.4, jenkins_spaceUsed: 8.2, artifactory_spaceUsed: 22.5, nexusiq_spaceUsed: 1.8, teamcity_spaceUsed: 6.3, bitbucket_iops: 120, jenkins_iops: 35, artifactory_iops: 650, nexusiq_iops: 10, teamcity_iops: 75
+[2026-08-05T11:00:12.106Z] [INFO] [INFRA_REAL] s3_storage | Status: Healthy | Metrics: latency: 15.73, space: 1421, bandwidth: 85, bitbucket_space: 450, jenkins_space: 125, artifactory_space: 1450, fortify_space: 85, teamcity_space: 220, bitbucket_bandwidth: 12.5, jenkins_bandwidth: 3.2, artifactory_bandwidth: 64.8
+[2026-08-05T11:00:12.110Z] [INFO] [INFRA_REAL] sso_gateway | Status: Healthy | Metrics: authLatency: 0, activeSessions: 4200, failedAuthentications: 4
+[2026-08-05T11:00:12.184Z] [INFO] [INFRA_REAL] network_latency | Status: Healthy | Metrics: packetLoss: 0, latency_ms: 4.64, jitter: 0.15
+[2026-08-05T11:00:12.190Z] [INFO] [APP_REAL] argocd_k8s | Status: Healthy | Metrics: syncStatus: Synced, latency: 43.75, clusterCount: 3.98
+[2026-08-05T11:00:12.193Z] [INFO] [APP_REAL] argoworkflows_k8s | Status: Healthy | Metrics: activeWorkflows: 3.04, failedWorkflows: 0, responseTime: 98.23
+[2026-08-05T11:00:12.326Z] [INFO] [APP_REAL] artifactory | Status: Healthy | Metrics: heap: 52.22, space: 72.8, latency: 45
+[2026-08-05T11:00:12.459Z] [INFO] [APP_REAL] bitbucket | Status: Healthy | Metrics: responseTime: 1, successRate: 99.75, requests: 45
+[2026-08-05T11:00:12.598Z] [INFO] [APP_REAL] bitbucket_external | Status: Healthy | Metrics: responseTime: 95, successRate: 99.6, requests: 30
+[2026-08-05T11:00:12.602Z] [INFO] [APP_REAL] fortify | Status: Healthy | Metrics: scanQueue: 2, cpu: 15.45, failures: 0
+[2026-08-05T11:00:12.606Z] [INFO] [APP_REAL] github | Status: Healthy | Metrics: apiRateLimitRemaining: 4949, pendingPullRequests: 14, responseTime: 73
+[2026-08-05T11:00:12.610Z] [INFO] [APP_REAL] jenkins_k8s | Status: Healthy | Metrics: executors: 8.29, queue: 0, responseTime: 122.97, podsOnline: 4.86, podsTotal: 4.75
+[2026-08-05T11:00:12.613Z] [INFO] [APP_REAL] mcp_server_k8s | Status: Healthy | Metrics: cpu: 28.72, latency: 58.31, replicas: 2.87
+[2026-08-05T11:00:12.617Z] [INFO] [APP_REAL] nexusiq | Status: Healthy | Metrics: scanQueue: 0, violations: 12, responseTime: 183
+[2026-08-05T11:00:12.622Z] [INFO] [APP_REAL] otkr | Status: Healthy | Metrics: scanQueue: 1, findings: 8, responseTime: 164
+[2026-08-05T11:00:12.627Z] [INFO] [APP_REAL] performance_center | Status: Healthy | Metrics: activeTests: 5, avgResponseTime: 450, throughput: 119
+[2026-08-05T11:00:12.632Z] [INFO] [APP_REAL] sonarqube | Status: Healthy | Metrics: qualityGatesPassed: 1, analysisQueue: 0, responseTime: 110
+[2026-08-05T11:00:12.637Z] [INFO] [APP_REAL] teamcity | Status: Healthy | Metrics: activeBuilds: 4, agents: 10, load: 25.53
+[2026-08-05T11:00:12.642Z] [INFO] [DYNATRACE_REAL] Dynatrace Telemetry Sync - Alerts: 0 | Events: 5 eps
+[2026-08-05T11:00:12.645Z] [INFO] [LOG_AGENT_REAL] [ART-REPO] Artifact uploaded successfully: /maven-stg/io/sentinel/portal/1.1.0/portal-1.1.0.jar
+[2026-08-05T11:00:12.648Z] [INFO] [LOG_AGENT_REAL] [BB-NET] GIT received push request for repository: sentinel-api - User: admin

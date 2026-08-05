@@ -1,0 +1,22 @@
+id: "argoworkflows_k8s"
+display_name: "Argo Workflows Engine"
+category: "workflow_orchestration"
+log_tag: "[ARGO-WORKFLOWS"
+
+endpoints:
+  prod:
+    api: "https://argo-workflows-prod.internal.corp/api/v1"
+  stg:
+    api: "https://argo-workflows-stg.internal.corp/api/v1"
+
+layers:
+  sso_api: "https://sso-auth-prod-argoworkflows.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "argo-workflows-prod.internal.corp"
+
+metrics_baseline:
+  activeWorkflows: 3
+  failedWorkflows: 0
+  responseTime: 95
+
+jenkins_remediation_job: "JOB_RESTART_ARGO_WORKFLOW_CONTROLLER"

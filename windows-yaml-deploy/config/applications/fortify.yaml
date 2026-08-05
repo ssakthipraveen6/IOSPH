@@ -1,0 +1,31 @@
+id: "fortify"
+display_name: "Fortify Static Code Analyzer"
+category: "security_compliance"
+log_tag: "FORTIFY"
+
+endpoints:
+  prod:
+    api: "https://fortify-prod.internal.corp/ssc/api/v1"
+  stg:
+    api: "https://fortify-stg.internal.corp/ssc/api/v1"
+
+layers:
+  s3_endpoint: "https://s3.prod-fortify-us-east-1.amazonaws.com"
+  sso_api: "https://sso-auth-prod-fortify.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "fortify-prod.internal.corp"
+
+servers:
+  - node: "fortify-node-1"
+    type: "windows"
+    api: "https://win-compute-prod-fortify-1.internal.corp/api/v1/metrics"
+  - node: "fortify-node-2"
+    type: "windows"
+    api: "https://win-compute-prod-fortify-2.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  scanQueue: 2
+  cpu: 15.0
+  failures: 0
+
+jenkins_remediation_job: "JOB_RESTART_FORTIFY_SCANNER"

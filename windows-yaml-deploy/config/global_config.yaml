@@ -1,0 +1,71 @@
+# =========================================================================
+# GLOBAL OBSERVABILITY CONFIGURATION (global_config.yaml)
+# =========================================================================
+
+# TOGGLE: Set to true for simulated mock collectors, or false for real APIs
+use_simulated_collectors: false
+
+# Environment Mode: staging or production
+environment: "staging"
+
+# Production Endpoints
+prod_urls:
+  bitbucket_api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
+  artifactory_api: "https://artifactory-prod.internal.corp/artifactory/api"
+  argocd_api: "https://argocd-prod.internal.corp/api/v1"
+  argoworkflows_api: "https://argo-workflows-prod.internal.corp/api/v1"
+  jenkins_master_url: "https://jenkins-prod.internal.corp/job"
+  teamcity_api: "https://teamcity-prod.internal.corp/app/rest"
+  sonarqube_api: "https://sonarqube-prod.internal.corp/api"
+  nexusiq_api: "https://nexusiq-prod.internal.corp/api/v2"
+  fortify_api: "https://fortify-prod.internal.corp/ssc/api/v1"
+  avi_api: "https://avi-prod.internal.corp/api/v1/telemetry"
+  sso_api: "https://sso-auth-prod.internal.corp/oauth2/token"
+  nas_mount: "d:\\production_shares\\nas_logs"
+  windows_api: "https://win-compute-prod.internal.corp/api/v1/metrics"
+  unix_api: "https://linux-compute-prod.internal.corp/api/v1/metrics"
+  db_jdbc: "jdbc:postgresql://db-prod-primary.internal.corp:5432/telemetry_db"
+  k8s_api: "https://k8s-apiserver-prod.internal.corp:6443"
+  s3_endpoint: "https://s3.us-east-1.amazonaws.com"
+  bitbucket_external_api: "https://bitbucket-external-prod.internal.corp/rest/api/1.0"
+  otkr_api: "https://otkr-prod.internal.corp/api/v1"
+  performance_center_api: "https://perfcenter-prod.internal.corp/api/v2"
+  network_latency_hosts:
+    - "sso-auth-prod.internal.corp"
+    - "avi-prod.internal.corp"
+    - "db-prod-primary.internal.corp"
+
+# Enterprise eLDAP & Active Directory SSO Authentication Setup
+sso_ldap_config:
+  enabled: true
+  provider: "eLDAP / Active Directory"
+  ldap_url: "ldaps://ldap.enterprise.corp:636"
+  base_dn: "ou=Users,dc=enterprise,dc=corp"
+  group_base_dn: "ou=Groups,dc=enterprise,dc=corp"
+  bind_dn: "cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp"
+  sso_issuer: "https://sso-auth-prod.internal.corp/oauth2/v2.0"
+  role_mapping:
+    super_admin_group: "cn=DevSecOps-Admins,ou=Groups,dc=enterprise,dc=corp"
+    sre_lead_group: "cn=SRE-Leads,ou=Groups,dc=enterprise,dc=corp"
+    noc_operator_group: "cn=NOC-Operators,ou=Groups,dc=enterprise,dc=corp"
+    security_auditor_group: "cn=Security-Auditors,ou=Groups,dc=enterprise,dc=corp"
+
+# Staging Endpoints
+stg_urls:
+  avi_api: "https://avi-stg.internal.corp/api/v1/telemetry"
+  db_jdbc: "jdbc:postgresql://db-stg-primary.internal.corp:5432/telemetry_db"
+  nas_mount: "../nas_logs"
+  linux_api: "https://linux-compute-stg.internal.corp/api/v1/metrics"
+  windows_api: "https://win-compute-stg.internal.corp/api/v1/metrics"
+  s3_endpoint: "https://s3.stg-us-east-1.amazonaws.com"
+  bitbucket_api: "https://bitbucket-stg.internal.corp/rest/api/1.0"
+  artifactory_api: "https://artifactory-stg.internal.corp/artifactory/api"
+  jenkins_master_url: "https://jenkins-stg.internal.corp/job"
+
+# Database Settings
+postgres_stg_config:
+  host: "postgres-stg-srv.internal.corp"
+  port: 5432
+  database: "telemetry_historical"
+  user: "stg_admin"
+  password: "STG_PASSWORD_SECURE_HASH"

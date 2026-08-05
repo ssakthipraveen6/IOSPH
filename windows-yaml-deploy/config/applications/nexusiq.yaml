@@ -1,0 +1,31 @@
+id: "nexusiq"
+display_name: "Sonatype Nexus IQ Security"
+category: "security_compliance"
+log_tag: "[NEX-"
+
+endpoints:
+  prod:
+    api: "https://nexusiq-prod.internal.corp/api/v2"
+  stg:
+    api: "https://nexusiq-stg.internal.corp/api/v2"
+
+layers:
+  nas_mount: "d:\\production_shares\\nas_logs\\nexusiq"
+  sso_api: "https://sso-auth-prod-nexusiq.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "nexusiq-prod.internal.corp"
+
+servers:
+  - node: "nexusiq-node-1"
+    type: "linux"
+    api: "https://linux-compute-prod-nexusiq-1.internal.corp/api/v1/metrics"
+  - node: "nexusiq-node-2"
+    type: "linux"
+    api: "https://linux-compute-prod-nexusiq-2.internal.corp/api/v1/metrics"
+
+metrics_baseline:
+  scanQueue: 1
+  violations: 12
+  responseTime: 180
+
+jenkins_remediation_job: "JOB_PURGE_NEXUSIQ_SCAN_QUEUE"

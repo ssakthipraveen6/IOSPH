@@ -1,0 +1,22 @@
+id: "sonarqube"
+display_name: "SonarQube Code Quality Server"
+category: "code_quality"
+log_tag: "SONAR"
+
+endpoints:
+  prod:
+    api: "https://sonarqube-prod.internal.corp/api"
+  stg:
+    api: "https://sonarqube-stg.internal.corp/api"
+
+layers:
+  sso_api: "https://sso-auth-prod-sonarqube.internal.corp/oauth2/token"
+  network_latency_hosts:
+    - "sonarqube-prod.internal.corp"
+
+metrics_baseline:
+  qualityGatesPassed: 1
+  analysisQueue: 0
+  responseTime: 110
+
+jenkins_remediation_job: "JOB_RESTART_SONARQUBE_ENGINE"
