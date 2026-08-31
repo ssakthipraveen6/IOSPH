@@ -1,9 +1,11 @@
 const db = require('../database/db');
+const yamlConfig = require('../config/yaml_config');
 
-// List of recovery workflows and their simulated execution steps
-const workflows = {
+// List of bespoke recovery workflows and their simulated execution steps
+const bespokeWorkflows = {
   jenkins_k8s: {
     actionName: 'Re-rollout deployment/jenkins on Jenkins K8s Cluster',
+    jobName: 'jenkins-pipeline-restart',
     steps: [
       'Analyzing pod crash-loop logs (exit code 137 - Out Of Memory)...',
       'Scaling down deployment/jenkins pods to 0 for state reset...',
@@ -16,6 +18,7 @@ const workflows = {
   },
   nas_performance: {
     actionName: 'Purge temp workspaces & compress archives on NAS',
+    jobName: 'nas-log-purge',
     steps: [
       'Scanning log mount /nas_logs/ for high-capacity directories...',
       'Compressing daily historical log bundles into gzip archives...',
@@ -27,6 +30,7 @@ const workflows = {
   },
   artifactory: {
     actionName: 'Recycle Artifactory container instance and flush cache',
+    jobName: 'artifactory-jvm-recycle',
     steps: [
       'Triggering thread dump for Artifactory diagnostic bundle...',
       'Performing explicit safe JVM Garbage Collection... Reclaimed 2.1 GB.',
@@ -38,6 +42,7 @@ const workflows = {
   },
   database: {
     actionName: 'Failover database connection to secondary replica',
+    jobName: 'db-connection-flush',
     steps: [
       'Detecting connection loss on Primary database node (node-1)...',
       'Verifying cluster consensus. Confirming node-1 is offline...',
@@ -49,6 +54,7 @@ const workflows = {
   },
   avi_load_balancer: {
     actionName: 'Dynamic scale connections and throttle ingress',
+    jobName: 'avi-ingress-scale',
     steps: [
       'Detecting AVI Ingress queue saturation. Active connections: 4500.',
       'Scaling up active workers on AVI virtual services...',
@@ -59,6 +65,38 @@ const workflows = {
   }
 };
 
+/**
+ * Resolves workflow for any component dynamically from YAML or bespoke definitions.
+ */
+function resolveWorkflow(component) {
+  if (bespokeWorkflows[component]) {
+    return bespokeWorkflows[component];
+  }
+  
+  try {
+    const appConfigs = yamlConfig.loadApplicationConfigs() || {};
+    const appCfg = appConfigs[component];
+    if (appCfg && appCfg.jenkins_remediation_job) {
+      const job = appCfg.jenkins_remediation_job;
+      return {
+        actionName: `Restart & health verification via Jenkins job ${job}`,
+        jobName: job,
+        steps: [
+          `Initiating automated Jenkins webhook trigger for job: ${job}...`,
+          `Queuing executor on Kubernetes runner node for ${component}...`,
+          `Executing health telemetry probes against ${component} ingress...`,
+          `Applying rolling restart and clearing transaction caches...`,
+          `Verifying health SLA and closing incident in ServiceNow...`
+        ]
+      };
+    }
+  } catch (e) {
+    console.warn(`[RECOVERY] Error resolving YAML workflow for ${component}: ${e.message}`);
+  }
+  
+  return null;
+}
+
 // Map of components that are currently in recovery to prevent duplicate runs
 const activeRecoveries = new Map();
 
@@ -68,7 +106,7 @@ function getActiveRecoveries() {
 
 // Function to run the recovery workflow step-by-step
 function executeRecoveryWorkflow(runId, component) {
-  const workflow = workflows[component];
+  const workflow = resolveWorkflow(component);
   if (!workflow) {
     db.updateRecoveryRun(runId, { status: 'Failed', step: 'Error: No recovery workflow defined for this component.' });
     activeRecoveries.delete(component);
@@ -83,12 +121,7 @@ function executeRecoveryWorkflow(runId, component) {
   
   writeNasLog('INFO', 'RECOVERY', `[START] Triggering self-healing Jenkins Job for ${component}`);
   
-  // Map component to Jenkins Job Name
-  let jobName = 'generic-rollout';
-  if (component === 'artifactory') jobName = 'artifactory-jvm-recycle';
-  if (component === 'nas_performance') jobName = 'nas-log-purge';
-  if (component === 'database') jobName = 'db-connection-flush';
-  if (component === 'avi_load_balancer') jobName = 'avi-ingress-scale';
+  const jobName = workflow.jobName || 'generic-rollout';
   
   triggerJenkinsSelfHealingJob(
     component,
@@ -114,7 +147,7 @@ function executeRecoveryWorkflow(runId, component) {
       });
       
       // Clear simulation in the simulations manager
-      const { triggerSimulation } = require('./simulations');
+      const { triggerSimulation } = require('../config/simulations');
       triggerSimulation(component, 'clear');
       
       // Resolve Dynatrace Alert and ServiceNow Tickets
@@ -131,9 +164,9 @@ function executeRecoveryWorkflow(runId, component) {
   );
 }
 
-// Manual trigger or manual approval of a pending action
+// Manual trigger or automated initiation of a pending action
 function triggerRecovery(component, triggerReason, isManualTrigger = false) {
-  const workflow = workflows[component];
+  const workflow = resolveWorkflow(component);
   if (!workflow) return null;
   
   // Don't run multiple recoveries concurrently for the same component
@@ -150,14 +183,14 @@ function triggerRecovery(component, triggerReason, isManualTrigger = false) {
     db.updateRecoveryRun(run.id, { status: 'In-Progress' });
     executeRecoveryWorkflow(run.id, component);
   } else {
-    // Awaiting Approval
+    // Awaiting Approval (Four-Eyes requirement)
     db.updateRecoveryRun(run.id, {
       status: 'Awaiting-Approval',
-      step: `Awaiting administrator approval to execute: "${workflow.actionName}"`
+      step: `Awaiting administrator approval (0 of 2 signatures) to execute: "${workflow.actionName}"`
     });
     
-    const { writeNasLog } = require('./logger');
-    writeNasLog('WARNING', 'RECOVERY', `[PENDING APPROVAL] Self-healing action for ${component} requires manual approval.`);
+    const { writeNasLog } = require('../backend/logger');
+    writeNasLog('WARNING', 'RECOVERY', `[PENDING APPROVAL] Self-healing action for ${component} requires Four-Eyes approval.`);
   }
   
   // Broadcast update
@@ -168,35 +201,78 @@ function triggerRecovery(component, triggerReason, isManualTrigger = false) {
   return run;
 }
 
-function approveRecovery(runId) {
+/**
+ * Four-Eyes Dual-Approval Handler
+ * Requires 2 distinct approvers before execution.
+ * @param {string} runId
+ * @param {object|string} approvingUser - User object from JWT { username, role }
+ */
+function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', role: 'Super Admin' }) {
+  const userIdentifier = typeof approvingUser === 'string' 
+    ? approvingUser 
+    : (approvingUser.username || approvingUser.email || 'unknown_admin');
+  
+  const userRole = typeof approvingUser === 'object' ? (approvingUser.role || 'Admin') : 'Admin';
+
   const run = db.getRecoveryLogs().find(r => r.id === runId);
-  if (run && run.status === 'Awaiting-Approval') {
+  if (!run || run.status !== 'Awaiting-Approval') {
+    return false;
+  }
+
+  run.approvals = run.approvals || [];
+
+  // Deduplicate by username to prevent self-double-approval
+  const alreadyApproved = run.approvals.some(a => {
+    const existingName = typeof a === 'string' ? a : (a.username || a.email);
+    return existingName === userIdentifier;
+  });
+
+  if (!alreadyApproved) {
+    run.approvals.push({
+      username: userIdentifier,
+      role: userRole,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Check if we have reached 2 distinct signatures
+  if (run.approvals.length >= 2) {
+    const approverNames = run.approvals.map(a => a.username || a).join(', ');
     db.updateRecoveryRun(runId, {
       status: 'In-Progress',
-      step: 'Administrator approved action. Initiating self-healing sequence...'
+      approvals: run.approvals,
+      step: `Dual-authorization verified (2 of 2 signatures by: ${approverNames}). Initiating self-healing sequence...`
     });
     
-    // Add to active recoveries list if not already there
     activeRecoveries.set(run.component, run);
-    
     executeRecoveryWorkflow(runId, run.component);
     
     if (global.broadcastStateChange) {
       global.broadcastStateChange();
     }
+    return true;
+  } else {
+    // 1 of 2 signatures collected
+    db.updateRecoveryRun(runId, {
+      approvals: run.approvals,
+      step: `Signature 1 of 2 collected (Approved by ${userIdentifier} [${userRole}]). Awaiting 2nd distinct administrator approval.`
+    });
     
+    if (global.broadcastStateChange) {
+      global.broadcastStateChange();
+    }
     return true;
   }
-  return false;
 }
 
 // Evaluates the current system metrics and triggers self-healing if needed
 function runSelfHealingOrchestrator(currentMetrics) {
   Object.keys(currentMetrics).forEach(component => {
     const data = currentMetrics[component];
+    const workflow = resolveWorkflow(component);
     
     // Trigger recovery if status is Critical and we have an automated runbook for it
-    if (data.status === 'Critical' && workflows[component]) {
+    if (data.status === 'Critical' && workflow) {
       // Create Dynatrace critical alert and ServiceNow Ticket if they don't exist yet
       const activeAlerts = db.getAlerts().filter(
         a => a.component === component && a.status === 'Active' && a.severity === 'Critical'
@@ -219,8 +295,11 @@ function runSelfHealingOrchestrator(currentMetrics) {
 global.runSelfHealingOrchestrator = runSelfHealingOrchestrator;
 
 module.exports = {
+  workflows: bespokeWorkflows,
+  resolveWorkflow,
+  getActiveRecoveries,
+  executeRecoveryWorkflow,
   triggerRecovery,
   approveRecovery,
-  getActiveRecoveries,
   runSelfHealingOrchestrator
 };

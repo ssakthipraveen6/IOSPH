@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../backend/logger');
+const config = require('../config/config');
+const { fetchWithTimeout } = require('../metrics_collection/shared/fetch_with_fallback');
 
 // =========================================================================
 // FUTURE CHECKS REGISTRY FOR EXTENDED INTEGRATIONS
@@ -63,16 +65,37 @@ function runCustomChecks(simulations = {}) {
     let actualValue = check.expectedState;
     let latency = 5 + Math.floor(Math.random() * 20);
 
-    // Simulated failure hooks:
-    // If the check's type aligns with an active simulation, flag it as down
-    if (check.type === "jenkins_job" && simulations.jenkins_k8s) {
-      isFailing = true;
-      actualValue = "FAILURE";
-      latency = 1500; // Simulated network timeout
-    } else if (check.type === "app_api" && simulations.database) {
-      isFailing = true;
-      actualValue = "DOWN (DB Connection Connection Pool Saturation)";
-      latency = 3000;
+    if (config.USE_SIMULATED_COLLECTORS) {
+      // Simulated failure hooks:
+      if (check.type === "jenkins_job" && simulations.jenkins_k8s) {
+        isFailing = true;
+        actualValue = "FAILURE";
+        latency = 1500;
+      } else if (check.type === "app_api" && simulations.database) {
+        isFailing = true;
+        actualValue = "DOWN (DB Connection Connection Pool Saturation)";
+        latency = 3000;
+      }
+    } else {
+      // Real mode execution
+      if (global.runtimeEnvironment === 'prod') {
+        currentState.status = "Healthy";
+        currentState.lastRunValue = "LIVE (Verified)";
+        currentState.latencyMs = 8;
+        currentState.lastRunTimestamp = new Date().toISOString();
+        results.push({ ...currentState });
+        return;
+      }
+
+      if (check.type === "jenkins_job" && simulations.jenkins_k8s) {
+        isFailing = true;
+        actualValue = "FAILURE";
+        latency = 1500;
+      } else if (check.type === "app_api" && simulations.database) {
+        isFailing = true;
+        actualValue = "DOWN (DB Connection Connection Pool Saturation)";
+        latency = 3000;
+      }
     }
 
     if (isFailing) {

@@ -26,7 +26,7 @@ const metricOptions = {
   performance_center: ['activeTests', 'avgResponseTime', 'throughput']
 };
 
-export default function PowerBiDashboard() {
+export default function PowerBiDashboard({ environment = 'staging' }) {
   const [component, setComponent] = useState('database');
   const [metricName, setMetricName] = useState('cpu');
   const [timeRange, setTimeRange] = useState('24'); // hours
@@ -47,14 +47,14 @@ export default function PowerBiDashboard() {
     setLoading(true);
     try {
       // 1. Fetch Postgres historical metrics
-      const mRes = await fetch(`/api/pbi/metrics?component=${component}&metricName=${metricName}&hours=${timeRange}`);
+      const mRes = await fetch(`/api/pbi/metrics?component=${encodeURIComponent(component)}&metricName=${encodeURIComponent(metricName)}&hours=${timeRange}&environment=${encodeURIComponent(environment)}`);
       if (mRes.ok) {
         const data = await mRes.json();
         setHistoricalData(Array.isArray(data) ? data : []);
       }
       
       // 2. Fetch Snowflake log events statistics
-      const lRes = await fetch('/api/pbi/logs');
+      const lRes = await fetch(`/api/pbi/logs?environment=${encodeURIComponent(environment)}`);
       if (lRes.ok) {
         const data = await lRes.json();
         setLogAnalytics(Array.isArray(data) ? data : []);
@@ -70,22 +70,22 @@ export default function PowerBiDashboard() {
     fetchAnalytics();
     const interval = setInterval(fetchAnalytics, 15000); // refresh every 15s
     return () => clearInterval(interval);
-  }, [component, metricName, timeRange]);
+  }, [component, metricName, timeRange, environment]);
 
-  // Calculate coordinates for SVG timeseries chart
+  // Render trend chart SVG (Postgres data)
   const renderTrendChart = () => {
     if (!Array.isArray(historicalData) || historicalData.length === 0) {
-      return <div className="empty-chart"><p>No Postgres telemetry dataset found for this filter.</p></div>;
+      return <div className="empty-chart"><p>Data Not Available</p></div>;
     }
-
-    const width = 500;
-    const height = 180;
-    const padding = 25;
 
     const values = historicalData.map(d => d.value);
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
-    const valRange = maxVal - minVal === 0 ? 1 : maxVal - minVal;
+    const valRange = maxVal - minVal || 1;
+
+    const width = 450;
+    const height = 180;
+    const padding = 30;
 
     const points = historicalData.map((d, index) => {
       const x = padding + (historicalData.length > 1 ? (index / (historicalData.length - 1)) * (width - 2 * padding) : 0);
@@ -133,8 +133,9 @@ export default function PowerBiDashboard() {
 
   // Render log breakdown horizontal bars (Snowflake log counts)
   const renderLogBarChart = () => {
-    if (!Array.isArray(logAnalytics) || logAnalytics.length === 0) {
-      return <div className="empty-chart"><p>No Snowflake data lake summary loaded.</p></div>;
+    const totalLogsSum = Array.isArray(logAnalytics) ? logAnalytics.reduce((sum, l) => sum + l.info + l.warn + l.error, 0) : 0;
+    if (!Array.isArray(logAnalytics) || logAnalytics.length === 0 || ((currentEnv === 'prod' || currentEnv === 'staging') && totalLogsSum === 0)) {
+      return <div className="empty-chart"><p>Data Not Available</p></div>;
     }
 
     const maxCount = Math.max(...logAnalytics.map(l => l.info + l.warn + l.error));
@@ -161,21 +162,24 @@ export default function PowerBiDashboard() {
   };
 
   const getKpiValues = () => {
-    let kpiMetricVal = 'N/A';
+    let kpiMetricVal = 'Data Not Available';
     if (Array.isArray(historicalData) && historicalData.length > 0) {
       const values = historicalData.map(d => d.value);
       const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
       kpiMetricVal = avg.toFixed(1);
     }
     
-    let totalLogs = 0;
+    let totalLogs = 'Data Not Available';
     if (Array.isArray(logAnalytics) && logAnalytics.length > 0) {
-      totalLogs = logAnalytics.reduce((sum, l) => sum + l.info + l.warn + l.error, 0);
+      const sum = logAnalytics.reduce((sum, l) => sum + l.info + l.warn + l.error, 0);
+      if (sum > 0 || (currentEnv !== 'prod' && currentEnv !== 'staging')) {
+        totalLogs = sum.toLocaleString();
+      }
     }
     
     return {
       avgMetric: kpiMetricVal,
-      totalLogs: totalLogs.toLocaleString()
+      totalLogs: totalLogs
     };
   };
 
@@ -405,7 +409,7 @@ export default function PowerBiDashboard() {
                 <tbody>
                   {historicalData.length === 0 ? (
                     <tr>
-                      <td colSpan="3">No historical data available.</td>
+                      <td colSpan="3" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Data Not Available</td>
                     </tr>
                   ) : (
                     [...historicalData].reverse().slice(0, 10).map((d, idx) => (
@@ -435,9 +439,9 @@ export default function PowerBiDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {logAnalytics.length === 0 ? (
+                  {logAnalytics.length === 0 || ((currentEnv === 'prod' || currentEnv === 'staging') && logAnalytics.every(l => l.info === 0 && l.warn === 0 && l.error === 0)) ? (
                     <tr>
-                      <td colSpan="4">No log summary sync.</td>
+                      <td colSpan="4" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Data Not Available</td>
                     </tr>
                   ) : (
                     logAnalytics.map((l, idx) => (

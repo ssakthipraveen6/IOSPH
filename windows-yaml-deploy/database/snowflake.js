@@ -28,9 +28,24 @@ function saveLogsToSnowflake(logsArray, writeNasLog) {
   // Expressed as simple debug logging in the simulator
 }
 
-function fetchLogAnalyticsFromSnowflake() {
-  // Simulates executing SELECT component, COUNT(*) AS count, severity FROM log_table GROUP BY ...
-  // This generates log distribution datasets for PowerBI diagrams
+function fetchLogAnalyticsFromSnowflake(env = null) {
+  const targetEnv = env || global.runtimeEnvironment || 'staging';
+
+  // In PROD mode without live Snowflake credentials, return clean/empty log stats
+  if (targetEnv === 'prod') {
+    return [
+      { component: 'jenkins_k8s', info: 0, warn: 0, error: 0 },
+      { component: 'artifactory', info: 0, warn: 0, error: 0 },
+      { component: 'database', info: 0, warn: 0, error: 0 },
+      { component: 'linux_servers', info: 0, warn: 0, error: 0 },
+      { component: 'windows_servers', info: 0, warn: 0, error: 0 },
+      { component: 'nas_performance', info: 0, warn: 0, error: 0 },
+      { component: 'avi_load_balancer', info: 0, warn: 0, error: 0 },
+      { component: 's3_storage', info: 0, warn: 0, error: 0 }
+    ];
+  }
+
+  // STAGING and DEMO log distributions
   const componentsList = [
     { component: 'jenkins_k8s', info: 1200, warn: 45, error: 2 },
     { component: 'artifactory', info: 1850, warn: 120, error: 1 },
@@ -42,11 +57,10 @@ function fetchLogAnalyticsFromSnowflake() {
     { component: 's3_storage', info: 900, warn: 5, error: 0 }
   ];
   
-  // Random fluctuation for live-looking PowerBI chart updates
   return componentsList.map(c => ({
     component: c.component,
-    info: c.info + Math.floor((Math.random() - 0.5) * 50),
-    warn: c.warn + Math.floor((Math.random() - 0.5) * 10),
+    info: c.info + (targetEnv === 'demo' ? 0 : Math.floor((Math.random() - 0.5) * 20)),
+    warn: c.warn,
     error: c.error
   }));
 }

@@ -1,7 +1,7 @@
 id: "teamcity"
-display_name: "TeamCity Build Server"
+display_name: "JetBrains TeamCity CI"
 category: "ci_cd"
-log_tag: "[TC-BUILD]"
+log_tag: "[TEAMCITY]"
 
 endpoints:
   prod:
@@ -10,25 +10,19 @@ endpoints:
     api: "https://teamcity-stg.internal.corp/app/rest"
 
 layers:
-  avi_api: "https://avi-prod-teamcity.internal.corp/api/v1/telemetry"
-  db_jdbc: "jdbc:postgresql://db-prod-teamcity.internal.corp:5432/teamcity_db"
-  nas_mount: "d:\\production_shares\\nas_logs\\teamcity"
-  s3_endpoint: "https://s3.prod-teamcity-us-east-1.amazonaws.com"
-  sso_api: "https://sso-auth-prod-teamcity.internal.corp/oauth2/token"
-  network_latency_hosts:
-    - "teamcity-prod.internal.corp"
+  db:
+    jdbc: "jdbc:postgresql://db-prod-teamcity.internal.corp:5432/teamcity_db"
+    credential_purpose: null
 
 servers:
-  - node: "teamcity-node-1"
-    type: "linux"
-    api: "https://linux-compute-prod-teamcity-1.internal.corp/api/v1/metrics"
-  - node: "teamcity-node-2"
-    type: "linux"
-    api: "https://linux-compute-prod-teamcity-2.internal.corp/api/v1/metrics"
+  unix:
+    - node: "teamcity-server-1"
+      api: "https://linux-compute-prod-teamcity-1.internal.corp/api/v1/metrics"
+  windows: []
 
 metrics_baseline:
-  activeBuilds: 4
-  agents: 10
-  load: 24.5
+  responseTime: 105
+  successRate: 99.6
+  requests: 60
 
-jenkins_remediation_job: "JOB_RESTART_TEAMCITY_AGENT_POOL"
+jenkins_remediation_job: "JOB_RESTART_TEAMCITY_SERVICE"

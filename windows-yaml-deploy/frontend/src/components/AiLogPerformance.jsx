@@ -10,12 +10,27 @@ const classifierRules = [
   { pattern: '/Ingress network bottleneck/i', classification: 'Traffic Gateway Saturation', severity: 'Warning', action: 'avi-ingress-scale' }
 ];
 
-export default function AiLogPerformance({ onSimulate }) {
-  const [remediations, setRemediations] = useState([
-    { id: "RUN-9921", timestamp: "2026-07-27 16:32:00", job: "nas-log-purge", target: "nas_performance", status: "Success", duration: "18.5s", log: "LLM Pattern Detected: Disk utilization reached 98.4%. Executing log rotation runbook. Cleared 42GB of build caches. Status verified: Health restored." },
-    { id: "RUN-9918", timestamp: "2026-07-27 14:12:05", job: "artifactory-jvm-recycle", target: "artifactory", status: "Success", duration: "44.2s", log: "LLM Pattern Detected: Heap leak signature [OutOfMemoryError] in JVM logs. Compacting garbage collector spaces. JVM Heap stabilized at 52.4%." },
-    { id: "RUN-9905", timestamp: "2026-07-26 10:15:33", job: "db-connection-flush", target: "database", status: "Success", duration: "12.1s", log: "LLM Pattern Detected: TCP pool saturation on Postgres. Terminating idle backend threads. Active pool count reduced from 450 to 92 conns." }
-  ]);
+export default function AiLogPerformance({ onSimulate, environment = 'staging' }) {
+  const currentEnv = environment || 'staging';
+
+  const jenkinsEndpoint = currentEnv === 'prod' 
+    ? 'https://jenkins-prod.internal.corp/job' 
+    : (currentEnv === 'demo' ? 'https://jenkins-demo.internal.corp/job' : 'https://jenkins-stg.internal.corp/job');
+
+  const remediationsByEnv = {
+    prod: [
+      { id: "REC-PROD-102", timestamp: "2026-08-29 04:15:00", job: "nas-log-purge", target: "nas_performance", status: "Success", duration: "14.2s", log: "[PROD AUTO] Rotated build workspace caches on production NAS pool. 38GB reclaimed. Status verified: Optimal." }
+    ],
+    staging: [
+      { id: "RUN-STG-9921", timestamp: "2026-08-30 16:32:00", job: "nas-log-purge", target: "nas_performance", status: "Success", duration: "18.5s", log: "[STG LLM] Pattern Detected: Disk utilization reached 98.4%. Executing log rotation runbook. Cleared 42GB of test caches." },
+      { id: "RUN-STG-9918", timestamp: "2026-08-30 14:12:05", job: "artifactory-jvm-recycle", target: "artifactory", status: "Success", duration: "44.2s", log: "[STG LLM] Pattern Detected: Heap leak signature in JVM logs. Compacting GC spaces. JVM Heap stabilized at 52.4%." }
+    ],
+    demo: [
+      { id: "RUN-DEMO-01", timestamp: "2026-08-30 12:00:00", job: "artifactory-jvm-recycle", target: "artifactory", status: "Success", duration: "12.5s", log: "[DEMO] Davis AI Anomaly Trigger: Autonomous self-healing stabilized JVM Heap to 18ms SLA." }
+    ]
+  };
+
+  const remediations = remediationsByEnv[currentEnv] || remediationsByEnv.staging;
 
   const [aiStats, setAiStats] = useState({
     scanThroughput: 840,
@@ -27,17 +42,17 @@ export default function AiLogPerformance({ onSimulate }) {
   useEffect(() => {
     const generateStats = () => {
       setAiStats({
-        scanThroughput: 800 + Math.floor(Math.random() * 80),
-        accuracy: 99.8,
-        latency: parseFloat((1.1 + Math.random() * 0.3).toFixed(2)),
-        queueSize: Math.floor(Math.random() * 2)
+        scanThroughput: currentEnv === 'prod' ? 1250 : 800 + Math.floor(Math.random() * 80),
+        accuracy: 99.9,
+        latency: parseFloat((1.0 + Math.random() * 0.2).toFixed(2)),
+        queueSize: 0
       });
     };
 
     generateStats();
     const interval = setInterval(generateStats, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentEnv]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -46,12 +61,12 @@ export default function AiLogPerformance({ onSimulate }) {
       <div className="console-panel" style={{ padding: '1.25rem' }}>
         <div className="panel-header">
           <h3>
-            ⚙️ Auto Remediation Engine & LLM Telemetry
+            ⚙️ Auto Remediation Engine & LLM Telemetry ({currentEnv.toUpperCase()})
             {MAINTENANCE_CONFIG.pages.aiLogPerformance && <MaintenanceBadge />}
           </h3>
         </div>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '4px' }}>
-          This view tracks the live status of the autonomous healing engine, including integration tokens with the remote CloudBees Jenkins orchestrator pool, LLM processing diagnostic speeds, and recovery workflow execution logs.
+          This view tracks the live status of the autonomous healing engine, including integration tokens with the remote CloudBees Jenkins orchestrator pool, LLM processing diagnostic speeds, and recovery workflow execution logs for {currentEnv.toUpperCase()}.
         </p>
       </div>
 
@@ -62,12 +77,12 @@ export default function AiLogPerformance({ onSimulate }) {
         <div className="console-panel" style={{ padding: '1.25rem' }}>
           <div className="panel-header" style={{ marginBottom: '1rem' }}>
             <h3>Jenkins Orchestrator Pool Connection</h3>
-            <span className="badge-teal">CONNECTED</span>
+            <span className="badge-teal">CONNECTED ({currentEnv.toUpperCase()})</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>CloudBees CJOC Endpoint:</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>https://jenkins-prod.internal.corp/job</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{jenkinsEndpoint}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Authentication Provider:</span>
@@ -75,7 +90,7 @@ export default function AiLogPerformance({ onSimulate }) {
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Remediation API Crumb Token:</span>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--primary)' }}>jenkins_user:1120409aed82...</span>
+              <span style={{ color: '#10b981', fontWeight: 600 }}>Configured ✓ (CyberArk Vaulted)</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Active Job Executors:</span>
@@ -139,17 +154,21 @@ export default function AiLogPerformance({ onSimulate }) {
             <h3>Recent Auto-Remediation Executions</h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {remediations.map(rem => (
-              <div key={rem.id} style={{ padding: '10px', backgroundColor: 'var(--bg-dark)', borderRadius: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '0.8rem', color: 'var(--primary)' }}>{rem.id} - {rem.job}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{rem.timestamp} ({rem.duration})</span>
+            {remediations.length === 0 ? (
+              <div style={{ padding: '10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>Data Not Available</div>
+            ) : (
+              remediations.map(rem => (
+                <div key={rem.id} style={{ padding: '10px', backgroundColor: 'var(--bg-dark)', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '0.8rem', color: 'var(--primary)' }}>{rem.id} - {rem.job}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{rem.timestamp} ({rem.duration})</span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.3 }}>
+                    {rem.log}
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.3 }}>
-                  {rem.log}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

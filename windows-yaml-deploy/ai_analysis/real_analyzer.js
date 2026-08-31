@@ -26,7 +26,7 @@ const ANOMALY_PATTERNS = [
     message: 'Local AI Anomaly: TCP pool saturation detected on PostgreSQL node. Threads locked.'
   },
   {
-    regex: /Ingress network bottleneck|sat/i,
+    regex: /Ingress network bottleneck|saturat(ed|ion)/i,
     category: 'AVI Saturation Anomaly',
     component: 'avi_load_balancer',
     jenkinsJob: 'avi-ingress-scale',

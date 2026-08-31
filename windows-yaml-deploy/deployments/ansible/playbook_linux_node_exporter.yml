@@ -1,0 +1,69 @@
+---
+- name: Deploy Prometheus Node Exporter on Linux Hosts
+  hosts: linux_servers
+  become: yes
+  vars:
+    node_exporter_tar_url: "https://artifactory-prod.internal.corp/artifactory/binaries/node_exporter-1.7.0.linux-amd64.tar.gz"
+    node_exporter_port: 9100
+
+  tasks:
+    - name: Create prometheus system group
+      group:
+        name: prometheus
+        system: yes
+
+    - name: Create prometheus system user
+      user:
+        name: node_exporter
+        group: prometheus
+        system: yes
+        shell: /sbin/nologin
+
+    - name: Download and unarchive Node Exporter from internal Artifactory
+      unarchive:
+        src: "{{ node_exporter_tar_url }}"
+        dest: "/tmp"
+        remote_src: yes
+
+    - name: Copy binary to /usr/local/bin
+      copy:
+        src: "/tmp/node_exporter-1.7.0.linux-amd64/node_exporter"
+        dest: "/usr/local/bin/node_exporter"
+        owner: node_exporter
+        group: prometheus
+        mode: '0755'
+        remote_src: yes
+
+    - name: Deploy systemd service definition
+      copy:
+        dest: "/etc/systemd/system/node_exporter.service"
+        content: |
+          [Unit]
+          Description=Prometheus Node Exporter
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=node_exporter
+          Group=prometheus
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter --web.listen-address=:{{ node_exporter_port }}
+          Restart=always
+          RestartSec=5s
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload Systemd and Restart Node Exporter
+
+    - name: Ensure node_exporter service is started and enabled
+      systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Reload Systemd and Restart Node Exporter
+      systemd:
+        daemon_reload: yes
+        name: node_exporter
+        state: restarted

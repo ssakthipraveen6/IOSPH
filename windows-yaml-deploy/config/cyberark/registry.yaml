@@ -1,0 +1,117 @@
+# Safe/Object Name Registry for CyberArk Credential Resolution
+# Holds safe/object identifiers (never actual secret values). Safe to commit to source control.
+
+applications:
+  bitbucket:
+    safe: "SF-BITBUCKET-PROD"
+    objects:
+      db: "BITBUCKET-DB-SVC"
+      sso: "BITBUCKET-SSO-SVC"
+      api_token: "BITBUCKET-API-TOKEN"
+
+  jfrog_artifactory:
+    safe: "SF-ARTIFACTORY-PROD"
+    objects:
+      db: "ARTIFACTORY-DB-SVC"
+      s3: "ARTIFACTORY-S3-SVC"
+      api_token: "ARTIFACTORY-API-TOKEN"
+
+  cloudbees_jenkins:
+    safe: "SF-JENKINS-PROD"
+    objects:
+      db: "JENKINS-DB-SVC"
+      remediation_token: "JENKINS-REMEDIATION-TOKEN"
+
+  jetbrains_teamcity:
+    safe: "SF-TEAMCITY-PROD"
+    objects:
+      db: "TEAMCITY-DB-SVC"
+      api_token: "TEAMCITY-API-TOKEN"
+
+  fortify:
+    safe: "SF-FORTIFY-PROD"
+    objects:
+      api_token: "FORTIFY-API-TOKEN"
+
+  nexusiq:
+    safe: "SF-NEXUSIQ-PROD"
+    objects:
+      api_token: "NEXUSIQ-API-TOKEN"
+
+  performance_center:
+    safe: "SF-PERFCENTER-PROD"
+    objects:
+      db: "PERFCENTER-DB-SVC"
+      api_token: "PERFCENTER-API-TOKEN"
+
+  argocd:
+    safe: "SF-ARGOCD-PROD"
+    objects:
+      api_token: "ARGOCD-API-TOKEN"
+      sso: "ARGOCD-SSO-SVC"
+
+  argoworkflows:
+    safe: "SF-ARGOWORKFLOWS-PROD"
+    objects:
+      api_token: "ARGOWORKFLOWS-API-TOKEN"
+
+  github:
+    safe: "SF-GITHUB-PROD"
+    objects:
+      api_token: "GITHUB-PAT"
+
+  bitbucket_external:
+    safe: "SF-BITBUCKET-EXT-PROD"
+    objects:
+      db: "BITBUCKET-EXT-DB-SVC"
+      api_token: "BITBUCKET-EXT-API-TOKEN"
+
+  otkr:
+    safe: "SF-OTKR-PROD"
+    objects:
+      db: "OTKR-DB-SVC"
+      api_token: "OTKR-API-TOKEN"
+
+  sonarqube:
+    safe: "SF-SONARQUBE-PROD"
+    objects:
+      api_token: "SONARQUBE-API-TOKEN"
+
+infrastructure:
+  sso_eldap:
+    safe: "SF-INFRA-SSO"
+    objects:
+      bind: "ELDAP-BIND-SVC"
+  avi:
+    safe: "SF-INFRA-AVI"
+    objects:
+      api: "AVI-API-SVC"
+  nfs:
+    safe: "SF-INFRA-NFS"
+    objects:
+      mount: "NFS-MOUNT-SVC"
+  unix:
+    safe: "SF-INFRA-UNIX"
+    objects:
+      ssh: "UNIX-COMPUTE-SVC"
+  windows:
+    safe: "SF-INFRA-WINDOWS"
+    objects:
+      winrm: "WINDOWS-COMPUTE-SVC"
+  docker:
+    safe: "SF-INFRA-DOCKER"
+    objects:
+      registry: "DOCKER-REGISTRY-SVC"
+  k8s:
+    safe: "SF-INFRA-K8S"
+    objects:
+      service_account: "K8S-SA-TOKEN"
+  dynatrace:
+    safe: "SF-INFRA-DYNATRACE"
+    objects:
+      api_token: "DYNATRACE-API-TOKEN"
+  opentelemetry:
+    safe: "SF-INFRA-OTEL"
+    objects:
+      api_token: "OTEL-INGEST-TOKEN"
+

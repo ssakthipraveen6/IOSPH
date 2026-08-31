@@ -14,83 +14,73 @@ const appCollector = require(`./${mode}/applications/app_collector`);
 const dynatraceCollector = require(`./${mode}/dynatrace/dynatrace_collector`);
 const fluentdCollector = require(`../logs_collection/${mode}/fluentd/fluentd_log_collector`);
 const aiAnalyzer = require(`../ai_analysis/${mode}_analyzer`);
+const providerSelector = require('./telemetry_provider_selector');
+const { triggerRecovery } = require('../remediation/recovery');
 
-let intervalId = null;
+const timers = [];
 
-async function collectAllData() {
+async function collectTier(tierName) {
   try {
     const activeSims = simulations.getSimulations();
-    
-    // Run custom extension checks (e.g. future Jenkins statuses/microservices)
     customChecks.runCustomChecks(activeSims);
-    
-    // 1. Collect Infrastructure performance metrics
-    const infraMetrics = await infraCollector.collectInfraMetrics(activeSims, db, writeNasLog);
-    
-    // 2. Collect Application performance metrics
-    const appMetrics = await appCollector.collectAppMetrics(activeSims, db, writeNasLog);
-    
-    // 3. Sync Dynatrace alert count
-    const dtMetrics = await dynatraceCollector.collectDynatraceAlerts(db, writeNasLog);
-    
-    // Combine all current metrics
-    const currentMetrics = {
-      ...infraMetrics,
-      ...appMetrics,
-      dynatrace: dtMetrics
-    };
-    
-    // 3.5. Archive performance metrics to secondary database
-    const sqliteMetrics = require('../database/sqlite_metrics');
-    sqliteMetrics.archiveMetrics(currentMetrics);
-    
-    // 4. Stream Fluentd logs
-    const rawLogs = await fluentdCollector.collectFluentdLogs(activeSims, db, writeNasLog);
-    
-    // 5. Feed logs into the Local AI log analyzer
-    const { triggerRecovery } = require('../remediation/recovery');
-    aiAnalyzer.analyzeServerLogs(rawLogs, writeNasLog, (comp, reason, jenkinsJob) => {
-      // Triggers self-healing. In manual mode, it puts it in Awaiting-Approval state.
-      // In autonomous mode, it executes immediately.
-      triggerRecovery(comp, reason);
-    });
-    
-    // 6. Run predictive analysis algorithms
-    if (global.runPredictiveAnalysis) {
-      global.runPredictiveAnalysis(currentMetrics);
+
+    if (tierName === 'high' || tierName === 'all') {
+      if (providerSelector.shouldRunCollector('app_collector')) {
+        await appCollector.collectAppMetrics(activeSims, db, writeNasLog);
+      }
+      
+      if (providerSelector.shouldRunCollector('dynatrace')) {
+        await dynatraceCollector.collectDynatraceAlerts(db, writeNasLog);
+      }
+      
+      const rawLogs = await fluentdCollector.collectFluentdLogs(activeSims, db, writeNasLog);
+      aiAnalyzer.analyzeServerLogs(rawLogs, writeNasLog, (comp, reason) => {
+        triggerRecovery(comp, reason);
+      });
     }
-    
-    // 7. Run recovery orchestrator checks
-    if (global.runSelfHealingOrchestrator) {
-      global.runSelfHealingOrchestrator(currentMetrics);
+
+    if (tierName === 'medium' || tierName === 'all' || tierName === 'low') {
+      const infraMetrics = await infraCollector.collectInfraMetrics(activeSims, db, writeNasLog);
+      
+      if (global.runPredictiveAnalysis) {
+        global.runPredictiveAnalysis(infraMetrics);
+      }
+      if (global.runSelfHealingOrchestrator) {
+        global.runSelfHealingOrchestrator(infraMetrics);
+      }
     }
-    
-    // Broadcast update to websockets
+
     if (global.broadcastStateChange) {
       global.broadcastStateChange();
     }
   } catch (err) {
-    console.error('[COORDINATOR] Error in telemetry collection loop:', err);
+    console.error(`[COORDINATOR] Error in telemetry collection tier [${tierName}]:`, err);
   }
 }
 
 function start() {
-  if (intervalId) return;
-  
-  writeNasLog('INFO', 'COORDINATOR', `Intelligent Observability Daemon started successfully in [${mode.toUpperCase()}] mode.`);
-  
-  // Run collection immediately
-  collectAllData();
-  
-  // Schedule every 10 seconds
-  intervalId = setInterval(collectAllData, 10000);
+  if (timers.length > 0) return;
+
+  writeNasLog('INFO', 'COORDINATOR', `Intelligent Observability Daemon started with Tiered Polling in [${mode.toUpperCase()}] mode.`);
+
+  // Immediate initial run
+  collectTier('all');
+
+  // Tier 1: High priority app endpoints (every 10s)
+  const highTimer = setInterval(() => collectTier('high'), 10000);
+
+  // Tier 2: Medium priority compute/network/AVI (every 30s)
+  const medTimer = setInterval(() => collectTier('medium'), 30000);
+
+  // Tier 3: Deep infrastructure storage/K8s/Docker (every 120s)
+  const lowTimer = setInterval(() => collectTier('low'), 120000);
+
+  timers.push(highTimer, medTimer, lowTimer);
 }
 
 function stop() {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
-  }
+  timers.forEach(t => clearInterval(t));
+  timers.length = 0;
 }
 
 module.exports = {

@@ -10,7 +10,7 @@ const config = require('../../../config/config');
 
 module.exports = {
   collect: async (simulations, base) => {
-    const targetConfig = config.STG_URLS || config.PROD_URLS || {};
+    const targetConfig = config.ACTIVE_URLS || {};
     const appConfigs = targetConfig.applications || {};
     const url = targetConfig.windows_api;
     console.log(`[REAL COLLECTOR] Fetching Windows host metrics from: ${url}`);

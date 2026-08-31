@@ -1,18 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MAINTENANCE_CONFIG } from '../maintenanceConfig';
 import { MaintenanceBadge, MaintenanceBanner } from './MaintenanceNotice';
 
 export default function UnifiedHealthMatrix({ 
   healthData = {}, 
   customChecks = [], 
-  alerts = [] 
+  alerts = [],
+  environment = 'staging'
 }) {
+  const currentEnv = environment || healthData.environment || 'staging';
   const componentStatuses = healthData.componentStatuses || {};
+  const [yamlApps, setYamlApps] = useState({});
+
+  useEffect(() => {
+    fetch('/api/yaml/all')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.applications) {
+          setYamlApps(data.applications);
+        }
+      })
+      .catch(e => console.error('Failed loading YAML apps:', e));
+  }, []);
+
+  // Host resolver based on current environment
+  const resolveHost = (appKey, prodHost) => {
+    if (currentEnv === 'prod') return prodHost;
+    if (currentEnv === 'demo') return `${appKey}-demo.internal.corp`;
+    return prodHost.replace('-prod.', '-stg.');
+  };
 
   // Infrastructure targets definition
   const infraItems = [
-    { key: 'avi_load_balancer', name: 'AVI Load Balancer', type: 'Load Balancer', desc: 'Ingress load distribution & virtual services' },
-    { key: 'database', name: 'PostgreSQL & Snowflake', type: 'Database Server', desc: 'Historical telemetry datastores' },
+    { key: 'avi_load_balancer', name: 'AVI Load Balancer', type: 'Load Balancer', desc: `Ingress load distribution (${currentEnv.toUpperCase()})` },
+    { key: 'database', name: 'PostgreSQL & Snowflake', type: 'Database Server', desc: `Historical telemetry datastores (${currentEnv.toUpperCase()})` },
     { key: 'linux_servers', name: 'Linux Host Clusters', type: 'Server OS', desc: 'Dynatrace OneAgent / Fluentbit monitors' },
     { key: 'windows_servers', name: 'Windows Host Clusters', type: 'Server OS', desc: 'IIS Services & system daemons' },
     { key: 'nas_performance', name: 'NAS Storage Mounts', type: 'Storage Server', desc: 'Persistent application logs folders' },
@@ -21,36 +42,60 @@ export default function UnifiedHealthMatrix({
     { key: 'network_latency', name: 'TCP Latency Monitor', type: 'Network Diagnostics', desc: 'Ping timing probes to remote hosts' }
   ];
 
-  // Core application systems definition
-  const appItems = [
-    { key: 'bitbucket', name: 'Atlassian Bitbucket', host: 'git-prod.internal.corp', port: '443' },
-    { key: 'artifactory', name: 'JFrog Artifactory', host: 'artifactory-prod.internal.corp', port: '8081' },
-    { key: 'fortify', name: 'OpenText Fortify SSC', host: 'fortify-prod.internal.corp', port: '8443' },
-    { key: 'nexusiq', name: 'Sonatype NexusIQ', host: 'nexus-prod.internal.corp', port: '8083' },
-    { key: 'sonarqube', name: 'SonarQube Enterprise', host: 'sonar-prod.internal.corp', port: '9000' },
-    { key: 'jenkins_k8s', name: 'CloudBees Jenkins CI', host: 'jenkins-prod.internal.corp', port: '8080' },
-    { key: 'teamcity', name: 'JetBrains TeamCity', host: 'teamcity-prod.internal.corp', port: '8111' },
-    { key: 'argocd_k8s', name: 'ArgoCD Hub', host: 'argo-prod.internal.corp', port: '443' },
-    { key: 'argoworkflows_k8s', name: 'Argo Workflows', host: 'argo-workflows.internal.corp', port: '80' },
+  // Dynamic application items merged from YAML API
+  const defaultAppItems = [
+    { key: 'bitbucket', name: 'Atlassian Bitbucket', host: resolveHost('bitbucket', 'git-prod.internal.corp'), port: '443' },
+    { key: 'artifactory', name: 'JFrog Artifactory', host: resolveHost('artifactory', 'artifactory-prod.internal.corp'), port: '8081' },
+    { key: 'fortify', name: 'OpenText Fortify SSC', host: resolveHost('fortify', 'fortify-prod.internal.corp'), port: '8443' },
+    { key: 'nexusiq', name: 'Sonatype NexusIQ', host: resolveHost('nexusiq', 'nexus-prod.internal.corp'), port: '8083' },
+    { key: 'sonarqube', name: 'SonarQube Enterprise', host: resolveHost('sonarqube', 'sonar-prod.internal.corp'), port: '9000' },
+    { key: 'jenkins_k8s', name: 'CloudBees Jenkins CI', host: resolveHost('jenkins', 'jenkins-prod.internal.corp'), port: '8080' },
+    { key: 'teamcity', name: 'JetBrains TeamCity', host: resolveHost('teamcity', 'teamcity-prod.internal.corp'), port: '8111' },
+    { key: 'argocd_k8s', name: 'ArgoCD Hub', host: resolveHost('argocd', 'argo-prod.internal.corp'), port: '443' },
+    { key: 'argoworkflows_k8s', name: 'Argo Workflows', host: resolveHost('argoworkflows', 'argo-workflows-prod.internal.corp'), port: '80' },
     { key: 'github', name: 'GitHub Enterprise', host: 'api.github.com', port: '443' },
-    { key: 'bitbucket_external', name: 'Atlassian Bitbucket External', host: 'bitbucket-external-prod.internal.corp', port: '443' },
-    { key: 'otkr', name: 'OTKR Security Engine', host: 'otkr-prod.internal.corp', port: '8443' },
-    { key: 'performance_center', name: 'Micro Focus Performance Center', host: 'perfcenter-prod.internal.corp', port: '8080' }
+    { key: 'bitbucket_external', name: 'Atlassian Bitbucket External', host: resolveHost('bitbucket_external', 'bitbucket-external-prod.internal.corp'), port: '443' },
+    { key: 'otkr', name: 'OTKR Security Engine', host: resolveHost('otkr', 'otkr-prod.internal.corp'), port: '8443' },
+    { key: 'performance_center', name: 'Micro Focus Performance Center', host: resolveHost('performance_center', 'perfcenter-prod.internal.corp'), port: '8080' }
   ];
+
+  const appItems = Object.keys(yamlApps).length > 0
+    ? Object.entries(yamlApps).map(([key, app]) => {
+        const rawUrl = currentEnv === 'prod' ? (app.endpoints?.prod?.api || app.api) : (app.endpoints?.stg?.api || app.api);
+        let host = resolveHost(key, `${key}-prod.internal.corp`);
+        let port = '443';
+        if (rawUrl) {
+          try {
+            const parsed = new URL(rawUrl);
+            host = parsed.hostname;
+            port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+          } catch (e) {}
+        }
+        return {
+          key,
+          name: app.display_name || app.name || key,
+          host,
+          port
+        };
+      })
+    : defaultAppItems;
 
   const getStatusClass = (status) => {
     const s = (status || 'Healthy').toLowerCase();
+    if (s === 'data_unavailable' || s === 'no_data') return 'status-unknown';
     if (s === 'critical') return 'status-critical';
     if (s === 'warning') return 'status-warning';
     return 'status-healthy';
   };
 
   const getStatusText = (status) => {
+    if (status === 'DATA_UNAVAILABLE' || status === 'NO_DATA') return 'Data Not Available';
     return status || 'Healthy';
   };
 
   const getStatusDot = (status) => {
     const s = (status || 'Healthy').toLowerCase();
+    if (s === 'data_unavailable' || s === 'no_data') return '#94a3b8';
     if (s === 'critical') return '#ef4444';
     if (s === 'warning') return '#f59e0b';
     return '#10b981';
@@ -83,7 +128,8 @@ export default function UnifiedHealthMatrix({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
             {appItems.map(app => {
-              const status = componentStatuses[app.key] || 'Healthy';
+              const defaultFallback = (currentEnv === 'prod' || currentEnv === 'staging') ? 'DATA_UNAVAILABLE' : 'Healthy';
+              const status = componentStatuses[app.key] || defaultFallback;
               const activeAlertsCount = alerts.filter(a => a.component === app.key && a.status === 'Active').length;
               
               return (
@@ -132,7 +178,8 @@ export default function UnifiedHealthMatrix({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
             {infraItems.map(infra => {
-              const status = componentStatuses[infra.key] || 'Healthy';
+              const defaultFallback = (currentEnv === 'prod' || currentEnv === 'staging') ? 'DATA_UNAVAILABLE' : 'Healthy';
+              const status = componentStatuses[infra.key] || defaultFallback;
               const activeAlertsCount = alerts.filter(a => a.component === infra.key && a.status === 'Active').length;
 
               return (

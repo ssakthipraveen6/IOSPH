@@ -1,0 +1,6 @@
+id: "avi"
+display_name: "AVI Load Balancer Layer"
+category: "load_balancer"
+poll_interval_seconds: 30
+credential_purpose: "api"
+endpoint: "https://avi-prod.internal.corp/api/v1/telemetry"

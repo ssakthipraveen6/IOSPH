@@ -1,7 +1,7 @@
 id: "fortify"
-display_name: "Fortify Static Code Analyzer"
-category: "security_compliance"
-log_tag: "FORTIFY"
+display_name: "Micro Focus Fortify SSC"
+category: "security_scanner"
+log_tag: "[FORTIFY]"
 
 endpoints:
   prod:
@@ -10,22 +10,21 @@ endpoints:
     api: "https://fortify-stg.internal.corp/ssc/api/v1"
 
 layers:
-  s3_endpoint: "https://s3.prod-fortify-us-east-1.amazonaws.com"
-  sso_api: "https://sso-auth-prod-fortify.internal.corp/oauth2/token"
-  network_latency_hosts:
-    - "fortify-prod.internal.corp"
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-fortify.internal.corp/api/v1/telemetry"
+    credential_purpose: null
 
 servers:
-  - node: "fortify-node-1"
-    type: "windows"
-    api: "https://win-compute-prod-fortify-1.internal.corp/api/v1/metrics"
-  - node: "fortify-node-2"
-    type: "windows"
-    api: "https://win-compute-prod-fortify-2.internal.corp/api/v1/metrics"
+  unix:
+    - node: "fortify-ssc-1"
+      api: "https://linux-compute-prod-fortify-1.internal.corp/api/v1/metrics"
+  windows: []
 
 metrics_baseline:
-  scanQueue: 2
-  cpu: 15.0
-  failures: 0
+  responseTime: 140
+  successRate: 99.4
+  requests: 30
 
-jenkins_remediation_job: "JOB_RESTART_FORTIFY_SCANNER"
+jenkins_remediation_job: "JOB_RESTART_FORTIFY_SERVICE"

@@ -150,27 +150,61 @@ const appRegistry = {
   performance_center: { key: "performance_center", name: "Micro Focus Performance Center", login: "SSO and eLDAP", cert: "URL & license validity", nas: "NAS Mount", db: "Yes", activeSessions: 340, latency: "130ms" }
 };
 
-export default function MetricsDetail({ selectedComponent, onComponentChange, historicalMetrics, healthData }) {
+export default function MetricsDetail({ selectedComponent, onComponentChange, historicalMetrics, healthData = {}, environment = 'staging' }) {
   const [timeRange, setTimeRange] = useState('24h');
   const [selectedFlowApp, setSelectedFlowApp] = useState('artifactory');
   const [infraViewMode, setInfraViewMode] = useState('comparative');
 
+  const currentEnv = environment || healthData?.environment || 'staging';
   const compMeta = componentMetadata[selectedComponent] || componentMetadata.database;
-  const status = healthData.componentStatuses[selectedComponent] || 'Healthy';
+  const status = (healthData.componentStatuses && healthData.componentStatuses[selectedComponent]) || ((currentEnv === 'prod' || currentEnv === 'staging') ? 'DATA_UNAVAILABLE' : 'Healthy');
   const componentMetrics = historicalMetrics[selectedComponent] || [];
+
+  const formatStatusText = (st) => {
+    if (st === 'DATA_UNAVAILABLE' || st === 'NO_DATA') return 'Data Not Available';
+    return st;
+  };
 
   // Helper to retrieve latest metric value with fallback
   const getLatestMetricValue = (metricsArray, metricName, defaultValue) => {
+    if (currentEnv === 'prod' || currentEnv === 'staging') {
+      if (!metricsArray || metricsArray.length === 0) return 'Data Not Available';
+      const matching = metricsArray.filter(m => m.metricName === metricName);
+      if (matching.length === 0) return 'Data Not Available';
+      const val = matching[matching.length - 1].value;
+      if (val === null || val === undefined || val === 'Data Not Available') return 'Data Not Available';
+      return val;
+    }
     if (!metricsArray || metricsArray.length === 0) return defaultValue;
     const matching = metricsArray.filter(m => m.metricName === metricName);
     if (matching.length > 0) {
-      return matching[matching.length - 1].value;
+      const val = matching[matching.length - 1].value;
+      if (val === null || val === undefined || val === 'Data Not Available') return defaultValue;
+      return val;
     }
     return defaultValue;
   };
 
-  // Helper to generate fallback points for smooth charts
+  // Safe formatting helpers for table cells
+  const fmtVal = (val, unit, dec = 1) => {
+    if (val === 'Data Not Available' || val === null || val === undefined || isNaN(parseFloat(val))) {
+      return 'Data Not Available';
+    }
+    return `${parseFloat(val).toFixed(dec)} ${unit}`;
+  };
+
+  const fmtInt = (val, unit) => {
+    if (val === 'Data Not Available' || val === null || val === undefined || isNaN(parseInt(val))) {
+      return 'Data Not Available';
+    }
+    return `${parseInt(val)} ${unit}`;
+  };
+
+  // Helper to generate fallback points for smooth charts (DEMO MODE ONLY)
   const generateFallbackPoints = (metricName) => {
+    if (currentEnv === 'prod' || currentEnv === 'staging') {
+      return [];
+    }
     const fallbackPoints = [];
     const now = Date.now();
     const rangeHours = timeRange === '1h' ? 1 : timeRange === '6h' ? 6 : 24;
@@ -199,7 +233,17 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
   const getActiveMetrics = (comp = selectedComponent) => {
     const rawData = historicalMetrics[comp] || [];
     if (rawData && rawData.length > 0) {
-      return rawData;
+      // [FIX-4] Strip sentinel 'Data Not Available' records written by db.js for empty PROD components —
+      // rendering them as data points would show a misleading flatline on the chart.
+      const realData = rawData.filter(
+        m => m.value !== 'Data Not Available' && m.metricName !== 'status'
+      );
+      if (realData.length > 0) return realData;
+    }
+
+    // In PROD or STAGING, never inject synthetic mock demo data
+    if (currentEnv === 'prod' || currentEnv === 'staging') {
+      return [];
     }
 
     const fallbackMetrics = [];
@@ -318,6 +362,7 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
     const infraMetrics = getActiveMetrics(infraKey);
 
     // Configuration map for every Infrastructure/Network component
+    // Configuration map for every Infrastructure/Network component
     const infraConfigs = {
       sso_gateway: {
         title: "🔑 SSO Identity & Authentication Metrics Across Applications",
@@ -335,14 +380,44 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
         ],
         tableTitle: "👥 SSO Application Integration Matrix",
         columns: ["Application Name", "Auth Protocol", "AD eLDAP Group Mapping", "Active Sessions", "Sync Latency", "Status"],
-        getRowData: (app) => ({
-          col1: app.login,
-          col2: `cn=sentinel-auth-${app.key}-users,dn=mnc,dn=corp`,
-          col3: `${app.activeSessions} sessions`,
-          col4: app.latency,
-          statusText: (healthData.componentStatuses[app.key] || 'Healthy') === 'Healthy' ? 'CONNECTED' : 'DEGRADED',
-          statusClass: (healthData.componentStatuses[app.key] || 'Healthy') === 'Healthy' ? 'status-healthy' : 'status-critical'
-        })
+        getRowData: (app) => {
+          const appMetrics = getActiveMetrics(app.key);
+          const rawLatency = getLatestMetricValue(appMetrics, 'latency', null) || getLatestMetricValue(appMetrics, 'responseTime', null);
+          const rawSessions = getLatestMetricValue(appMetrics, 'activeSessions', null);
+
+          let displaySessions = `${app.activeSessions} sessions`;
+          let displayLatency = app.latency;
+          let statusText = (healthData.componentStatuses && healthData.componentStatuses[app.key] === 'Healthy') ? 'CONNECTED' : 'DEGRADED';
+          let statusClass = statusText === 'CONNECTED' ? 'status-healthy' : 'status-critical';
+
+          if (currentEnv === 'prod' || currentEnv === 'staging') {
+            if (rawSessions !== 'Data Not Available' && rawSessions !== null && !isNaN(parseInt(rawSessions))) {
+              displaySessions = `${parseInt(rawSessions)} sessions`;
+            } else {
+              displaySessions = 'Data Not Available';
+            }
+
+            if (rawLatency !== 'Data Not Available' && rawLatency !== null && !isNaN(parseFloat(rawLatency))) {
+              displayLatency = `${parseFloat(rawLatency).toFixed(0)}ms`;
+            } else {
+              displayLatency = 'Data Not Available';
+            }
+
+            if (displaySessions === 'Data Not Available' && displayLatency === 'Data Not Available') {
+              statusText = 'DATA_UNAVAILABLE';
+              statusClass = 'status-unknown';
+            }
+          }
+
+          return {
+            col1: app.login,
+            col2: `cn=sentinel-auth-${app.key}-users,dn=mnc,dn=corp`,
+            col3: displaySessions,
+            col4: displayLatency,
+            statusText: formatStatusText(statusText),
+            statusClass
+          };
+        }
       },
       avi_load_balancer: {
         title: "🌐 AVI Ingress Routing & Traffic Flow Across Applications",
@@ -362,14 +437,15 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
         getRowData: (app) => {
           const flow = getLatestMetricValue(infraMetrics, `${app.key}_ingressFlow`, 14.5);
           const lat = getLatestMetricValue(infraMetrics, `${app.key}_latency`, 45.0);
+          const isUnavail = (currentEnv === 'prod' || currentEnv === 'staging') && (flow === 'Data Not Available' || lat === 'Data Not Available');
           return {
             col1: `vip-${app.key}.internal.corp`,
             col2: app.port || '443',
-            col3: `${parseFloat(flow).toFixed(1)} MB/s`,
-            col4: `${parseFloat(lat).toFixed(0)} ms`,
-            col5: 'Valid (TLS 1.3)',
-            statusText: 'UP / HEALTHY',
-            statusClass: 'status-healthy'
+            col3: fmtVal(flow, 'MB/s', 1),
+            col4: fmtVal(lat, 'ms', 0),
+            col5: isUnavail ? 'Data Not Available' : 'Valid (TLS 1.3)',
+            statusText: isUnavail ? 'Data Not Available' : 'UP / HEALTHY',
+            statusClass: isUnavail ? 'status-unknown' : 'status-healthy'
           };
         }
       },
@@ -393,14 +469,15 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
           const conns = isDb ? getLatestMetricValue(infraMetrics, `${app.key}_connections`, 38) : 0;
           const tps = isDb ? getLatestMetricValue(infraMetrics, `${app.key}_tps`, 115) : 0;
           const lat = isDb ? getLatestMetricValue(infraMetrics, `${app.key}_dbLatency`, 14.2) : 0;
+          const isUnavail = (currentEnv === 'prod' || currentEnv === 'staging') && (conns === 'Data Not Available' || tps === 'Data Not Available');
           return {
             col1: `db_${app.key}_prod`,
             col2: `jdbc:postgresql://db-prod-${app.key}.internal.corp:5432/${app.key}_db`,
-            col3: `${parseInt(conns)} conns`,
-            col4: `${parseInt(tps)} tps`,
-            col5: isDb ? `${parseFloat(lat).toFixed(1)} ms` : 'N/A',
-            statusText: isDb ? 'ACTIVE' : 'INACTIVE',
-            statusClass: isDb ? 'status-healthy' : 'status-warning'
+            col3: fmtInt(conns, 'conns'),
+            col4: fmtInt(tps, 'tps'),
+            col5: isDb ? fmtVal(lat, 'ms', 1) : 'N/A',
+            statusText: isUnavail ? 'Data Not Available' : (isDb ? 'ACTIVE' : 'INACTIVE'),
+            statusClass: isUnavail ? 'status-unknown' : (isDb ? 'status-healthy' : 'status-warning')
           };
         }
       },
@@ -423,14 +500,15 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
           const isWin = app.key === 'fortify' || app.key === 'performance_center';
           const cpu = getLatestMetricValue(infraMetrics, `${app.key}_cpu`, isWin ? 5.2 : 18.4);
           const mem = getLatestMetricValue(infraMetrics, `${app.key}_mem`, isWin ? 2.1 : 8.5);
+          const isUnavail = (currentEnv === 'prod' || currentEnv === 'staging') && (cpu === 'Data Not Available' || mem === 'Data Not Available');
           return {
             col1: `${app.key}-linux-node.internal.corp`,
             col2: app.server || 'RHEL VM',
-            col3: `${parseFloat(cpu).toFixed(1)}%`,
-            col4: `${parseFloat(mem).toFixed(1)} GB`,
-            col5: `142 threads`,
-            statusText: 'ONLINE',
-            statusClass: 'status-healthy'
+            col3: fmtVal(cpu, '%', 1),
+            col4: fmtVal(mem, 'GB', 1),
+            col5: isUnavail ? 'Data Not Available' : '142 threads',
+            statusText: isUnavail ? 'Data Not Available' : 'ONLINE',
+            statusClass: isUnavail ? 'status-unknown' : 'status-healthy'
           };
         }
       },
@@ -451,14 +529,15 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
           const isWinApp = app.key === 'fortify' || app.key === 'performance_center';
           const cpu = getLatestMetricValue(infraMetrics, `${app.key}_cpu`, isWinApp ? 22.4 : 4.2);
           const mem = getLatestMetricValue(infraMetrics, `${app.key}_mem`, isWinApp ? 30.2 : 3.8);
+          const isUnavail = (currentEnv === 'prod' || currentEnv === 'staging') && (cpu === 'Data Not Available' || mem === 'Data Not Available');
           return {
             col1: `${app.key}-win-node.internal.corp`,
             col2: isWinApp ? 'Primary Windows App Host' : 'IIS Proxy Forwarder',
-            col3: `${parseFloat(cpu).toFixed(1)}%`,
-            col4: `${parseFloat(mem).toFixed(1)} GB`,
-            col5: isWinApp ? '1420 active' : 'N/A',
-            statusText: 'ONLINE',
-            statusClass: 'status-healthy'
+            col3: fmtVal(cpu, '%', 1),
+            col4: fmtVal(mem, 'GB', 1),
+            col5: isUnavail ? 'Data Not Available' : (isWinApp ? '1420 active' : 'N/A'),
+            statusText: isUnavail ? 'Data Not Available' : 'ONLINE',
+            statusClass: isUnavail ? 'status-unknown' : 'status-healthy'
           };
         }
       },
@@ -482,14 +561,15 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
           const hasNas = app.nas === 'NAS Mount';
           const space = getLatestMetricValue(infraMetrics, `${app.key}_spaceUsed`, hasNas ? 15.4 : 1.2);
           const iops = getLatestMetricValue(infraMetrics, `${app.key}_iops`, hasNas ? 115 : 8);
+          const isUnavail = (currentEnv === 'prod' || currentEnv === 'staging') && (space === 'Data Not Available' || iops === 'Data Not Available');
           return {
             col1: `d:\\production_shares\\nas_logs\\${app.key}`,
             col2: 'NFS v4.1',
-            col3: `${parseFloat(space).toFixed(1)} GB`,
-            col4: `${parseInt(iops)} IOPS`,
-            col5: '45 MB/s',
-            statusText: hasNas ? 'MOUNTED' : 'UNMOUNTED',
-            statusClass: hasNas ? 'status-healthy' : 'status-warning'
+            col3: fmtVal(space, 'GB', 1),
+            col4: fmtInt(iops, 'IOPS'),
+            col5: isUnavail ? 'Data Not Available' : '45 MB/s',
+            statusText: isUnavail ? 'Data Not Available' : (hasNas ? 'MOUNTED' : 'UNMOUNTED'),
+            statusClass: isUnavail ? 'status-unknown' : (hasNas ? 'status-healthy' : 'status-warning')
           };
         }
       },
@@ -511,14 +591,15 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
           const isS3 = app.nas === 'S3 Bucket' || ['artifactory', 'bitbucket', 'jenkins', 'teamcity', 'bitbucket_external'].includes(app.key);
           const space = getLatestMetricValue(infraMetrics, `${app.key}_space`, isS3 ? 450 : 45);
           const bw = getLatestMetricValue(infraMetrics, `${app.key}_bandwidth`, isS3 ? 18.5 : 1.2);
+          const isUnavail = (currentEnv === 'prod' || currentEnv === 'staging') && (space === 'Data Not Available' || bw === 'Data Not Available');
           return {
             col1: `s3://prod-${app.key}-telemetry-bucket`,
             col2: 'S3 Standard',
-            col3: `${parseInt(space)} GB`,
-            col4: `${parseFloat(bw).toFixed(1)} MB/s`,
-            col5: '14.5 ms',
-            statusText: 'SYNCED',
-            statusClass: 'status-healthy'
+            col3: fmtInt(space, 'GB'),
+            col4: fmtVal(bw, 'MB/s', 1),
+            col5: isUnavail ? 'Data Not Available' : '14.5 ms',
+            statusText: isUnavail ? 'Data Not Available' : 'SYNCED',
+            statusClass: isUnavail ? 'status-unknown' : 'status-healthy'
           };
         }
       },
@@ -538,13 +619,26 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
         tableTitle: "⚡ Network Routing Diagnostic Matrix",
         columns: ["Application Name", "Target Endpoint FQDN", "Ping Latency (ms)", "Packet Loss (%)", "Jitter (ms)", "Route Status"],
         getRowData: (app) => {
-          const lat = getLatestMetricValue(infraMetrics, 'latency_ms', 1.85) + (Math.random() * 2);
-          const jitter = getLatestMetricValue(infraMetrics, 'jitter', 0.25);
+          const rawLat = getLatestMetricValue(infraMetrics, 'latency_ms', 1.85);
+          const rawJitter = getLatestMetricValue(infraMetrics, 'jitter', 0.25);
+          if ((currentEnv === 'prod' || currentEnv === 'staging') && (rawLat === 'Data Not Available' || typeof rawLat !== 'number')) {
+            return {
+              col1: app.host || `${app.key}-prod.internal.corp`,
+              col2: 'Data Not Available',
+              col3: 'Data Not Available',
+              col4: 'Data Not Available',
+              col5: 'Data Not Available',
+              statusText: 'Data Not Available',
+              statusClass: 'status-unknown'
+            };
+          }
+          const numLat = typeof rawLat === 'number' && !isNaN(rawLat) ? rawLat : 1.85;
+          const numJitter = typeof rawJitter === 'number' && !isNaN(rawJitter) ? rawJitter : 0.25;
           return {
             col1: app.host || `${app.key}-prod.internal.corp`,
-            col2: `${parseFloat(lat).toFixed(2)} ms`,
+            col2: `${(numLat + Math.random() * 0.4).toFixed(2)} ms`,
             col3: '0.00%',
-            col4: `${parseFloat(jitter).toFixed(2)} ms`,
+            col4: `${numJitter.toFixed(2)} ms`,
             col5: 'OPTIMAL',
             statusText: 'OPTIMAL',
             statusClass: 'status-healthy'
@@ -559,7 +653,7 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
     const chartDatasets = cfg.chartDatasets.map(ds => {
       const sourceMetrics = ds.compKey ? getActiveMetrics(ds.compKey) : infraMetrics;
       const points = sourceMetrics
-        .filter(m => m.metricName === ds.metricName)
+        .filter(m => m.metricName === ds.metricName && typeof m.value === 'number')
         .map(m => ({ timestamp: m.timestamp, value: m.value }));
       return {
         label: ds.label,
@@ -672,10 +766,19 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
     const storageMetrics = getActiveMetrics(storageKey);
 
     // Dynamic statuses of dependencies
-    const ssoStatus = healthData.componentStatuses['sso_gateway'] || 'Healthy';
-    const aviStatus = healthData.componentStatuses['avi_load_balancer'] || 'Healthy';
-    const dbStatus = activeApp.db === 'Yes' ? (healthData.componentStatuses['database'] || 'Healthy') : 'Inactive';
-    const storageStatus = activeApp.nas !== 'No Storage' ? (healthData.componentStatuses[storageKey] || 'Healthy') : 'Inactive';
+    const noDataDefault = (currentEnv === 'prod' || currentEnv === 'staging') ? 'DATA_UNAVAILABLE' : 'Healthy';
+    const ssoStatus = healthData.componentStatuses['sso_gateway'] || noDataDefault;
+    const aviStatus = healthData.componentStatuses['avi_load_balancer'] || noDataDefault;
+    const dbStatus = activeApp.db === 'Yes' ? (healthData.componentStatuses['database'] || noDataDefault) : 'Inactive';
+    const storageStatus = activeApp.nas !== 'No Storage' ? (healthData.componentStatuses[storageKey] || noDataDefault) : 'Inactive';
+
+    // Application specific metrics decomposition
+    const appMetricNames = Array.from(new Set(activeMetrics.map(m => m.metricName)));
+    const m1 = appMetricNames[0] || 'responseTime';
+    const m2 = appMetricNames[1] || 'requests';
+    const m3 = appMetricNames[2] || 'successRate';
+
+    const formatMetricLabel = (m) => m ? m.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()) : '';
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -684,38 +787,38 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
         <div className="console-panel" style={{ padding: '1.25rem' }}>
           <div className="panel-header" style={{ marginBottom: '1rem' }}>
             <h3>🔗 E2E Dependency Diagnostics: {compMeta.name}</h3>
-            <span className="status-pill status-healthy" style={{ backgroundColor: getStatusBadgeColor(status) }}>{status}</span>
+            <span className="status-pill" style={{ backgroundColor: getStatusBadgeColor(status) }}>{formatStatusText(status)}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
             
             <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-light)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '1.1rem' }}>🔑</div>
               <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)', marginTop: '4px' }}>SSO Gateway</span>
-              <span className={`status-badge-inline ${ssoStatus === 'Healthy' ? 'status-healthy' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{ssoStatus}</span>
+              <span className={`status-badge-inline ${ssoStatus === 'Healthy' ? 'status-healthy' : ssoStatus === 'DATA_UNAVAILABLE' ? 'status-unknown' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{formatStatusText(ssoStatus)}</span>
             </div>
 
             <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-light)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '1.1rem' }}>🌐</div>
               <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)', marginTop: '4px' }}>Ingress (AVI)</span>
-              <span className={`status-badge-inline ${aviStatus === 'Healthy' ? 'status-healthy' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{aviStatus}</span>
+              <span className={`status-badge-inline ${aviStatus === 'Healthy' ? 'status-healthy' : aviStatus === 'DATA_UNAVAILABLE' ? 'status-unknown' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{formatStatusText(aviStatus)}</span>
             </div>
 
             <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-light)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '1.1rem' }}>📱</div>
               <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)', marginTop: '4px' }}>App Host VM</span>
-              <span className="status-badge-inline status-healthy" style={{ fontSize: '0.65rem', marginTop: '6px' }}>ONLINE</span>
+              <span className={`status-badge-inline ${status === 'DATA_UNAVAILABLE' ? 'status-unknown' : 'status-healthy'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{status === 'DATA_UNAVAILABLE' ? 'Data Not Available' : 'ONLINE'}</span>
             </div>
 
             <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-light)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '1.1rem' }}>🗄️</div>
               <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)', marginTop: '4px' }}>Database</span>
-              <span className={`status-badge-inline ${dbStatus === 'Healthy' ? 'status-healthy' : dbStatus === 'Inactive' ? 'status-warning' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{dbStatus}</span>
+              <span className={`status-badge-inline ${dbStatus === 'Healthy' ? 'status-healthy' : dbStatus === 'Inactive' ? 'status-warning' : dbStatus === 'DATA_UNAVAILABLE' ? 'status-unknown' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{formatStatusText(dbStatus)}</span>
             </div>
 
             <div style={{ backgroundColor: 'var(--bg-dark)', border: '1px solid var(--border-light)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '1.1rem' }}>💾</div>
               <span style={{ fontSize: '0.65rem', display: 'block', color: 'var(--text-muted)', marginTop: '4px' }}>Storage Volume</span>
-              <span className={`status-badge-inline ${storageStatus === 'Healthy' ? 'status-healthy' : storageStatus === 'Inactive' ? 'status-warning' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{storageStatus}</span>
+              <span className={`status-badge-inline ${storageStatus === 'Healthy' ? 'status-healthy' : storageStatus === 'Inactive' ? 'status-warning' : storageStatus === 'DATA_UNAVAILABLE' ? 'status-unknown' : 'status-critical'}`} style={{ fontSize: '0.65rem', marginTop: '6px' }}>{formatStatusText(storageStatus)}</span>
             </div>
 
           </div>
@@ -724,36 +827,36 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
         {/* 5-Layer End to End Performance Timelines */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
           
-          {/* Layer 1: Identity */}
+          {/* Layer 1: Application Specific Primary Metric */}
           <div className="console-panel" style={{ padding: '1rem' }}>
             <CustomChart 
               datasets={[
-                getAppDataset(ssoMetrics, 'SSO Gateway latency', 'authLatency', '#3b82f6')
+                getAppDataset(activeMetrics, `${compMeta.name} ${formatMetricLabel(m1)}`, m1, '#3b82f6')
               ]}
-              title="1. Identity Layer: SSO Gate timings (ms)"
-              unit="ms"
+              title={`1. Application Primary Metric: ${formatMetricLabel(m1)}`}
+              unit={m1.includes('Time') || m1.includes('latency') ? 'ms' : m1.includes('heap') || m1.includes('space') ? 'GB' : 'count'}
             />
           </div>
 
-          {/* Layer 2: Network */}
+          {/* Layer 2: Application Specific Secondary Metric */}
           <div className="console-panel" style={{ padding: '1rem' }}>
             <CustomChart 
               datasets={[
-                getAppDataset(aviMetrics, 'AVI Ingress traffic flow', 'ingressFlow', '#ec4899')
+                getAppDataset(activeMetrics, `${compMeta.name} ${formatMetricLabel(m2)}`, m2, '#ec4899')
               ]}
-              title="2. Network Layer: Ingress Traffic Throughput"
-              unit="MB/s"
+              title={`2. Application Load & Workload: ${formatMetricLabel(m2)}`}
+              unit={m2.includes('Rate') || m2.includes('cpu') ? '%' : m2.includes('space') ? 'GB' : 'rate'}
             />
           </div>
 
-          {/* Layer 3: Application */}
+          {/* Layer 3: Application Health & Quality */}
           <div className="console-panel" style={{ padding: '1rem' }}>
             <CustomChart 
               datasets={[
-                getAppDataset(activeMetrics, `${compMeta.name} Response Timing`, activeMetrics[0]?.metricName || 'responseTime', '#f59e0b')
+                getAppDataset(activeMetrics, `${compMeta.name} ${formatMetricLabel(m3)}`, m3, '#f59e0b')
               ]}
-              title={`3. Application Layer: ${compMeta.name} latency`}
-              unit="ms"
+              title={`3. Application Health & Quality: ${formatMetricLabel(m3)}`}
+              unit={m3.includes('Rate') || m3.includes('Passed') ? '%' : 'status'}
             />
           </div>
 
@@ -804,7 +907,7 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
     if (metricNames.length === 0) {
       return (
         <div className="empty-chart" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '120px' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>No historical metrics recorded yet in DB for this interval.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Data Not Available</p>
         </div>
       );
     }

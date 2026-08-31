@@ -19,7 +19,7 @@ const appDisplayNames = {
   performance_center: "Performance Center"
 };
 
-export default function RcaDashboard() {
+export default function RcaDashboard({ environment = 'staging' }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedCorrelation, setSelectedCorrelation] = useState(null);
@@ -27,29 +27,33 @@ export default function RcaDashboard() {
   const [changes, setChanges] = useState([]);
   const [selectedChange, setSelectedChange] = useState(null);
 
-  // 1. Fetch ServiceNow Change & Incident telemetry
+  // 1. Fetch ServiceNow Change & Incident telemetry for current environment
   useEffect(() => {
-    fetch('/api/infra-tickets')
+    fetch(`/api/infra-tickets?environment=${encodeURIComponent(environment)}`)
       .then(res => res.json())
       .then(t => {
         setChanges(t);
         if (t && t.length > 0) {
           setSelectedChange(t[0]);
+        } else {
+          setSelectedChange(null);
         }
       })
       .catch(e => console.error('Failed loading ServiceNow changes:', e));
-  }, []);
+  }, [environment]);
 
-  // 2. Fetch RCA & Correlation data dynamically for selected app
+  // 2. Fetch RCA & Correlation data dynamically for selected app and environment
   useEffect(() => {
     const fetchData = () => {
-      fetch(`/api/rca-correlation?app=${selectedFlowApp}`)
+      fetch(`/api/rca-correlation?app=${selectedFlowApp}&environment=${encodeURIComponent(environment)}`)
         .then(res => res.json())
         .then(d => {
           setData(d);
           setLoading(false);
-          if (!selectedCorrelation && d.correlations && d.correlations.length > 0) {
+          if (d.correlations && d.correlations.length > 0) {
             setSelectedCorrelation(d.correlations[0]);
+          } else {
+            setSelectedCorrelation(null);
           }
         })
         .catch(e => {
@@ -59,11 +63,11 @@ export default function RcaDashboard() {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
-  }, [selectedFlowApp]);
+  }, [selectedFlowApp, environment]);
 
-  if (loading || !data) {
+  if (loading || !data || !data.flows) {
     return (
       <div className="command-center-loading-card">
         <h3>Loading RCA Analytics & Ticket timelines...</h3>
@@ -71,7 +75,8 @@ export default function RcaDashboard() {
     );
   }
 
-  const activeFlow = data.flows[selectedFlowApp] || [];
+  const activeFlow = (data.flows && data.flows[selectedFlowApp]) || [];
+  const timelineData = data.timeline || [];
 
   // Generate SVG coordinates for Expected vs Actual Chart
   const padding = 40;
@@ -79,13 +84,16 @@ export default function RcaDashboard() {
   const height = 240;
   const chartWidth = width - padding * 2;
   const chartHeight = height - padding * 2;
-  const maxVal = 2500;
+  const maxVal = Math.max(
+    ...timelineData.map(t => Math.max(t.nasIops || 0, (t.expected || 0) * (t.nasIops > 1000 ? 5 : 1))),
+    100
+  );
   
-  const getX = (index, total) => padding + (index / (total - 1)) * chartWidth;
-  const getY = (value) => padding + chartHeight - (value / maxVal) * chartHeight;
+  const getX = (index, total) => padding + (index / (Math.max(total - 1, 1))) * chartWidth;
+  const getY = (value) => padding + chartHeight - ((value || 0) / maxVal) * chartHeight;
 
-  const pointsActual = data.timeline.map((t, i) => `${getX(i, data.timeline.length)},${getY(t.nasIops)}`).join(' ');
-  const pointsExpected = data.timeline.map((t, i) => `${getX(i, data.timeline.length)},${getY(t.expected * 5)}`).join(' ');
+  const pointsActual = timelineData.map((t, i) => `${getX(i, timelineData.length)},${getY(t.nasIops)}`).join(' ');
+  const pointsExpected = timelineData.map((t, i) => `${getX(i, timelineData.length)},${getY(t.expected * (t.nasIops > 1000 ? 5 : 1))}`).join(' ');
 
   const getStatusClass = (status) => {
     if (!status) return 'healthy';
@@ -199,46 +207,82 @@ export default function RcaDashboard() {
         </div>
       </div>
 
-      {/* Row 2: Expected vs Issue Correlation Line Chart */}
+      {/* AI Root Cause & Correlation Intelligence Panel */}
+      {selectedCorrelation && (
+        <div className="metrics-panel-card" style={{ padding: '1.25rem', background: 'linear-gradient(135deg, rgba(13,148,136,0.06) 0%, rgba(15,23,42,0.4) 100%)', border: '1px solid rgba(13,148,136,0.3)' }}>
+          <div className="panel-header" style={{ marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.25rem' }}>🧠</span>
+              <div>
+                <h3 style={{ fontSize: '0.95rem' }}>AI Root Cause Correlation: {selectedCorrelation.title}</h3>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Target: <strong>{appDisplayNames[selectedFlowApp] || selectedFlowApp.toUpperCase()}</strong> | Correlation Confidence: <strong style={{ color: '#10b981' }}>{selectedCorrelation.confidence}%</strong></span>
+              </div>
+            </div>
+            <span className="panel-badge-green">AI Verified</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '8px' }}>
+            <div style={{ background: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔍 Root Cause Diagnosis</span>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-main)', marginTop: '4px', lineHeight: 1.4 }}>{selectedCorrelation.rootCause}</p>
+            </div>
+            <div style={{ background: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Recommended Remediation Action</span>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-main)', marginTop: '4px', lineHeight: 1.4 }}>{selectedCorrelation.recommendation}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Row 2: Performance Telemetry & Anomaly Deviations */}
       <div className="metrics-panel-card" style={{ padding: '1.5rem' }}>
-        <div className="panel-header">
+        <div className="panel-header" style={{ marginBottom: '1.25rem' }}>
           <div>
-            <h3>Expected vs. Issue Correlation Chart (24-Hour Timeline)</h3>
+            <h3>Telemetry Deviation Timeline: {appDisplayNames[selectedFlowApp] || selectedFlowApp.toUpperCase()} vs Baseline</h3>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Plots anticipated telemetry benchmarks against actual traffic load spikes to visualize anomaly deviations.
+              Comparison of live observed metrics (Red) against historical predictive baseline models (Teal).
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '15px', fontSize: '0.75rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: '12px', height: '4px', background: 'var(--primary)' }}></span>Expected Baseline</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ display: 'inline-block', width: '12px', height: '4px', background: '#ef4444' }}></span>Actual Saturation</span>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <span style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+              <span style={{ width: '10px', height: '10px', background: 'var(--primary)', display: 'inline-block', borderRadius: '50%' }}></span> Expected Baseline
+            </span>
+            <span style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+              <span style={{ width: '10px', height: '10px', background: '#ef4444', display: 'inline-block', borderRadius: '50%' }}></span> Live Observed Telemetry
+            </span>
           </div>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem', background: 'var(--bg-dark)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-light)', overflowX: 'auto' }}>
-          <svg width={width} height={height} style={{ minWidth: '800px' }}>
-            {[0, 1, 2, 3].map((g, idx) => (
-              <line key={idx} x1={padding} y1={padding + (chartHeight / 3) * idx} x2={width - padding} y2={padding + (chartHeight / 3) * idx} stroke="var(--border-light)" strokeDasharray="4,4" />
-            ))}
-            <polyline fill="none" stroke="var(--primary)" strokeWidth="2.5" points={pointsExpected} />
-            <polyline fill="none" stroke="#ef4444" strokeWidth="3" points={pointsActual} />
-            {data.timeline.map((t, idx) => {
-              const x = getX(idx, data.timeline.length);
-              const y = getY(t.nasIops);
-              const isAlert = t.note;
-              return (
-                <g key={idx}>
-                  <circle cx={x} cy={y} r={isAlert ? 6 : 4} fill={isAlert ? '#ef4444' : 'var(--text-main)'} stroke={isAlert ? '#ffffff' : '#ef4444'} strokeWidth="2" />
-                  {isAlert && (
-                    <g>
-                      <rect x={x - 60} y={y - 30} width={120} height={20} rx="4" fill="#ef4444" />
-                      <text x={x} y={y - 17} fill="#ffffff" fontSize="8" fontWeight="700" textAnchor="middle">{t.note}</text>
-                    </g>
-                  )}
-                  <text x={x} y={height - 15} fill="var(--text-muted)" fontSize="9" textAnchor="middle" fontFamily="var(--font-mono)">{t.time}</text>
-                </g>
-              );
-            })}
-          </svg>
+          {timelineData.length === 0 ? (
+            <div style={{ height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              Data Not Available
+            </div>
+          ) : (
+            <svg width={width} height={height} style={{ minWidth: '800px' }}>
+              {[0, 1, 2, 3].map((g, idx) => (
+                <line key={idx} x1={padding} y1={padding + (chartHeight / 3) * idx} x2={width - padding} y2={padding + (chartHeight / 3) * idx} stroke="var(--border-light)" strokeDasharray="4,4" />
+              ))}
+              <polyline fill="none" stroke="var(--primary)" strokeWidth="2.5" points={pointsExpected} />
+              <polyline fill="none" stroke="#ef4444" strokeWidth="3" points={pointsActual} />
+              {data.timeline.map((t, idx) => {
+                const x = getX(idx, data.timeline.length);
+                const y = getY(t.nasIops);
+                const isAlert = t.note;
+                return (
+                  <g key={idx}>
+                    <circle cx={x} cy={y} r={isAlert ? 6 : 4} fill={isAlert ? '#ef4444' : 'var(--text-main)'} stroke={isAlert ? '#ffffff' : '#ef4444'} strokeWidth="2" />
+                    {isAlert && (
+                      <g>
+                        <rect x={x - 60} y={y - 30} width={120} height={20} rx="4" fill="#ef4444" />
+                        <text x={x} y={y - 17} fill="#ffffff" fontSize="8" fontWeight="700" textAnchor="middle">{t.note}</text>
+                      </g>
+                    )}
+                    <text x={x} y={height - 15} fill="var(--text-muted)" fontSize="9" textAnchor="middle" fontFamily="var(--font-mono)">{t.time}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
         </div>
       </div>
 
@@ -257,34 +301,40 @@ export default function RcaDashboard() {
             </div>
           )}
           
-          {changes.map(chg => (
-            <div 
-              key={chg.id}
-              onClick={() => setSelectedChange(chg)}
-              className="metrics-panel-card"
-              style={{
-                cursor: 'pointer',
-                borderColor: selectedChange?.id === chg.id ? 'var(--primary)' : 'var(--border-light)',
-                background: selectedChange?.id === chg.id ? 'var(--primary-glow)' : 'var(--bg-panel)',
-                padding: '1rem',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.8rem', color: 'var(--primary)' }}>{chg.id}</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{chg.date}</span>
-              </div>
-              <h4 style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '8px', lineHeight: '1.3' }}>{chg.title}</h4>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <span className="badge-gray" style={{ fontSize: '0.6rem' }}>{chg.component.toUpperCase()}</span>
-                <span className="status-badge-inline" style={{ 
-                  background: chg.risk === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                  color: chg.risk === 'High' ? '#ef4444' : '#f59e0b',
-                  fontSize: '0.6rem'
-                }}>{chg.risk} Risk</span>
-              </div>
+          {changes.length === 0 ? (
+            <div style={{ padding: '15px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', background: 'var(--bg-panel)', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+              Data Not Available
             </div>
-          ))}
+          ) : (
+            changes.map(chg => (
+              <div 
+                key={chg.id}
+                onClick={() => setSelectedChange(chg)}
+                className="metrics-panel-card"
+                style={{
+                  cursor: 'pointer',
+                  borderColor: selectedChange?.id === chg.id ? 'var(--primary)' : 'var(--border-light)',
+                  background: selectedChange?.id === chg.id ? 'var(--primary-glow)' : 'var(--bg-panel)',
+                  padding: '1rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.8rem', color: 'var(--primary)' }}>{chg.id}</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{chg.date}</span>
+                </div>
+                <h4 style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '8px', lineHeight: '1.3' }}>{chg.title}</h4>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <span className="badge-gray" style={{ fontSize: '0.6rem' }}>{chg.component.toUpperCase()}</span>
+                  <span className="status-badge-inline" style={{ 
+                    background: chg.risk === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                    color: chg.risk === 'High' ? '#ef4444' : '#f59e0b',
+                    fontSize: '0.6rem'
+                  }}>{chg.risk} Risk</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* 2-Week Timeline before & after ticket mapping */}
@@ -311,7 +361,7 @@ export default function RcaDashboard() {
                   <h4 style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 800 }}>📉 2 Weeks BEFORE Change</h4>
                 </div>
                 {selectedChange.beforeTickets.length === 0 ? (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No incidents logged prior to window.</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Data Not Available</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {selectedChange.beforeTickets.map(t => (
@@ -334,7 +384,7 @@ export default function RcaDashboard() {
                   <h4 style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 800 }}>📈 2 Weeks AFTER Change</h4>
                 </div>
                 {selectedChange.afterTickets.length === 0 ? (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No post-change ticket regressions recorded.</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Data Not Available</p>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {selectedChange.afterTickets.map(t => (

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const yamlConfig = require('../../../config/yaml_config');
+const config = require('../../../config/config');
 
 /**
  * DYNAMIC APPLICATION METRICS COLLECTOR
@@ -11,6 +12,8 @@ async function collectAppMetrics(simulations, db, writeNasLog) {
   const currentMetrics = {};
   const appsConfig = yamlConfig.loadAllApplications();
   const collectorsDir = __dirname;
+  const currentEnv = global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
+  const isProd = currentEnv === 'prod';
 
   const appKeys = Object.keys(appsConfig);
 
@@ -26,7 +29,7 @@ async function collectAppMetrics(simulations, db, writeNasLog) {
     };
 
     let state = 'Healthy';
-    if (simulations[key] && simulations[key].type === 'outage') {
+    if (currentEnv === 'staging' && simulations[key] && simulations[key].type === 'outage') {
       state = 'Critical';
     }
 
@@ -49,26 +52,44 @@ async function collectAppMetrics(simulations, db, writeNasLog) {
     }
 
     let data = {};
+
     if (collectorModule && typeof collectorModule.collect === 'function') {
       try {
-        data = await collectorModule.collect(simulations, base);
+        data = await collectorModule.collect(currentEnv === 'staging' ? simulations : {}, base);
+        // If in prod and all values are null or failed, mark unavailable
+        if (isProd && (!data || data.error === 'Data Not Available')) {
+          data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' };
+          state = 'DATA_UNAVAILABLE';
+        }
       } catch (e) {
-        console.warn(`[APP COLLECTOR] Error running collector for ${key}: ${e.message}. Using baseline.`);
-        data = generateBaselineMetrics(base);
+        if (isProd) {
+          console.warn(`[APP COLLECTOR PROD] Live feed unreachable for ${key}: ${e.message}`);
+          data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' };
+          state = 'DATA_UNAVAILABLE';
+        } else {
+          console.warn(`[APP COLLECTOR] Error running collector for ${key}: ${e.message}. Using baseline.`);
+          data = generateBaselineMetrics(base);
+        }
       }
     } else {
-      // Generic fallback collector using YAML baseline definitions
-      data = generateBaselineMetrics(base);
+      if (isProd) {
+        data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' };
+        state = 'DATA_UNAVAILABLE';
+      } else {
+        data = generateBaselineMetrics(base);
+      }
     }
 
-    // Record metrics into DB
+    // Record metrics into DB tagged by current environment
     Object.keys(data).forEach(mName => {
-      db.addMetric(key, mName, data[mName]);
+      db.addMetric(key, mName, data[mName], currentEnv);
     });
 
     currentMetrics[key] = { status: state, metrics: data };
-    const metricsStr = Object.keys(data).map(k => `${k}: ${data[k]}`).join(', ');
-    writeNasLog('INFO', 'APP_REAL', `${key} | Status: ${state} | Metrics: ${metricsStr}`);
+    if (state !== 'Healthy') {
+      const metricsStr = Object.keys(data).map(k => `${k}: ${data[k]}`).join(', ');
+      writeNasLog('WARN', 'APP_REAL', `${key} [${currentEnv.toUpperCase()}] | Status: ${state} | Metrics: ${metricsStr}`);
+    }
   }
 
   return currentMetrics;

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { MAINTENANCE_CONFIG } from '../maintenanceConfig';
 import { MaintenanceBadge, MaintenanceBanner } from './MaintenanceNotice';
 
-export default function YamlConfigManager() {
+export default function YamlConfigManager({ environment = 'staging' }) {
+  const currentEnv = environment || 'staging';
   const [applications, setApplications] = useState({});
   const [selectedApp, setSelectedApp] = useState(null); // null = global_config.yaml
   const [rawYaml, setRawYaml] = useState('');
@@ -14,7 +15,7 @@ export default function YamlConfigManager() {
   useEffect(() => {
     fetchApps();
     loadYaml(null);
-  }, []);
+  }, [environment]);
 
   const fetchApps = async () => {
     try {

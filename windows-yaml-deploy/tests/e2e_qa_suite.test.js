@@ -54,15 +54,20 @@ async function main() {
   totalCount++;
   if (await runTest('DATABASE & REST API: Historical time-series telemetry data retrieval', async () => {
     const postgresDb = require('../database/postgres');
-    let metricsData = await postgresDb.fetchHistoricalMetricsFromPostgres('database', 'cpu_usage', 24);
+    let metricsData = await postgresDb.fetchHistoricalMetricsFromPostgres('database', 'cpu_usage', 24, 'demo');
     if (!Array.isArray(metricsData) || metricsData.length === 0) {
-      const res = await httpGet('/api/pbi/metrics?component=database&metricName=cpu_usage&hours=24');
+      const res = await httpGet('/api/pbi/metrics?component=database&metricName=cpu_usage&hours=24&environment=demo');
       metricsData = res.data;
     }
     assert.strictEqual(Array.isArray(metricsData), true, 'Response must be a metric array');
-    assert.ok(metricsData.length > 0, 'Metric dataset should not be empty');
+    assert.ok(metricsData.length > 0, 'Metric dataset should not be empty in demo mode');
     assert.ok(metricsData[0].timestamp, 'Metric record must contain a timestamp');
     assert.ok(typeof metricsData[0].value === 'number', 'Metric record must contain a numerical value');
+
+    // Assert PROD returns empty array when unpopulated
+    const prodData = await postgresDb.fetchHistoricalMetricsFromPostgres('database', 'cpu_usage', 24, 'prod');
+    assert.strictEqual(Array.isArray(prodData), true);
+    assert.strictEqual(prodData.length, 0, 'Prod unmonitored query must return empty array (Data Not Available)');
   })) passedCount++;
 
   // Test 2: Snowflake Log Analytics Warehouse Endpoint & Query Engine

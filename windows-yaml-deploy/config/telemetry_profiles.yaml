@@ -1,0 +1,87 @@
+# =========================================================================
+# PROJECT SENTINEL - ENTERPRISE TELEMETRY PRODUCTION PROFILES
+# =========================================================================
+# Selected profile controls which metric retrieval pipeline is active.
+#
+# Profile 1 is the dedicated OpenTelemetry pipeline. It collects hostmetrics,
+# JVM heap, process CPU/RAM, and container cgroups via standard OTLP push
+# to Sentinel (POST /v1/metrics) while Sentinel prober tests storage & app health.
+
+# SELECTOR: Defaulting to OpenTelemetry (Profile 1)
+selected_profile: 1
+
+profiles:
+  1:
+    id: "opentelemetry_production"
+    name: "Profile 1: OpenTelemetry Collector Fleet + Sentinel Prober (PRIMARY)"
+    description: >
+      Primary Production Setup: Standard CNCF OpenTelemetry Collectors running on Linux
+      (systemd), Windows (Windows Service), and Kubernetes (DaemonSet). Agents stream
+      OS hostmetrics, process stats, JVM heap, and container cgroups directly to Sentinel
+      via standard HTTPS (POST /v1/metrics). Sentinel's internal async prober handles
+      NAS/SMB storage latency, SSO binds, and synthetic application health.
+    metric_extraction_breakdown:
+      host_os_metrics: "OpenTelemetry Hostmetrics (system.cpu, system.memory, system.disk)"
+      jvm_and_process: "OpenTelemetry Process & JMX Scrapers"
+      container_and_k8s: "OpenTelemetry Kubeletstats & Docker cgroups"
+      application_endpoints: "Sentinel CyberArk-Authenticated Probes"
+      nas_and_smb_storage: "Sentinel Async IOPS & Stat Probes"
+      load_balancer_and_sso: "Sentinel AVI & eLDAP Probes"
+    active_sources:
+      opentelemetry_otlp: true
+      dynatrace_api_v2: false
+      prometheus_node_exporter: false
+      sentinel_storage_and_sso: true
+      sentinel_synthetic_health: true
+    disabled_collectors:
+      - "dynatrace"
+      - "linux_servers"
+      - "windows_servers"
+      - "node_exporter"
+
+  2:
+    id: "dynatrace_production"
+    name: "Profile 2: Dynatrace OneAgent Sync + Sentinel Prober"
+    description: >
+      Dynatrace API v2 synchronization: Ingests Host OS and JVM telemetry from centralized
+      Dynatrace API v2 (/api/v2/metrics) and Davis AI problem events (/api/v2/problems).
+      Sentinel prober handles storage latency, SSO binds, and synthetic health.
+    metric_extraction_breakdown:
+      host_and_jvm_compute: "Dynatrace API v2 (/api/v2/metrics)"
+      ai_problem_detection: "Dynatrace Davis AI (/api/v2/problems)"
+      application_endpoints: "Sentinel CyberArk-Authenticated Probes"
+      nas_and_smb_storage: "Sentinel Async IOPS & Stat Probes"
+      load_balancer_and_sso: "Sentinel AVI & eLDAP Probes"
+    active_sources:
+      opentelemetry_otlp: false
+      dynatrace_api_v2: true
+      prometheus_node_exporter: false
+      sentinel_storage_and_sso: true
+      sentinel_synthetic_health: true
+    disabled_collectors:
+      - "linux_servers"
+      - "windows_servers"
+      - "node_exporter"
+
+  3:
+    id: "node_exporter_production"
+    name: "Profile 3: Prometheus Node Exporter Fleet + Sentinel Prober"
+    description: >
+      Prometheus scraper setup: Sentinel scrapes Prometheus node_exporter (Linux port 9100)
+      and windows_exporter (Windows port 9182) for raw kernel metrics.
+      Sentinel prober handles storage, SSO binds, and synthetic application health.
+    metric_extraction_breakdown:
+      host_and_jvm_compute: "Prometheus Node Exporter Scrapes (ports 9100 / 9182)"
+      application_endpoints: "Sentinel CyberArk-Authenticated Probes"
+      nas_and_smb_storage: "Sentinel Async IOPS & Stat Probes"
+      load_balancer_and_sso: "Sentinel AVI & eLDAP Probes"
+    active_sources:
+      opentelemetry_otlp: false
+      dynatrace_api_v2: false
+      prometheus_node_exporter: true
+      sentinel_storage_and_sso: true
+      sentinel_synthetic_health: true
+    disabled_collectors:
+      - "dynatrace"
+      - "linux_servers"
+      - "windows_servers"

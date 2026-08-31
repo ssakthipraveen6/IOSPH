@@ -1,7 +1,7 @@
 id: "github"
-display_name: "GitHub Enterprise Integration"
+display_name: "GitHub Enterprise Cloud / Server"
 category: "source_control"
-log_tag: "GITHUB"
+log_tag: "[GITHUB]"
 
 endpoints:
   prod:
@@ -10,13 +10,19 @@ endpoints:
     api: "https://api.github.com"
 
 layers:
-  sso_api: "https://sso-auth-prod-github.internal.corp/oauth2/token"
-  network_latency_hosts:
-    - "github.com"
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-github.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix: []
+  windows: []
 
 metrics_baseline:
-  apiRateLimitRemaining: 4950
-  pendingPullRequests: 14
-  responseTime: 75
+  responseTime: 65
+  successRate: 99.9
+  requests: 200
 
-jenkins_remediation_job: "JOB_FLUSH_GITHUB_WEBHOOK_QUEUE"
+jenkins_remediation_job: "JOB_RECONNECT_GITHUB_WEBHOOKS"

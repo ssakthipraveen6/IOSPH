@@ -12,8 +12,10 @@ export default function CommandCenter({
   onToggleAutonomous, 
   onSimulate, 
   onApproveRecovery, 
-  onClearLogs 
+  onClearLogs,
+  environment = 'staging'
 }) {
+  const currentEnv = environment || healthData?.environment || 'staging';
   const [searchTerm, setSearchTerm] = useState('');
   const [autoScroll, setAutoScroll] = useState(true);
   const terminalEndRef = useRef(null);
@@ -51,23 +53,27 @@ export default function CommandCenter({
             </div>
           </div>
           <div className="approvals-list">
-            {pendingApprovals.map(appr => (
-              <div key={appr.id || Math.random()} className="approval-row">
-                <div className="appr-details">
-                  <span className="appr-comp">{(appr.component || 'SERVICE').toUpperCase()}</span>
-                  <span className="appr-action">{appr.action || 'Remediation'}</span>
-                  <p className="appr-reason">Trigger Reason: <em>{appr.triggerReason || 'Anomaly detected'}</em></p>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--primary)', marginTop: '2px', fontWeight: 600 }}>
-                    🛡️ Signatures Collected: 1 of 2 Required (DevSecOps Admin signed at {new Date().toLocaleTimeString()})
+            {pendingApprovals.map(appr => {
+              const approvalCount = Array.isArray(appr.approvals) ? appr.approvals.length : 0;
+              const approverNames = (appr.approvals || []).map(a => typeof a === 'string' ? a : (a.username || 'Admin')).join(', ');
+              return (
+                <div key={appr.id || Math.random()} className="approval-row">
+                  <div className="appr-details">
+                    <span className="appr-comp">{(appr.component || 'SERVICE').toUpperCase()}</span>
+                    <span className="appr-action">{appr.action || 'Remediation'}</span>
+                    <p className="appr-reason">Trigger Reason: <em>{appr.triggerReason || 'Anomaly detected'}</em></p>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--primary)', marginTop: '2px', fontWeight: 600 }}>
+                      🛡️ Signatures Collected: {approvalCount} of 2 Required {approvalCount > 0 ? `(Signed by: ${approverNames})` : `(Awaiting initial authorization)`}
+                    </div>
+                  </div>
+                  <div className="appr-actions">
+                    <button className="btn-approve" onClick={() => onApproveRecovery && onApproveRecovery(appr.id)}>
+                      {approvalCount === 0 ? '✅ Sign Initial Authorization (1st Signature)' : '✅ Sign Dual Authorization (2nd Signature)'}
+                    </button>
                   </div>
                 </div>
-                <div className="appr-actions">
-                  <button className="btn-approve" onClick={() => onApproveRecovery && onApproveRecovery(appr.id)}>
-                    ✅ Grant Dual Manager Authorization (Four-Eyes)
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -117,7 +123,13 @@ export default function CommandCenter({
         <div className="console-panel" style={{ padding: '1.25rem' }}>
           <div className="panel-header" style={{ marginBottom: '1rem' }}>
             <h3>🧪 Failure & Chaos Engineering Experiments</h3>
+            {currentEnv === 'prod' && <span className="badge-critical" style={{ fontSize: '0.65rem' }}>LOCKED IN PROD</span>}
           </div>
+          {currentEnv === 'prod' ? (
+            <div style={{ padding: '15px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '0.75rem', color: '#f87171' }}>
+              🔒 <strong>Production Safety Guard:</strong> Chaos engineering fault injections are locked in PROD. Switch to <strong>STAGING</strong> to simulate outages, memory leaks, and latency spikes.
+            </div>
+          ) : (
           <div className="simulator-grid" style={{ display: 'grid', gridTemplateRows: 'repeat(5, 1fr)', gap: '6px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
               <span style={{ fontWeight: 'bold' }}>PostgreSQL Outage</span>
@@ -160,6 +172,7 @@ export default function CommandCenter({
               )}
             </div>
           </div>
+          )}
         </div>
 
         {/* Panel 3: Stats Summary */}
@@ -207,7 +220,7 @@ export default function CommandCenter({
           )}
           <div className="alerts-feed-wrapper" style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {serviceNowTickets.length === 0 ? (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>No active ServiceNow tickets.</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Data Not Available</div>
             ) : (
               [...serviceNowTickets].reverse().map(tkt => (
                 <div key={tkt.id} style={{ padding: '8px', background: 'var(--bg-dark)', borderLeft: '3px solid var(--primary)', borderRadius: '4px' }}>
@@ -229,7 +242,7 @@ export default function CommandCenter({
           </div>
           <div className="alerts-feed-wrapper" style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {dynatraceAlerts.length === 0 ? (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>No active Dynatrace alerts.</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Data Not Available</div>
             ) : (
               [...dynatraceAlerts].reverse().map(alt => (
                 <div key={alt.id} style={{ padding: '8px', background: 'var(--bg-dark)', borderLeft: `3px solid ${alt.severity === 'Critical' ? '#ef4444' : '#f59e0b'}`, borderRadius: '4px' }}>
@@ -251,7 +264,7 @@ export default function CommandCenter({
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '220px', overflowY: 'auto' }}>
             {recovery.length === 0 ? (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>No healing executions.</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Data Not Available</div>
             ) : (
               [...(recovery || [])].reverse().map(rec => (
                 <div key={rec.id || Math.random()} style={{ padding: '8px', background: 'var(--bg-dark)', borderRadius: '4px', borderLeft: `3px solid ${rec.status === 'Success' ? '#10b981' : rec.status === 'In-Progress' ? '#f59e0b' : '#ef4444'}` }}>

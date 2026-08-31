@@ -1,22 +1,12 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/config.js.
-// Update the actual production/staging endpoints at:
-// - config/config.js: Line 27 (PROD_URLS.db_jdbc)
-// - config/config.js: Line 138 (STG_URLS.db_jdbc)
-// Purpose: TimescaleDB / PostgreSQL database JDBC connection pool string.
-// =========================================================================
-
-const fs = require('fs');
-const path = require('path');
 const { Pool } = require('pg');
 const config = require('../config/config');
 const sqliteMetrics = require('./sqlite_metrics');
+const credentialProvider = require('../config/cyberark/credential_provider');
 
 // Parse JDBC connection URL
 function parseJdbcUrl(url) {
   if (!url) return null;
   try {
-    // e.g. jdbc:postgresql://db-stg-primary.internal.corp:5432/telemetry_db
     const raw = url.replace('jdbc:postgresql://', '');
     const [hostPort, dbName] = raw.split('/');
     const [host, port] = hostPort.split(':');
@@ -30,64 +20,109 @@ function parseJdbcUrl(url) {
   }
 }
 
-// Staging/Production PostgreSQL connection pool
 let pool = null;
-const targetConfig = config.STG_URLS || config.PROD_URLS || {};
-if (!config.USE_SIMULATED_COLLECTORS && targetConfig.db_jdbc) {
-  const jdbcDetails = parseJdbcUrl(targetConfig.db_jdbc);
-  if (jdbcDetails) {
-    pool = new Pool({
-      host: jdbcDetails.host,
-      port: jdbcDetails.port,
-      database: jdbcDetails.database,
-      user: process.env.PGUSER || 'pg_telemetry_writer',
-      password: process.env.PGPASSWORD || 'STG_PG_SECURE_PASSWORD_VAL'
-    });
+
+async function getPool() {
+  if (pool) return pool;
+  const targetConfig = config.ACTIVE_URLS || {};
+  if (targetConfig.db_jdbc) {
+    const jdbcDetails = parseJdbcUrl(targetConfig.db_jdbc);
+    if (jdbcDetails) {
+      let password = process.env.PGPASSWORD;
+      if (!password) {
+        try {
+          password = await credentialProvider.getCredential('database', 'db');
+        } catch (e) {
+          password = 'STG_PG_SECURE_PASSWORD_VAL';
+        }
+      }
+      pool = new Pool({
+        host: jdbcDetails.host,
+        port: jdbcDetails.port,
+        database: jdbcDetails.database,
+        user: process.env.PGUSER || 'pg_telemetry_writer',
+        password,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000
+      });
+    }
   }
+  return pool;
 }
 
 async function saveMetricToPostgres(metric, writeNasLog) {
-  if (pool) {
+  const activePool = await getPool();
+  if (activePool) {
     try {
       const query = 'INSERT INTO metrics(timestamp, component, metric_name, value) VALUES($1, $2, $3, $4)';
-      await pool.query(query, [new Date(), metric.component, metric.name, metric.value]);
+      await activePool.query(query, [new Date(), metric.component, metric.name || metric.metricName, metric.value]);
     } catch (e) {
       if (writeNasLog) {
         writeNasLog('WARN', 'DATABASE_POSTGRES', `Failed to write telemetry metric to PostgreSQL: ${e.message}`);
       }
     }
-  } else {
-    // Simulated/development placeholder behaviour
   }
 }
 
-async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLimit = 24) {
-  if (pool) {
+async function saveMetricBatchToPostgres(metrics, writeNasLog) {
+  if (!metrics || metrics.length === 0) return;
+  const activePool = await getPool();
+  if (activePool) {
+    try {
+      const valueTuples = [];
+      const queryParams = [];
+      let paramIdx = 1;
+
+      metrics.forEach(m => {
+        valueTuples.push(`($${paramIdx}, $${paramIdx+1}, $${paramIdx+2}, $${paramIdx+3})`);
+        queryParams.push(new Date(m.timestamp || Date.now()), m.component, m.metricName || m.name, m.value);
+        paramIdx += 4;
+      });
+
+      const query = `INSERT INTO metrics(timestamp, component, metric_name, value) VALUES ${valueTuples.join(', ')}`;
+      await activePool.query(query, queryParams);
+    } catch (e) {
+      if (writeNasLog) {
+        writeNasLog('WARN', 'DATABASE_POSTGRES', `Failed batch insert of ${metrics.length} metrics to PostgreSQL: ${e.message}`);
+      }
+    }
+  }
+}
+
+async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLimit = 24, env = null) {
+  const targetEnv = env || global.runtimeEnvironment || 'staging';
+  const activePool = await getPool();
+  if (activePool) {
     try {
       const query = `
         SELECT timestamp, value 
         FROM metrics 
         WHERE component = $1 AND metric_name = $2 
-          AND timestamp >= NOW() - INTERVAL '$3 hour'
+          AND timestamp >= NOW() - ($3 || ' hours')::interval
         ORDER BY timestamp ASC
       `;
-      const res = await pool.query(query, [component, metricName, hoursLimit]);
-      return res.rows;
+      const res = await activePool.query(query, [component, metricName, hoursLimit]);
+      if (res.rows && res.rows.length > 0) return res.rows;
     } catch (e) {
       console.warn(`[DATABASE] Failed to read from PostgreSQL: ${e.message}. Using cache fallback.`);
     }
   }
 
-  // Load actual query records from local DB
+  // Fallback to SQLite records if available
   const actualRecords = sqliteMetrics.queryHistoricalMetrics(component, metricName, hoursLimit);
   if (actualRecords && actualRecords.length > 0) {
     return actualRecords;
   }
 
-  // Mock database fallback result if local DB cache is currently empty
+  // In PROD or STAGING mode without recorded telemetry: return empty dataset
+  if (targetEnv === 'prod' || targetEnv === 'staging') {
+    return [];
+  }
+
   const dataset = [];
   const now = Date.now();
-  const intervalsCount = 30; // 30 datapoints
+  const intervalsCount = 30;
   const step = (hoursLimit * 60 * 60 * 1000) / intervalsCount;
   
   let baseValue = 50;
@@ -113,6 +148,8 @@ async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLi
 }
 
 module.exports = {
+  getPool,
   saveMetricToPostgres,
+  saveMetricBatchToPostgres,
   fetchHistoricalMetricsFromPostgres
 };

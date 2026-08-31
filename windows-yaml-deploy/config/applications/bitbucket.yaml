@@ -10,27 +10,38 @@ endpoints:
     api: "https://bitbucket-stg.internal.corp/rest/api/1.0"
 
 layers:
-  avi_api: "https://avi-prod-bitbucket.internal.corp/api/v1/telemetry"
-  db_jdbc: "jdbc:postgresql://db-prod-bitbucket.internal.corp:5432/bitbucket_db"
-  nas_mount: "d:\\production_shares\\nas_logs\\bitbucket"
-  s3_endpoint: "https://s3.prod-bitbucket-us-east-1.amazonaws.com"
-  sso_api: "https://sso-auth-prod-bitbucket.internal.corp/oauth2/token"
+  sso:
+    api: "https://sso-auth-prod-bitbucket.internal.corp/oauth2/token"
+    credential_purpose: "sso"
+  avi:
+    api: "https://avi-prod-bitbucket.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+  nfs:
+    mount: "/mnt/nfs/production_shares/bitbucket"
+    credential_purpose: null
+  db:
+    jdbc: "jdbc:postgresql://db-prod-bitbucket.internal.corp:5432/bitbucket_db"
+    credential_purpose: "db"
+  s3:
+    endpoint: "https://s3.prod-bitbucket-us-east-1.amazonaws.com"
+    credential_purpose: null
+  docker:
+    registry_api: "https://registry-prod.internal.corp/v2/bitbucket"
+    credential_purpose: null
+  k8s:
+    api: "https://k8s-apiserver-prod.internal.corp:6443"
+    namespace: "bitbucket-prod"
+    credential_purpose: null
   network_latency_hosts:
     - "bitbucket-prod.internal.corp"
-  # Extensible Application Layer Example: VPN Tunnel
-  vpn_connection:
-    enabled: true
-    gateway: "vpn-gw-bitbucket.internal.corp"
-    health_endpoint: "https://vpn-gw-bitbucket.internal.corp/health"
-    jenkins_remediation_job: "JOB_REBOOT_BITBUCKET_VPN"
 
 servers:
-  - node: "bitbucket-node-1"
-    type: "linux"
-    api: "https://linux-compute-prod-bitbucket-1.internal.corp/api/v1/metrics"
-  - node: "bitbucket-node-2"
-    type: "linux"
-    api: "https://linux-compute-prod-bitbucket-2.internal.corp/api/v1/metrics"
+  unix:
+    - node: "bitbucket-node-1"
+      api: "https://linux-compute-prod-bitbucket-1.internal.corp/api/v1/metrics"
+    - node: "bitbucket-node-2"
+      api: "https://linux-compute-prod-bitbucket-2.internal.corp/api/v1/metrics"
+  windows: []
 
 metrics_baseline:
   responseTime: 85

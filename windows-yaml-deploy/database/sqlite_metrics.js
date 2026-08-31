@@ -40,9 +40,12 @@ function archiveMetrics(metrics) {
     });
 
     if (linesToAppend.length > 0) {
-      // Append lines asynchronously/synchronously to preserve historical data
-      fs.appendFileSync(DB_FILE, linesToAppend.join('\n') + '\n', 'utf8');
-      console.log(`[SECONDARY DB] Archived ${entriesCount} performance metrics to local database: ${path.basename(DB_FILE)}`);
+      let existingLines = [];
+      if (fs.existsSync(DB_FILE)) {
+        existingLines = fs.readFileSync(DB_FILE, 'utf8').split('\n').filter(Boolean);
+      }
+      const combined = existingLines.concat(linesToAppend).slice(-100);
+      fs.writeFileSync(DB_FILE, combined.join('\n') + '\n', 'utf8');
     }
   } catch (e) {
     console.error('[SECONDARY DB] Failed archiving performance metrics:', e.message);

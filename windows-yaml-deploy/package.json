@@ -9,7 +9,7 @@
     "install-all": "npm run install-backend && npm run install-frontend",
     "build-frontend": "cd frontend && (pnpm run build || yarn build || npm run build)",
     "start": "node backend/server.js",
-    "test": "node tests/e2e_qa_suite.test.js",
+    "test": "node tests/cyberark_provider.test.js && node tests/auth_lockdown.test.js && node tests/schema_validation.test.js && node tests/telemetry_selector.test.js && node tests/otlp_normalizer.test.js && node tests/datastore_migration.test.js && node tests/misc_operations.test.js && node tests/prod_data_availability.test.js && node tests/data_availability_segregation.test.js && node tests/load_test_200.js && node tests/e2e_qa_suite.test.js",
     "dev-backend": "node backend/server.js",
     "dev-frontend": "cd frontend && (pnpm run dev || yarn dev || npm run dev)",
     "dev": "concurrently \"npm run dev-backend\" \"npm run dev-frontend\""
@@ -17,9 +17,14 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "js-yaml": "^4.1.0",
+    "multer": "^2.3.0",
     "pg": "^8.12.0",
-    "ws": "^8.18.0"
+    "rotating-file-stream": "^3.2.10",
+    "ws": "^8.18.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -1,36 +1,35 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/config.js.
-// Update the actual production/staging endpoints at:
-// - config/config.js: Line 29-33 (PROD_URLS.network_latency_hosts)
-// - config/config.js: Line N/A (STG_URLS.network_latency_hosts)
-// Purpose: Network ICMP ping latency hostnames.
-// =========================================================================
-
 const config = require('../../../config/config');
+const { runWithConcurrencyLimit } = require('../../concurrency_limiter');
 const net = require('net');
 
+let cachedHostList = null;
+
+function getHostList() {
+  if (cachedHostList) return cachedHostList;
+  const targetConfig = config.ACTIVE_URLS || {};
+  const appConfigs = targetConfig.applications || {};
+
+  const hostsSet = new Set(targetConfig.network_latency_hosts || []);
+  for (const appKey of Object.keys(appConfigs)) {
+    const appConfig = appConfigs[appKey];
+    if (appConfig && appConfig.network_latency_hosts) {
+      appConfig.network_latency_hosts.forEach(h => hostsSet.add(h));
+    }
+  }
+  cachedHostList = Array.from(hostsSet);
+  if (cachedHostList.length === 0) {
+    cachedHostList.push('127.0.0.1');
+  }
+  return cachedHostList;
+}
+
 module.exports = {
-  collect: async (simulations, base) => {
-    const targetConfig = config.STG_URLS || config.PROD_URLS || {};
-    const appConfigs = targetConfig.applications || {};
-    
-    // Gather all unique hosts from network_latency_hosts
-    const hostsSet = new Set(targetConfig.network_latency_hosts || []);
-    for (const appKey of Object.keys(appConfigs)) {
-      const appConfig = appConfigs[appKey];
-      if (appConfig && appConfig.network_latency_hosts) {
-        appConfig.network_latency_hosts.forEach(h => hostsSet.add(h));
-      }
-    }
-    const hosts = Array.from(hostsSet);
-    if (hosts.length === 0) {
-      hosts.push('127.0.0.1');
-    }
-    
-    console.log(`[REAL COLLECTOR] Pinging network latency hosts: ${hosts.join(', ')}`);
-    
-    let latencies = [];
-    for (let host of hosts) {
+  clearHostCache: () => { cachedHostList = null; },
+  collect: async (simulations, base = {}) => {
+    const hosts = getHostList();
+    const latencies = [];
+
+    const tasks = hosts.map(host => async () => {
       const start = Date.now();
       try {
         await new Promise((resolve, reject) => {
@@ -40,20 +39,22 @@ module.exports = {
           });
           socket.setTimeout(1000);
           socket.on('timeout', () => { socket.destroy(); reject(); });
-          socket.on('error', () => { socket.destroy(); resolve(); }); // resolved because we want to measure time to error ref
+          socket.on('error', () => { socket.destroy(); resolve(); });
         });
         latencies.push(Date.now() - start);
       } catch (_) {
-        latencies.push(1000); // timeout fallback latency
+        latencies.push(1000);
       }
-    }
+    });
 
-    const averageLatency = latencies.length > 0 ? (latencies.reduce((a, b) => a + b, 0) / latencies.length) : base.latency_ms;
+    await runWithConcurrencyLimit(tasks, 50);
+
+    const averageLatency = latencies.length > 0 ? (latencies.reduce((a, b) => a + b, 0) / latencies.length) : (base.latency_ms || 1.25);
 
     return {
-      packetLoss: averageLatency > 500 ? 5.0 : base.packetLoss,
+      packetLoss: averageLatency > 500 ? 5.0 : (base.packetLoss || 0.0),
       latency_ms: parseFloat(averageLatency.toFixed(2)),
-      jitter: base.jitter
+      jitter: base.jitter || 0.15
     };
   }
 };

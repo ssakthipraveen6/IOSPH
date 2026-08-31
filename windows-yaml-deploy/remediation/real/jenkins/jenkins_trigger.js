@@ -1,4 +1,5 @@
 const config = require('../../../config/config');
+const credentialProvider = require('../../../config/cyberark/credential_provider');
 
 const jenkinsJobSteps = {
   'artifactory-jvm-recycle': [
@@ -37,8 +38,15 @@ const jenkinsJobSteps = {
 };
 
 async function triggerJenkinsSelfHealingJob(component, jobName, writeNasLog, onStepProgress, onComplete) {
-  const url = `${config.STG_URLS.jenkins_master_url}/${jobName}/build`;
-  const token = config.STG_URLS.jenkins_remediation_token;
+  const masterUrl = config.ACTIVE_URLS.jenkins_master_url || config.PROD_URLS.jenkins_master_url || config.STG_URLS.jenkins_master_url || 'https://jenkins-prod.internal.corp/job';
+  const url = `${masterUrl}/${jobName}/build`;
+  
+  let token = 'STG_JENKINS_TOKEN_VAL';
+  try {
+    token = await credentialProvider.getCredential('cloudbees_jenkins', 'remediation_token');
+  } catch (e) {
+    console.warn(`[JENKINS] Could not resolve remediation token via CyberArk/env for cloudbees_jenkins: ${e.message}`);
+  }
   
   console.log(`[REAL COLLECTOR] Triggering Jenkins job via HTTP POST: ${url}`);
   

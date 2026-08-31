@@ -9,7 +9,7 @@ export default function CustomChart({ datasets = [], title = '', unit = '' }) {
   if (validDatasets.length === 0) {
     return (
       <div className="empty-chart">
-        <p>No telemetry metrics available yet. Polling infrastructure...</p>
+        <p>Data Not Available</p>
       </div>
     );
   }
@@ -21,14 +21,18 @@ export default function CustomChart({ datasets = [], title = '', unit = '' }) {
   // Extract all values to calculate dynamic Y limits
   const allValues = [];
   validDatasets.forEach(d => {
-    d.points.forEach(p => allValues.push(p.value));
+    d.points.forEach(p => {
+      if (typeof p.value === 'number' && !isNaN(p.value)) {
+        allValues.push(p.value);
+      }
+    });
   });
 
   const rawMin = allValues.length > 0 ? Math.min(...allValues) : 0;
   const rawMax = allValues.length > 0 ? Math.max(...allValues) : 100;
   
   const minVal = Math.max(0, rawMin - 0.05 * (rawMax - rawMin));
-  const maxVal = rawMax + 0.05 * (rawMax - rawMin) || 10;
+  const maxVal = rawMax > minVal ? rawMax + 0.05 * (rawMax - rawMin) : (minVal + 10);
   const valRange = maxVal - minVal || 1;
 
   // SVG dimensions
@@ -265,7 +269,7 @@ export default function CustomChart({ datasets = [], title = '', unit = '' }) {
                         {det.label}
                       </span>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                        {det.value.toFixed(1)} <span style={{ fontSize: '9px', fontWeight: 400, color: '#64748b' }}>{unit}</span>
+                        {typeof det.value === 'number' && !isNaN(det.value) ? det.value.toFixed(1) : String(det.value || '0')} <span style={{ fontSize: '9px', fontWeight: 400, color: '#64748b' }}>{unit}</span>
                       </span>
                     </div>
                   ))}

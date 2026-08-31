@@ -1,7 +1,7 @@
 id: "performance_center"
 display_name: "Micro Focus Performance Center"
 category: "performance_testing"
-log_tag: "[PERF-CTR]"
+log_tag: "[PERFCENTER]"
 
 endpoints:
   prod:
@@ -10,24 +10,24 @@ endpoints:
     api: "https://perfcenter-stg.internal.corp/api/v2"
 
 layers:
-  avi_api: "https://avi-prod-perfcenter.internal.corp/api/v1/telemetry"
-  db_jdbc: "jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db"
-  nas_mount: "d:\\production_shares\\nas_logs\\performance_center"
-  sso_api: "https://sso-auth-prod-perfcenter.internal.corp/oauth2/token"
-  network_latency_hosts:
-    - "perfcenter-prod.internal.corp"
+  db:
+    jdbc: "jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db"
+    credential_purpose: "db"
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-perfcenter.internal.corp/api/v1/telemetry"
+    credential_purpose: null
 
 servers:
-  - node: "perfcenter-node-1"
-    type: "windows"
-    api: "https://win-compute-prod-perfcenter-1.internal.corp/api/v1/metrics"
-  - node: "perfcenter-node-2"
-    type: "windows"
-    api: "https://win-compute-prod-perfcenter-2.internal.corp/api/v1/metrics"
+  unix: []
+  windows:
+    - node: "perfcenter-win-1"
+      api: "https://win-compute-prod-perfcenter-1.internal.corp/api/v1/metrics"
 
 metrics_baseline:
-  activeTests: 5
-  avgResponseTime: 450
-  throughput: 120
+  responseTime: 150
+  successRate: 99.2
+  requests: 25
 
-jenkins_remediation_job: "JOB_RESET_PERFORMANCE_CENTER_CONTROLLER"
+jenkins_remediation_job: "JOB_RESTART_PERFCENTER_SERVICE"

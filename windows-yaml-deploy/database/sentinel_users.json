@@ -1,0 +1,147 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "DevSecops Admin",
+      "email": "devsecops-admin@enterprise.corp",
+      "role": "Super Admin",
+      "status": "Active",
+      "dept": "DevSecOps & NOC",
+      "lastLogin": "Just Now",
+      "mfa": true,
+      "permissions": [
+        "read",
+        "remediate",
+        "thresholds",
+        "export",
+        "users",
+        "tokens"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Sarah Jenkins",
+      "email": "sarah.j@enterprise.corp",
+      "role": "SRE Lead",
+      "status": "Active",
+      "dept": "Site Reliability",
+      "lastLogin": "10 mins ago",
+      "mfa": true,
+      "permissions": [
+        "read",
+        "remediate",
+        "thresholds",
+        "export"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Marcus Vance",
+      "email": "m.vance@enterprise.corp",
+      "role": "NOC Operator",
+      "status": "Active",
+      "dept": "Operations Center",
+      "lastLogin": "1 hour ago",
+      "mfa": true,
+      "permissions": [
+        "read",
+        "remediate"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Elena Rostova",
+      "email": "e.rostova@enterprise.corp",
+      "role": "Security Auditor",
+      "status": "Active",
+      "dept": "Compliance & Cyber",
+      "lastLogin": "3 hours ago",
+      "mfa": true,
+      "permissions": [
+        "read",
+        "export"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Automation Service Bot",
+      "email": "svc-sentinel@enterprise.corp",
+      "role": "Service Account",
+      "status": "Active",
+      "dept": "CI/CD Pipeline",
+      "lastLogin": "Continuous",
+      "mfa": false,
+      "permissions": [
+        "read",
+        "remediate"
+      ]
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": 101,
+      "timestamp": "12:47:57 pm",
+      "user": "DevSecops Admin",
+      "action": "Modified Threshold",
+      "details": "Updated Bitbucket CPU warning threshold to 85%",
+      "ip": "10.240.12.89"
+    },
+    {
+      "id": 102,
+      "timestamp": "12:37:57 pm",
+      "user": "DevSecops Admin",
+      "action": "Auto-Remediation Trigger",
+      "details": "Executed Service Restart on Jenkins_k8s container",
+      "ip": "10.240.12.89"
+    },
+    {
+      "id": 103,
+      "timestamp": "11:47:57 am",
+      "user": "Sarah Jenkins",
+      "action": "Exported Telemetry",
+      "details": "Downloaded 24h Metrics CSV report for Postgres Database",
+      "ip": "10.240.14.102"
+    }
+  ],
+  "ssoLogs": [
+    {
+      "id": "SSO-LOG-1001",
+      "timestamp": "31/08/2026, 12:47:57",
+      "user": "DevSecops Admin",
+      "email": "devsecops-admin@enterprise.corp",
+      "role": "Super Admin",
+      "dept": "DevSecOps & NOC",
+      "provider": "eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)",
+      "ldapDn": "cn=DevSecops Admin,ou=Users,dc=enterprise,dc=corp",
+      "ip": "10.240.12.89",
+      "sessionId": "sso-sess-908423",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "SSO-LOG-1002",
+      "timestamp": "31/08/2026, 12:17:57",
+      "user": "Sarah Jenkins",
+      "email": "sarah.j@enterprise.corp",
+      "role": "SRE Lead",
+      "dept": "Site Reliability",
+      "provider": "eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)",
+      "ldapDn": "cn=Sarah Jenkins,ou=Users,dc=enterprise,dc=corp",
+      "ip": "10.240.14.102",
+      "sessionId": "sso-sess-817234",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "SSO-LOG-1003",
+      "timestamp": "31/08/2026, 10:47:57",
+      "user": "Marcus Vance",
+      "email": "m.vance@enterprise.corp",
+      "role": "NOC Operator",
+      "dept": "Operations Center",
+      "provider": "eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)",
+      "ldapDn": "cn=Marcus Vance,ou=Users,dc=enterprise,dc=corp",
+      "ip": "10.240.12.44",
+      "sessionId": "sso-sess-712390",
+      "status": "SUCCESS"
+    }
+  ]
+}

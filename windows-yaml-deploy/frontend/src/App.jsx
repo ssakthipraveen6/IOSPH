@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import HealthOverview from './components/HealthOverview';
 import MetricsDetail from './components/MetricsDetail';
 import CommandCenter from './components/CommandCenter';
@@ -8,6 +8,7 @@ import UnifiedHealthMatrix from './components/UnifiedHealthMatrix';
 import RcaDashboard from './components/RcaDashboard';
 import AdminManagement from './components/AdminManagement';
 import YamlConfigManager from './components/YamlConfigManager';
+import MiscOperations from './components/MiscOperations';
 import { MAINTENANCE_CONFIG } from './maintenanceConfig';
 import { MaintenanceBanner, MaintenanceBadge } from './components/MaintenanceNotice';
 import './App.css';
@@ -17,6 +18,9 @@ export default function App() {
   const [selectedComponent, setSelectedComponent] = useState('database');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const [environment, setEnvironment] = useState('staging'); // 'prod' | 'staging' | 'demo'
+  const envRef = useRef(environment);
+  useEffect(() => { envRef.current = environment; }, [environment]);
 
   // Real-time backend states
   const [wsConnected, setWsConnected] = useState(false);
@@ -25,7 +29,8 @@ export default function App() {
     componentStatuses: {},
     alertsCount: 0,
     pendingApprovals: 0,
-    uptime: '0h 0m 0s'
+    uptime: '0h 0m 0s',
+    environment: 'staging'
   });
   const [alerts, setAlerts] = useState([]);
   const [recovery, setRecovery] = useState([]);
@@ -96,9 +101,10 @@ export default function App() {
   }, []);
 
   // Fetch all historical metrics from the REST API to build sparklines and charts
-  const fetchAllMetrics = async () => {
+  const fetchAllMetrics = async (targetEnv) => {
+    const activeEnv = targetEnv || envRef.current || 'staging';
     try {
-      const response = await fetch('/api/metrics');
+      const response = await fetch(`/api/metrics?environment=${encodeURIComponent(activeEnv)}`);
       if (response.ok) {
         const rawMetrics = await response.json();
         
@@ -119,15 +125,30 @@ export default function App() {
   };
 
   // Helper to fetch other states initially
-  const fetchInitialStates = async () => {
+  const fetchInitialStates = async (targetEnv) => {
+    const activeEnv = targetEnv || envRef.current || 'staging';
     try {
-      const hRes = await fetch('/api/health');
-      if (hRes.ok) setHealthData(await hRes.json());
+      const envRes = await fetch('/api/environment');
+      let currentEnv = activeEnv;
+      if (envRes.ok) {
+        const envData = await envRes.json();
+        if (envData.environment) {
+          currentEnv = envData.environment;
+          setEnvironment(envData.environment);
+        }
+      }
+
+      const hRes = await fetch(`/api/health?environment=${encodeURIComponent(currentEnv)}`);
+      if (hRes.ok) {
+        const hData = await hRes.json();
+        setHealthData(hData);
+        if (hData.environment) setEnvironment(hData.environment);
+      }
       
-      const aRes = await fetch('/api/alerts');
+      const aRes = await fetch(`/api/alerts?environment=${encodeURIComponent(currentEnv)}`);
       if (aRes.ok) setAlerts(await aRes.json());
       
-      const rRes = await fetch('/api/recovery');
+      const rRes = await fetch(`/api/recovery?environment=${encodeURIComponent(currentEnv)}`);
       if (rRes.ok) setRecovery(await rRes.json());
       
       const sRes = await fetch('/api/settings');
@@ -146,10 +167,11 @@ export default function App() {
     fetchAllMetrics();
 
     // Poll metrics every 10s to keep metrics dataset fresh
-    const metricsPoll = setInterval(fetchAllMetrics, 10000);
+    const metricsPoll = setInterval(() => fetchAllMetrics(envRef.current), 10000);
 
+    const authToken = localStorage.getItem('sentinel_auth_token') || '';
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/ws${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
     let ws = null;
     let reconnectTimeout = null;
 
@@ -162,12 +184,19 @@ export default function App() {
       };
 
       ws.onmessage = (event) => {
-        const message = JSON.parse(event.data);
+        let message;
+        try {
+          message = JSON.parse(event.data);
+        } catch (e) {
+          console.warn('[WS] Received non-JSON WebSocket frame, ignoring:', event.data);
+          return;
+        }
         const { type, data } = message;
 
         switch (type) {
           case 'init':
             setHealthData(data.health);
+            if (data.health?.environment) setEnvironment(data.health.environment);
             setAlerts(data.alerts);
             setRecovery(data.recovery);
             setSettings(data.settings);
@@ -177,6 +206,7 @@ export default function App() {
             
           case 'metrics_tick':
             setHealthData(data.health);
+            if (data.health?.environment) setEnvironment(data.health.environment);
             setSimulations(data.simulations);
             if (data.customChecks) setCustomChecks(data.customChecks);
             break;
@@ -186,6 +216,7 @@ export default function App() {
             setRecovery(data.recovery);
             setSettings(data.settings);
             setHealthData(data.health);
+            if (data.health?.environment) setEnvironment(data.health.environment);
             if (data.customChecks) setCustomChecks(data.customChecks);
             break;
             
@@ -228,13 +259,18 @@ export default function App() {
   const handleToggleAutonomous = async () => {
     try {
       const updatedValue = !settings.autonomousMode;
+      const token = localStorage.getItem('sentinel_auth_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ autonomousMode: updatedValue })
       });
       if (res.ok) {
-        setSettings(await res.json());
+        const newSettings = await res.json();
+        setSettings(newSettings);
       }
     } catch (e) {
       console.error('Failed updating settings:', e);
@@ -243,9 +279,13 @@ export default function App() {
 
   const handleSimulate = async (component, type) => {
     try {
+      const token = localStorage.getItem('sentinel_auth_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/simulate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ component, type })
       });
       if (res.ok) {
@@ -259,9 +299,13 @@ export default function App() {
 
   const handleApproveRecovery = async (runId) => {
     try {
+      const token = localStorage.getItem('sentinel_auth_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/recovery/approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ runId })
       });
       if (res.ok) {
@@ -270,6 +314,33 @@ export default function App() {
       }
     } catch (e) {
       console.error('Failed approving recovery action:', e);
+    }
+  };
+
+  const handleEnvironmentSwitch = async (newEnv) => {
+    if (newEnv === environment) return;
+    try {
+      const token = localStorage.getItem('sentinel_auth_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/environment', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ environment: newEnv })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const appliedEnv = data.environment;
+        setEnvironment(appliedEnv);
+        await fetchInitialStates(appliedEnv);
+        await fetchAllMetrics(appliedEnv);
+      } else {
+        const err = await res.json();
+        alert(`Cannot switch environment: ${err.error || 'Permission denied'}`);
+      }
+    } catch (e) {
+      console.error('Environment switch failed:', e);
     }
   };
 
@@ -381,6 +452,16 @@ export default function App() {
             <span>🛡️</span>
             {sidebarOpen && " DevSecOps Admin Control"}
           </button>
+
+          <button 
+            className={`nav-tab-btn ${activeTab === 'misc' ? 'active' : ''}`}
+            onClick={() => setActiveTab('misc')}
+            title="Misc Operations & Dynatrace Hub"
+            data-tooltip="Misc Operations & Dynatrace Hub"
+          >
+            <span>⚡</span>
+            {sidebarOpen && " Misc Operations"}
+          </button>
           
           {/* Navigation Collapse/Expand Item */}
           <button 
@@ -438,9 +519,42 @@ export default function App() {
         
         {/* Top Brand Banner Header & Real-time Global Clocks Bar */}
         <div className="sentinel-top-brand-header">
-          <div className="top-brand-title-group">
+          <div className="top-brand-title-group" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <h2>Intelligent Observability and Autonomous Recovery Framework</h2>
-            <span className="live-pill animate-pulse">● PROD CORE</span>
+            
+            {/* [TASK 1] 3-Way Environment Switcher */}
+            <div className="env-switcher-group" style={{ display: 'flex', gap: '6px', alignItems: 'center', background: 'rgba(0,0,0,0.35)', padding: '3px 6px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              {[
+                { id: 'prod', label: '● PROD', color: '#ef4444', bg: 'rgba(239,68,68,0.2)', border: 'rgba(239,68,68,0.6)' },
+                { id: 'staging', label: '⬡ STG', color: '#f59e0b', bg: 'rgba(245,158,11,0.2)', border: 'rgba(245,158,11,0.6)' },
+                { id: 'demo', label: '🧪 DEMO', color: '#10b981', bg: 'rgba(16,185,129,0.2)', border: 'rgba(16,185,129,0.6)' }
+              ].map(env => {
+                const isActive = environment === env.id;
+                return (
+                  <button
+                    key={env.id}
+                    onClick={() => handleEnvironmentSwitch(env.id)}
+                    title={`Switch to ${env.id.toUpperCase()} environment`}
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: '12px',
+                      fontSize: '0.72rem',
+                      fontWeight: isActive ? 800 : 500,
+                      cursor: 'pointer',
+                      border: 'none',
+                      background: isActive ? env.bg : 'transparent',
+                      color: isActive ? env.color : 'rgba(255,255,255,0.45)',
+                      boxShadow: isActive ? `0 0 8px ${env.bg}` : 'none',
+                      outline: isActive ? `1px solid ${env.border}` : '1px solid transparent',
+                      transition: 'all 0.2s ease',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    {env.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           
           <div className="top-timezone-clocks-wrapper">
@@ -450,6 +564,18 @@ export default function App() {
             <div className="clock-item" title="London Time (GMT/LDN)"><span className="zone">EMEA (GMT/LDN)</span><span className="time">{clocks.gmt || '--:--:--'}</span></div>
           </div>
         </div>
+
+        {/* Environment Banners */}
+        {environment === 'demo' && (
+          <div style={{ background: '#064e3b', color: '#6ee7b7', padding: '6px 16px', fontSize: '0.8rem', fontWeight: 600, textAlign: 'center', letterSpacing: '0.5px', borderBottom: '1px solid rgba(16,185,129,0.3)' }}>
+            🧪 DEMO MODE — All data shown is synthetic simulation and does not reflect live production infrastructure.
+          </div>
+        )}
+        {environment === 'staging' && (
+          <div style={{ background: '#422006', color: '#fcd34d', padding: '5px 16px', fontSize: '0.75rem', fontWeight: 600, textAlign: 'center', letterSpacing: '0.5px', borderBottom: '1px solid rgba(245,158,11,0.3)' }}>
+            ⬡ STAGING ENVIRONMENT — Connected to non-production pre-release fleet and simulated telemetry streams.
+          </div>
+        )}
 
         <main className="sentinel-main-content" style={{ paddingTop: '1rem' }}>
           {MAINTENANCE_CONFIG.showGlobalBanner && (
@@ -465,6 +591,7 @@ export default function App() {
                 setActiveTab('metrics');
               }}
               activeSimulations={simulations}
+              environment={environment}
             />
           )}
 
@@ -474,6 +601,7 @@ export default function App() {
               onComponentChange={setSelectedComponent}
               historicalMetrics={historicalMetrics}
               healthData={healthData}
+              environment={environment}
             />
           )}
 
@@ -489,15 +617,16 @@ export default function App() {
               onSimulate={handleSimulate}
               onApproveRecovery={handleApproveRecovery}
               onClearLogs={() => setLogs([])}
+              environment={environment}
             />
           )}
 
           {activeTab === 'pbi' && (
-            <PowerBiDashboard />
+            <PowerBiDashboard environment={environment} />
           )}
 
           {activeTab === 'ailogs' && (
-            <AiLogPerformance onSimulate={handleSimulate} />
+            <AiLogPerformance environment={environment} onSimulate={handleSimulate} />
           )}
 
           {activeTab === 'matrix' && (
@@ -505,19 +634,24 @@ export default function App() {
               healthData={healthData}
               customChecks={customChecks}
               alerts={alerts}
+              environment={environment}
             />
           )}
 
           {activeTab === 'rca' && (
-            <RcaDashboard />
+            <RcaDashboard environment={environment} />
           )}
 
           {activeTab === 'yaml' && (
-            <YamlConfigManager />
+            <YamlConfigManager environment={environment} />
           )}
 
           {activeTab === 'admin' && (
-            <AdminManagement />
+            <AdminManagement environment={environment} />
+          )}
+
+          {activeTab === 'misc' && (
+            <MiscOperations environment={environment} />
           )}
         </main>
 

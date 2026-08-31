@@ -1,14 +1,14 @@
-const path = require('path');
-const yamlConfig = require('./yaml_config');
-const { writeNasLog } = require('../backend/logger');
+// Staging storage for pending pull requests awaiting peer review / merge
+const pendingPRs = new Map();
 
 /**
  * Bitbucket GitOps Pull Request Integration Service
  * Automatically creates branches, commits YAML changes, and opens Bitbucket Pull Requests.
  */
-async function createConfigPullRequest({ appId, rawYaml, author = 'DevSecOps Admin', commitMessage }) {
+async function createConfigPullRequest({ appId, rawYaml, author = 'DevSecOps Admin', commitMessage, applyImmediately = false }) {
   const globalConfig = yamlConfig.loadGlobalConfig();
-  const targetApp = appId || 'global_config';
+  const safeAppId = appId ? yamlConfig.sanitizeAppId(appId) : null;
+  const targetApp = safeAppId || 'global_config';
   const timestamp = Date.now();
   const branchName = `config-update/${targetApp}-${timestamp}`;
   const prId = Math.floor(100 + Math.random() * 900); // e.g. PR-104
@@ -17,7 +17,7 @@ async function createConfigPullRequest({ appId, rawYaml, author = 'DevSecOps Adm
   const bitbucketApi = prodUrls.bitbucket_api || "https://bitbucket-prod.internal.corp/rest/api/1.0";
   const projectKey = "SENTINEL";
   const repoSlug = "windows-yaml-deploy";
-  const targetFilePath = appId ? `config/applications/${appId}.yaml` : 'config/global_config.yaml';
+  const targetFilePath = safeAppId ? `config/applications/${safeAppId}.yaml` : 'config/global_config.yaml';
 
   const defaultCommitMsg = commitMessage || `Config Update: Update ${targetFilePath} via Sentinel YAML Manager`;
   const prUrl = `${bitbucketApi.replace('/rest/api/1.0', '')}/projects/${projectKey}/repos/${repoSlug}/pull-requests/${prId}`;
@@ -28,35 +28,51 @@ async function createConfigPullRequest({ appId, rawYaml, author = 'DevSecOps Adm
   writeNasLog('INFO', 'BITBUCKET_GITOPS', `[BITBUCKET-COMMIT] Committed updated YAML to '${branchName}': "${defaultCommitMsg}"`);
   writeNasLog('INFO', 'BITBUCKET_GITOPS', `[BITBUCKET-PR-OPEN] Opened Pull Request #${prId}: ${prUrl}`);
 
-  // In production mode with real Bitbucket credentials, perform real HTTP POST queries:
   const isRealMode = globalConfig.use_simulated_collectors === false;
   
-  if (isRealMode) {
-    try {
-      // Real Bitbucket API calls would be executed here using fetch/axios
-      console.log(`[BITBUCKET API] Sending POST to ${bitbucketApi}/projects/${projectKey}/repos/${repoSlug}/pullrequests`);
-    } catch (err) {
-      console.error('[BITBUCKET API] Error calling Bitbucket REST API:', err.message);
-    }
-  }
+  // Store staged PR
+  const prRecord = {
+    prId,
+    appId: safeAppId,
+    rawYaml,
+    prUrl,
+    branchName,
+    filePath: targetFilePath,
+    projectKey,
+    repoSlug,
+    author,
+    createdAt: new Date().toISOString(),
+    commitMessage: defaultCommitMsg,
+    status: 'OPEN'
+  };
+  pendingPRs.set(prId, prRecord);
 
-  // Also apply local update for sandbox hot-reload demonstration
-  yamlConfig.updateRawYaml(appId, rawYaml);
+  // In sandbox or explicit override, apply update; in production enforce PR gating
+  if (applyImmediately || !isRealMode) {
+    yamlConfig.updateRawYaml(safeAppId, rawYaml);
+    prRecord.status = 'MERGED';
+  }
 
   return {
     success: true,
-    prId: prId,
-    prUrl: prUrl,
-    branchName: branchName,
-    filePath: targetFilePath,
-    projectKey: projectKey,
-    repoSlug: repoSlug,
-    author: author,
-    createdAt: new Date().toISOString(),
-    commitMessage: defaultCommitMsg
+    ...prRecord
   };
 }
 
+async function applyMergedPullRequest(prId) {
+  const pr = pendingPRs.get(Number(prId));
+  if (!pr) {
+    throw new Error(`[GITOPS] Pull Request #${prId} not found in pending queue.`);
+  }
+  yamlConfig.updateRawYaml(pr.appId, pr.rawYaml);
+  pr.status = 'MERGED';
+  writeNasLog('INFO', 'BITBUCKET_GITOPS', `[BITBUCKET-MERGE] Pull Request #${prId} successfully merged and promoted to active configuration.`);
+  return pr;
+}
+
 module.exports = {
-  createConfigPullRequest
+  createConfigPullRequest,
+  applyMergedPullRequest,
+  getPendingPRs: () => Array.from(pendingPRs.values())
 };
+

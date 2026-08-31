@@ -1,6 +1,6 @@
 id: "otkr"
-display_name: "OTKR Compliance Scanner"
-category: "compliance"
+display_name: "OpenText Key Orchestration (OTKR)"
+category: "key_management"
 log_tag: "[OTKR]"
 
 endpoints:
@@ -10,24 +10,24 @@ endpoints:
     api: "https://otkr-stg.internal.corp/api/v1"
 
 layers:
-  avi_api: "https://avi-prod-otkr.internal.corp/api/v1/telemetry"
-  db_jdbc: "jdbc:postgresql://db-prod-otkr.internal.corp:5432/otkr_db"
-  nas_mount: "d:\\production_shares\\nas_logs\\otkr"
-  sso_api: "https://sso-auth-prod-otkr.internal.corp/oauth2/token"
-  network_latency_hosts:
-    - "otkr-prod.internal.corp"
+  db:
+    jdbc: "jdbc:postgresql://db-prod-otkr.internal.corp:5432/otkr_db"
+    credential_purpose: "db"
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-otkr.internal.corp/api/v1/telemetry"
+    credential_purpose: null
 
 servers:
-  - node: "otkr-node-1"
-    type: "linux"
-    api: "https://linux-compute-prod-otkr-1.internal.corp/api/v1/metrics"
-  - node: "otkr-node-2"
-    type: "linux"
-    api: "https://linux-compute-prod-otkr-2.internal.corp/api/v1/metrics"
+  unix:
+    - node: "otkr-server-1"
+      api: "https://linux-compute-prod-otkr-1.internal.corp/api/v1/metrics"
+  windows: []
 
 metrics_baseline:
-  scanQueue: 2
-  findings: 8
-  responseTime: 160
+  responseTime: 100
+  successRate: 99.8
+  requests: 50
 
-jenkins_remediation_job: "JOB_RESTART_OTKR_SCANNER"
+jenkins_remediation_job: "JOB_RESTART_OTKR_SERVICE"

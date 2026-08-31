@@ -1,28 +1,30 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/config.js.
-// Update the actual production/staging endpoints at:
-// - config/config.js: Line 22 (PROD_URLS.avi_api)
-// - config/config.js: Line 137 (STG_URLS.avi_api)
-// Purpose: Avi Load Balancer API metrics endpoint.
-// =========================================================================
-
 const config = require('../../../config/config');
+const credentialProvider = require('../../../config/cyberark/credential_provider');
+const { runWithConcurrencyLimit } = require('../../concurrency_limiter');
 
 module.exports = {
-  collect: async (simulations, base) => {
-    const targetConfig = config.STG_URLS || config.PROD_URLS || {};
+  collect: async (simulations, base = {}) => {
+    const targetConfig = config.ACTIVE_URLS || {};
     const appConfigs = targetConfig.applications || {};
     const url = targetConfig.avi_api;
-    console.log(`[REAL COLLECTOR] Fetching load balancer telemetry from: ${url}`);
-    
+
     let globalMetrics = {};
+    let aviSecret = null;
+    try {
+      aviSecret = await credentialProvider.getCredential('avi', 'api');
+    } catch (e) {
+      // Ignore if not present
+    }
+
     try {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), 1500);
-      
-      const res = await fetch(url, { signal: controller.signal });
+      const headers = {};
+      if (aviSecret) headers['Authorization'] = `Bearer ${aviSecret}`;
+
+      const res = await fetch(url, { headers, signal: controller.signal });
       clearTimeout(id);
-      
+
       if (res.ok) {
         const payload = await res.json();
         globalMetrics = payload.metrics || {};
@@ -32,41 +34,40 @@ module.exports = {
     }
 
     const result = {
-      connections: globalMetrics.connections !== undefined ? globalMetrics.connections : (base.connections + Math.floor((Math.random() - 0.5) * 80)),
-      ingressFlow: globalMetrics.ingressFlow !== undefined ? globalMetrics.ingressFlow : parseFloat((base.ingressFlow + (Math.random() - 0.5) * 2).toFixed(2)),
-      throughput: globalMetrics.throughput !== undefined ? globalMetrics.throughput : (base.throughput + Math.floor((Math.random() - 0.5) * 5)),
-      bitbucket_ingressFlow: base.bitbucket_ingressFlow,
-      jenkins_ingressFlow: base.jenkins_ingressFlow,
-      artifactory_ingressFlow: base.artifactory_ingressFlow,
-      argocd_ingressFlow: base.argocd_ingressFlow,
-      bitbucket_latency: base.bitbucket_latency,
-      jenkins_latency: base.jenkins_latency,
-      artifactory_latency: base.artifactory_latency,
-      argocd_latency: base.argocd_latency
+      connections: globalMetrics.connections !== undefined ? globalMetrics.connections : ((base.connections || 1520) + Math.floor((Math.random() - 0.5) * 80)),
+      ingressFlow: globalMetrics.ingressFlow !== undefined ? globalMetrics.ingressFlow : parseFloat(((base.ingressFlow || 45.2) + (Math.random() - 0.5) * 2).toFixed(2)),
+      throughput: globalMetrics.throughput !== undefined ? globalMetrics.throughput : ((base.throughput || 120) + Math.floor((Math.random() - 0.5) * 5))
     };
 
-    const aviApps = ['bitbucket', 'jenkins_k8s', 'artifactory', 'argocd_k8s'];
-    for (const appKey of aviApps) {
+    // Dynamically filter all apps with AVI layer configuration
+    const aviApps = Object.entries(appConfigs).filter(([_, cfg]) => cfg.layers?.avi || cfg.avi_api);
+
+    const tasks = aviApps.map(([appKey, appConfig]) => async () => {
       const metricPrefix = appKey.replace('_k8s', '');
-      const appConfig = appConfigs[appKey];
-      if (appConfig && appConfig.avi_api) {
-        console.log(`[REAL COLLECTOR] Fetching load balancer telemetry for ${appKey} from: ${appConfig.avi_api}`);
-        try {
-          const controller = new AbortController();
-          const id = setTimeout(() => controller.abort(), 1500);
-          const res = await fetch(appConfig.avi_api, { signal: controller.signal });
-          clearTimeout(id);
-          if (res.ok) {
-            const payload = await res.json();
-            const metrics = payload.metrics || {};
-            if (metrics.ingressFlow !== undefined) result[`${metricPrefix}_ingressFlow`] = metrics.ingressFlow;
-            if (metrics.latency !== undefined) result[`${metricPrefix}_latency`] = metrics.latency;
-          }
-        } catch (e) {
-          console.warn(`[REAL COLLECTOR] Failed fetching load balancer telemetry for ${appKey}: ${e.message}`);
+      const aviEndpoint = appConfig.layers?.avi?.api || appConfig.avi_api;
+      if (!aviEndpoint) return;
+
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 1500);
+        const res = await fetch(aviEndpoint, { signal: controller.signal });
+        clearTimeout(id);
+        if (res.ok) {
+          const payload = await res.json();
+          const metrics = payload.metrics || {};
+          if (metrics.ingressFlow !== undefined) result[`${metricPrefix}_ingressFlow`] = metrics.ingressFlow;
+          if (metrics.latency !== undefined) result[`${metricPrefix}_latency`] = metrics.latency;
+        } else {
+          result[`${metricPrefix}_ingressFlow`] = base[`${metricPrefix}_ingressFlow`] || 15.0;
+          result[`${metricPrefix}_latency`] = base[`${metricPrefix}_latency`] || 45.0;
         }
+      } catch (e) {
+        result[`${metricPrefix}_ingressFlow`] = base[`${metricPrefix}_ingressFlow`] || 15.0;
+        result[`${metricPrefix}_latency`] = base[`${metricPrefix}_latency`] || 45.0;
       }
-    }
+    });
+
+    await runWithConcurrencyLimit(tasks, 50);
 
     return result;
   }

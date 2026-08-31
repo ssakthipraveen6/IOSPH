@@ -1,0 +1,56 @@
+receivers:
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      filesystem:
+      network:
+      load:
+      process:
+        mute_process_name_error: true
+
+  docker_stats:
+    endpoint: "unix:///var/run/docker.sock"
+    collection_interval: 30s
+    metrics:
+      container.cpu.usage.total:
+        enabled: true
+      container.memory.usage.total:
+        enabled: true
+
+processors:
+  batch:
+    send_batch_size: 500
+    timeout: 10s
+
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 64
+    spike_limit_mib: 16
+
+  resource:
+    attributes:
+      - key: environment
+        value: "production"
+        action: insert
+      - key: application.id
+        from_attribute: "host.name"
+        action: insert
+
+exporters:
+  otlphttp:
+    # Direct endpoint to Sentinel application URL over standard corporate HTTPS
+    endpoint: "https://sentinel.yourbank.internal/v1/metrics"
+    headers:
+      Authorization: "Bearer SF-INFRA-OTEL-TOKEN"
+    tls:
+      insecure_skip_verify: false
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics, docker_stats]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlphttp]

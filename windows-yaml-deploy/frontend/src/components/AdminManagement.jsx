@@ -22,44 +22,13 @@ const initialSsoAccessLogs = [
   { id: 'SSO-LOG-1003', timestamp: new Date(Date.now() - 7200000).toLocaleString('en-GB'), user: 'Marcus Vance', email: 'm.vance@enterprise.corp', role: 'NOC Operator', dept: 'Operations Center', provider: 'eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)', ldapDn: 'cn=Marcus Vance,ou=Users,dc=enterprise,dc=corp', ip: '10.240.12.44', sessionId: 'sso-sess-712390', status: 'SUCCESS' }
 ];
 
-export default function AdminManagement() {
-  // Load users from localStorage or fallback to default
-  const [users, setUsers] = useState(() => {
-    const saved = localStorage.getItem('sentinel_admin_users');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) { 
-        console.error('Failed to parse saved users:', e); 
-      }
-    }
-    return initialUsers;
-  });
-
-  const [auditLogs, setAuditLogs] = useState(() => {
-    const saved = localStorage.getItem('sentinel_admin_audit_logs');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
-    }
-    return initialAuditLogs;
-  });
-
-  const [ssoAccessLogs, setSsoAccessLogs] = useState(() => {
-    const saved = localStorage.getItem('sentinel_sso_access_logs');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) {}
-    }
-    return initialSsoAccessLogs;
-  });
-
-  const [selectedUser, setSelectedUser] = useState(() => users[0] || initialUsers[0]);
+export default function AdminManagement({ environment = 'staging' }) {
+  const currentEnv = environment || 'staging';
+  
+  const [users, setUsers] = useState(initialUsers);
+  const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
+  const [ssoAccessLogs, setSsoAccessLogs] = useState(initialSsoAccessLogs);
+  const [selectedUser, setSelectedUser] = useState(initialUsers[0]);
   
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -77,103 +46,81 @@ export default function AdminManagement() {
   const [activeTab, setActiveTab] = useState('users'); // users, rbac, audit, policies
   const [notification, setNotification] = useState(null);
 
-  // Sync to localStorage on state changes and dispatch global sync event
-  useEffect(() => {
-    localStorage.setItem('sentinel_admin_users', JSON.stringify(users));
-    window.dispatchEvent(new Event('sentinel_users_updated'));
-  }, [users]);
-
-  useEffect(() => {
-    localStorage.setItem('sentinel_admin_audit_logs', JSON.stringify(auditLogs));
-  }, [auditLogs]);
-
-  useEffect(() => {
-    localStorage.setItem('sentinel_sso_access_logs', JSON.stringify(ssoAccessLogs));
-  }, [ssoAccessLogs]);
-
-  // Automatically log current application access session via SSO eLDAP
-  useEffect(() => {
-    const sessionKey = 'sentinel_sso_session_logged';
-    if (!sessionStorage.getItem(sessionKey)) {
-      sessionStorage.setItem(sessionKey, 'true');
-      const accessLog = {
-        id: 'SSO-LOG-' + Date.now(),
-        timestamp: new Date().toLocaleString('en-GB'),
-        user: 'DevSecops Admin',
-        email: 'devsecops-admin@enterprise.corp',
-        role: 'Super Admin',
-        dept: 'DevSecOps & NOC',
-        provider: 'eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)',
-        ldapDn: 'cn=DevSecops Admin,ou=Users,dc=enterprise,dc=corp',
-        ip: '10.240.12.89',
-        sessionId: 'sso-sess-' + Math.floor(100000 + Math.random() * 900000),
-        status: 'SUCCESS'
-      };
-      setSsoAccessLogs(prev => [accessLog, ...prev]);
-    }
-  }, []);
-
-  const handleSimulateSsoLogin = (userName = 'Elena Rostova', userEmail = 'e.rostova@enterprise.corp', userRole = 'Security Auditor') => {
-    const newLog = {
-      id: 'SSO-LOG-' + Date.now(),
-      timestamp: new Date().toLocaleString('en-GB'),
-      user: userName,
-      email: userEmail,
-      role: userRole,
-      dept: 'Compliance & Cyber',
-      provider: 'eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)',
-      ldapDn: `cn=${userName},ou=Users,dc=enterprise,dc=corp`,
-      ip: '10.240.18.' + Math.floor(10 + Math.random() * 90),
-      sessionId: 'sso-sess-' + Math.floor(100000 + Math.random() * 900000),
-      status: 'SUCCESS'
-    };
-    setSsoAccessLogs(prev => [newLog, ...prev]);
-    triggerToast(`🔐 SSO eLDAP login access event logged for ${userName} (${userEmail})`);
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('sentinel_auth_token') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
   };
 
-  // Keep selectedUser in sync if updated in array
-  useEffect(() => {
-    if (selectedUser) {
-      const match = users.find(u => u.id === selectedUser.id);
-      if (match) setSelectedUser(match);
+  // Fetch real data from backend API
+  const fetchAdminData = async () => {
+    try {
+      const headers = getAuthHeaders();
+      const [uRes, aRes, sRes] = await Promise.all([
+        fetch('/api/admin/users', { headers }),
+        fetch('/api/admin/audit-logs', { headers }),
+        fetch('/api/admin/sso-logs', { headers })
+      ]);
+
+      if (uRes.ok) {
+        const uData = await uRes.json();
+        if (Array.isArray(uData) && uData.length > 0) {
+          setUsers(uData);
+          if (!selectedUser || !uData.some(u => u.id === selectedUser.id)) {
+            setSelectedUser(uData[0]);
+          }
+        }
+      }
+      if (aRes.ok) {
+        const aData = await aRes.json();
+        if (Array.isArray(aData)) setAuditLogs(aData);
+      }
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        if (Array.isArray(sData)) setSsoAccessLogs(sData);
+      }
+    } catch (e) {
+      console.error('[ADMIN] Failed loading data from backend:', e);
     }
-  }, [users]);
+  };
+
+  useEffect(() => {
+    fetchAdminData();
+  }, [environment]);
 
   const triggerToast = (msg) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 4000);
   };
 
-  const addAuditLog = (action, details) => {
-    const log = {
-      id: Date.now(),
-      timestamp: new Date().toLocaleTimeString(),
-      user: 'DevSecops Admin',
-      action,
-      details,
-      ip: '10.240.12.89'
-    };
-    setAuditLogs(prev => [log, ...prev]);
-  };
-
   // Toggle RBAC permissions
-  const handleTogglePermission = (userId, permKey) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        const curPerms = Array.isArray(u.permissions) ? u.permissions : [];
-        const hasPerm = curPerms.includes(permKey);
-        const updatedPerms = hasPerm
-          ? curPerms.filter(p => p !== permKey)
-          : [...curPerms, permKey];
-        return { ...u, permissions: updatedPerms };
-      }
-      return u;
-    }));
-    addAuditLog('Permission Update', `Toggled ${permKey} permission for user ID #${userId}`);
+  const handleTogglePermission = async (userId, permKey) => {
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+    const curPerms = Array.isArray(targetUser.permissions) ? targetUser.permissions : [];
+    const hasPerm = curPerms.includes(permKey);
+    const updatedPerms = hasPerm
+      ? curPerms.filter(p => p !== permKey)
+      : [...curPerms, permKey];
+
+    const updatedUser = { ...targetUser, permissions: updatedPerms };
+    setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+
+    try {
+      await fetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updatedUser)
+      });
+      fetchAdminData();
+    } catch (e) {
+      console.error('Failed to update user permission:', e);
+    }
   };
 
   // Provision New User Form Submit
-  const handleAddUserSubmit = (e) => {
+  const handleAddUserSubmit = async (e) => {
     e.preventDefault();
     if (!newUser.name.trim() || !newUser.email.trim()) return;
 
@@ -183,30 +130,32 @@ export default function AdminManagement() {
     if (newUser.role === 'NOC Operator') defaultPerms = ['read', 'remediate'];
     if (newUser.role === 'Security Auditor') defaultPerms = ['read', 'export'];
 
-    const added = {
-      id: Date.now(),
+    const userPayload = {
       name: newUser.name.trim(),
       email: newUser.email.trim(),
       role: newUser.role || 'NOC Operator',
       dept: newUser.dept.trim() || 'Engineering',
-      status: 'Active',
-      lastLogin: 'Just Now',
-      mfa: true,
       permissions: defaultPerms
     };
 
-    const updatedList = [...users, added];
-    setUsers(updatedList);
-    setSelectedUser(added);
-    
-    // Clear search filters so the new user is immediately visible everywhere
-    setUserSearchFilter('');
-    setRbacSearchFilter('');
-    setShowAddModal(false);
-    setNewUser({ name: '', email: '', role: 'NOC Operator', dept: 'Engineering' });
-
-    addAuditLog('Provision User', `Created new ${added.role} account for ${added.name} (${added.email})`);
-    triggerToast(`✅ User "${added.name}" provisioned and instantly synchronized to Permission Matrix.`);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(userPayload)
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setUsers(prev => [...prev, created]);
+        setSelectedUser(created);
+        setShowAddModal(false);
+        setNewUser({ name: '', email: '', role: 'NOC Operator', dept: 'Engineering' });
+        triggerToast(`✅ User "${created.name}" provisioned and synchronized to backend.`);
+        fetchAdminData();
+      }
+    } catch (err) {
+      console.error('Failed adding user:', err);
+    }
   };
 
   // Open Edit Modal for a user
@@ -219,7 +168,7 @@ export default function AdminManagement() {
   };
 
   // Save Edited User Profile
-  const handleSaveEditUser = (e) => {
+  const handleSaveEditUser = async (e) => {
     e.preventDefault();
     if (!editFormData || !editFormData.name.trim() || !editFormData.email.trim()) return;
 
@@ -231,16 +180,27 @@ export default function AdminManagement() {
       permissions: Array.isArray(editFormData.permissions) ? editFormData.permissions : ['read']
     };
 
-    setUsers(prev => prev.map(u => u.id === sanitized.id ? sanitized : u));
-    setSelectedUser(sanitized);
-    setShowEditModal(false);
-
-    addAuditLog('Edit User Profile', `Updated profile details for ${sanitized.name} (${sanitized.role})`);
-    triggerToast(`✏️ User profile for "${sanitized.name}" updated across all views.`);
+    try {
+      const res = await fetch(`/api/admin/users/${sanitized.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(sanitized)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+        setSelectedUser(updated);
+        setShowEditModal(false);
+        triggerToast(`✏️ User profile for "${updated.name}" updated on server.`);
+        fetchAdminData();
+      }
+    } catch (err) {
+      console.error('Failed saving user edit:', err);
+    }
   };
 
   // Delete/Revoke user
-  const handleDeleteUser = (userId) => {
+  const handleDeleteUser = async (userId) => {
     const target = users.find(u => u.id === userId);
     if (!target) return;
     if (target.role === 'Super Admin' && users.filter(u => u.role === 'Super Admin').length <= 1) {
@@ -249,13 +209,23 @@ export default function AdminManagement() {
     }
 
     if (window.confirm(`Are you sure you want to revoke access and delete account for "${target.name}"?`)) {
-      const remaining = users.filter(u => u.id !== userId);
-      setUsers(remaining);
-      if (selectedUser?.id === userId) {
-        setSelectedUser(remaining[0] || null);
+      try {
+        const res = await fetch(`/api/admin/users/${userId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const remaining = users.filter(u => u.id !== userId);
+          setUsers(remaining);
+          if (selectedUser?.id === userId) {
+            setSelectedUser(remaining[0] || null);
+          }
+          triggerToast(`🔒 User ${target.name} account access revoked.`);
+          fetchAdminData();
+        }
+      } catch (err) {
+        console.error('Failed deleting user:', err);
       }
-      addAuditLog('Revoke User Access', `Deleted user account ${target.name} (${target.email})`);
-      triggerToast(`🔒 User ${target.name} account access revoked.`);
     }
   };
 

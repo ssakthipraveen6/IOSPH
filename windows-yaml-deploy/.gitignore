@@ -1,0 +1,20 @@
+# Environment and secrets
+.env
+.env.local
+*.env
+
+# Runtime databases & caches
+sentinel_db.json
+database/team_rota.json
+
+# Logs & audit logs
+logs/sentinel_audit.log
+logs/
+*.log
+nas_logs/
+
+# Dependencies & build outputs
+node_modules/
+frontend/dist/
+dist/
+.tempmediaStorage/

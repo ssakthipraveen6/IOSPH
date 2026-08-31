@@ -1,0 +1,6 @@
+id: "nfs"
+display_name: "Network File System (NFS)"
+category: "storage"
+poll_interval_seconds: 60
+credential_purpose: "mount"
+mount: "/mnt/nfs/production_shares"

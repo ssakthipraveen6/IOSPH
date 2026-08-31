@@ -1,37 +1,32 @@
 id: "jenkins_k8s"
-display_name: "Jenkins K8s Master & Worker Cluster"
+display_name: "CloudBees Jenkins CI/CD"
 category: "ci_cd"
-log_tag: "[JENKINS"
+log_tag: "[JENKINS]"
 
 endpoints:
   prod:
-    master_url: "https://jenkins-prod.internal.corp/job"
+    api: "https://jenkins-prod.internal.corp/job"
   stg:
-    master_url: "https://jenkins-stg.internal.corp/job"
-    token: "jenkins_user:1120409aed82cf09ec55cf73a5a"
+    api: "https://jenkins-stg.internal.corp/job"
 
 layers:
-  avi_api: "https://avi-prod-jenkins.internal.corp/api/v1/telemetry"
-  db_jdbc: "jdbc:postgresql://db-prod-jenkins.internal.corp:5432/jenkins_db"
-  nas_mount: "d:\\production_shares\\nas_logs\\jenkins"
-  s3_endpoint: "https://s3.prod-jenkins-us-east-1.amazonaws.com"
-  sso_api: "https://sso-auth-prod-jenkins.internal.corp/oauth2/token"
-  network_latency_hosts:
-    - "jenkins-prod.internal.corp"
+  db:
+    jdbc: "jdbc:postgresql://db-prod-jenkins.internal.corp:5432/jenkins_db"
+    credential_purpose: null
+  k8s:
+    api: "https://k8s-apiserver-prod.internal.corp:6443"
+    namespace: "jenkins-builds"
+    credential_purpose: null
 
 servers:
-  - node: "jenkins-node-1"
-    type: "linux"
-    api: "https://linux-compute-prod-jenkins-1.internal.corp/api/v1/metrics"
-  - node: "jenkins-node-2"
-    type: "linux"
-    api: "https://linux-compute-prod-jenkins-2.internal.corp/api/v1/metrics"
+  unix:
+    - node: "jenkins-master-1"
+      api: "https://linux-compute-prod-jenkins-1.internal.corp/api/v1/metrics"
+  windows: []
 
 metrics_baseline:
-  executors: 8
-  queue: 0
-  responseTime: 125
-  podsOnline: 5
-  podsTotal: 5
+  responseTime: 110
+  successRate: 99.5
+  requests: 80
 
-jenkins_remediation_job: "JOB_REBOOT_JENKINS_SLAVE_PODS"
+jenkins_remediation_job: "JOB_RESTART_JENKINS_MASTER"

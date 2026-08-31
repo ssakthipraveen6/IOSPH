@@ -8,6 +8,10 @@ use_simulated_collectors: false
 # Environment Mode: staging or production
 environment: "staging"
 
+# Telemetry Provider Selector
+# Options: "dynatrace" | "opentelemetry" | "node_exporter" | "native" | "hybrid"
+telemetry_provider: "hybrid"
+
 # Production Endpoints
 prod_urls:
   bitbucket_api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
@@ -30,6 +34,7 @@ prod_urls:
   bitbucket_external_api: "https://bitbucket-external-prod.internal.corp/rest/api/1.0"
   otkr_api: "https://otkr-prod.internal.corp/api/v1"
   performance_center_api: "https://perfcenter-prod.internal.corp/api/v2"
+  fluentd_log_path: "d:\\production_shares\\nas_logs\\fluentd.log"
   network_latency_hosts:
     - "sso-auth-prod.internal.corp"
     - "avi-prod.internal.corp"
@@ -61,11 +66,26 @@ stg_urls:
   bitbucket_api: "https://bitbucket-stg.internal.corp/rest/api/1.0"
   artifactory_api: "https://artifactory-stg.internal.corp/artifactory/api"
   jenkins_master_url: "https://jenkins-stg.internal.corp/job"
+  fortify_api: "https://fortify-stg.internal.corp/ssc/api/v1"
+  nexusiq_api: "https://nexusiq-stg.internal.corp/api/v2"
+  sonarqube_api: "https://sonarqube-stg.internal.corp/api"
+  argocd_api: "https://argocd-stg.internal.corp/api/v1"
+  argoworkflows_api: "https://argo-workflows-stg.internal.corp/api/v1"
+  teamcity_api: "https://teamcity-stg.internal.corp/app/rest"
+  otkr_api: "https://otkr-stg.internal.corp/api/v1"
+  performance_center_api: "https://perfcenter-stg.internal.corp/api/v2"
+  bitbucket_external_api: "https://bitbucket-external-stg.internal.corp/rest/api/1.0"
+  sso_api: "https://sso-auth-stg.internal.corp/oauth2/token"
+  fluentd_log_path: "../nas_logs/fluentd_stg.log"
+  network_latency_hosts:
+    - "sso-auth-stg.internal.corp"
+    - "avi-stg.internal.corp"
+    - "db-stg-primary.internal.corp"
 
-# Database Settings
+# Database Settings (Passwords resolved securely via CyberArk / PGPASSWORD env var)
 postgres_stg_config:
   host: "postgres-stg-srv.internal.corp"
   port: 5432
   database: "telemetry_historical"
   user: "stg_admin"
-  password: "STG_PASSWORD_SECURE_HASH"
+  credential_purpose: "db"

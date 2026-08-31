@@ -1,0 +1,6 @@
+id: "k8s"
+display_name: "Kubernetes Infrastructure Clusters"
+category: "orchestration"
+poll_interval_seconds: 120
+credential_purpose: "service_account"
+api: "https://k8s-apiserver-prod.internal.corp:6443"

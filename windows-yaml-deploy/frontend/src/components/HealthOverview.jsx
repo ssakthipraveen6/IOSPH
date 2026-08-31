@@ -10,18 +10,21 @@ const infraRegistry = {
   storage: { name: "Persistent Storage (S3/NAS)", icon: "💾", status: "Healthy" }
 };
 
-export default function HealthOverview({ healthData, historicalMetrics, onSelectComponent, activeSimulations }) {
+export default function HealthOverview({ healthData, historicalMetrics, onSelectComponent, activeSimulations, environment = 'staging' }) {
   const { score = 100, componentStatuses = {}, alertsCount = 0, pendingApprovals = 0, uptime = '00:00:00' } = healthData;
   const [selectedFlowApp, setSelectedFlowApp] = useState('artifactory');
   const [hoveredNode, setHoveredNode] = useState(null);
+  const currentEnv = environment || healthData?.environment || 'staging';
 
   const getStatusColor = (status) => {
+    if (status === 'DATA_UNAVAILABLE' || status === 'NO_DATA') return '#94a3b8';
     if (status === 'Critical') return '#ef4444';
     if (status === 'Warning') return '#f59e0b';
     return '#10b981';
   };
 
   const getStatusClass = (status) => {
+    if (status === 'DATA_UNAVAILABLE' || status === 'NO_DATA') return 'status-unknown';
     if (status === 'Critical') return 'status-critical';
     if (status === 'Warning') return 'status-warning';
     return 'status-healthy';
@@ -60,21 +63,27 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
     performance_center: 'performance_center'
   };
 
+  const noDataDefault = (currentEnv === 'prod' || currentEnv === 'staging') ? 'DATA_UNAVAILABLE' : 'Healthy';
   const activeApp = appRegistry[selectedFlowApp];
-  const appStatus = componentStatuses[appKeys[selectedFlowApp]] || 'Healthy';
+  const appStatus = componentStatuses[appKeys[selectedFlowApp]] || noDataDefault;
+
+  const formatStatusText = (st) => {
+    if (st === 'DATA_UNAVAILABLE' || st === 'NO_DATA') return 'Data Not Available';
+    return st;
+  };
 
   // Compute status colors of adjacent infra layers based on app requirements
-  const ssoStatus = componentStatuses['sso_gateway'] || 'Healthy';
-  const aviStatus = componentStatuses['avi_load_balancer'] || 'Healthy';
-  const dbStatus = activeApp.db === 'Yes' ? (componentStatuses['database'] || 'Healthy') : 'Inactive';
+  const ssoStatus = componentStatuses['sso_gateway'] || noDataDefault;
+  const aviStatus = componentStatuses['avi_load_balancer'] || noDataDefault;
+  const dbStatus = activeApp.db === 'Yes' ? (componentStatuses['database'] || noDataDefault) : 'Inactive';
   
   let hostKey = 'linux_servers';
   if (selectedFlowApp === 'fortify' || selectedFlowApp === 'performance_center') hostKey = 'windows_servers';
-  const hostStatus = componentStatuses[hostKey] || 'Healthy';
+  const hostStatus = componentStatuses[hostKey] || noDataDefault;
   
   let nasStatus = 'Inactive';
-  if (activeApp.nas === 'NAS Mount') nasStatus = componentStatuses['nas_performance'] || 'Healthy';
-  if (activeApp.nas === 'S3 Bucket') nasStatus = componentStatuses['s3_storage'] || 'Healthy';
+  if (activeApp.nas === 'NAS Mount') nasStatus = componentStatuses['nas_performance'] || noDataDefault;
+  if (activeApp.nas === 'S3 Bucket') nasStatus = componentStatuses['s3_storage'] || noDataDefault;
 
   return (
     <div className="health-overview-container" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -101,8 +110,13 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               <div className="gauge-text">{score}%</div>
             </div>
             <div className="gauge-labels">
-              <h4>MNC Health Index</h4>
-              <p>{score > 90 ? 'All Production Systems Stable' : score > 70 ? 'Degraded Performance' : 'Emergency Mitigation Mode'}</p>
+              <h4>MNC Health Index ({currentEnv.toUpperCase()})</h4>
+              <p>
+                {currentEnv === 'prod' 
+                  ? (score > 90 ? 'All Production Systems Nominal' : 'Active Live Incident')
+                  : (currentEnv === 'demo' ? 'Pristine Demo Baseline' : (score > 90 ? 'All Staging Systems Stable' : 'Staging Fault Injected'))
+                }
+              </p>
             </div>
           </div>
         </div>
@@ -165,7 +179,6 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
         {/* E2E Horizontal Path Diagram */}
         <div style={{ overflowX: 'auto', padding: '1.5rem 0', background: 'var(--bg-dark)', borderRadius: '8px', border: '1px solid var(--border-light)', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', minWidth: '950px', padding: '0 1rem' }}>
-            
             {/* 1. Identity Gateway */}
             <div 
               onClick={() => onSelectComponent('sso_gateway')}
@@ -187,7 +200,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>🔑</div>
               <h4 style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>SSO & eLDAP</h4>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{activeApp.login}</p>
-              <span className={`status-badge-inline ${getStatusClass(ssoStatus)}`} style={{ marginTop: '6px' }}>{ssoStatus}</span>
+              <span className={`status-badge-inline ${getStatusClass(ssoStatus)}`} style={{ marginTop: '6px' }}>{formatStatusText(ssoStatus)}</span>
             </div>
 
             <div style={{ fontSize: '1.25rem', color: 'var(--text-muted)' }}>➜</div>
@@ -213,7 +226,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>🌐</div>
               <h4 style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>AVI Ingress</h4>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{activeApp.avi}</p>
-              <span className={`status-badge-inline ${getStatusClass(aviStatus)}`} style={{ marginTop: '6px' }}>{aviStatus}</span>
+              <span className={`status-badge-inline ${getStatusClass(aviStatus)}`} style={{ marginTop: '6px' }}>{formatStatusText(aviStatus)}</span>
             </div>
 
             <div style={{ fontSize: '1.25rem', color: 'var(--text-muted)' }}>➜</div>
@@ -239,7 +252,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>💻</div>
               <h4 style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Server VM/K8s</h4>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{activeApp.server}</p>
-              <span className={`status-badge-inline ${getStatusClass(hostStatus)}`} style={{ marginTop: '6px' }}>{hostStatus}</span>
+              <span className={`status-badge-inline ${getStatusClass(hostStatus)}`} style={{ marginTop: '6px' }}>{formatStatusText(hostStatus)}</span>
             </div>
 
             <div style={{ fontSize: '1.25rem', color: 'var(--text-muted)' }}>➜</div>
@@ -252,7 +265,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               style={{ 
                 textAlign: 'center', 
                 flex: 1, 
-                cursor: 'pointer',
+                cursor: 'pointer', 
                 padding: '10px', 
                 borderRadius: '6px', 
                 border: hoveredNode === 'app' ? '1px solid var(--primary)' : '1px solid var(--border-light)',
@@ -265,7 +278,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>📱</div>
               <h4 style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{activeApp.name}</h4>
               <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{activeApp.cert}</p>
-              <span className={`status-badge-inline ${getStatusClass(appStatus)}`} style={{ marginTop: '6px' }}>{appStatus}</span>
+              <span className={`status-badge-inline ${getStatusClass(appStatus)}`} style={{ marginTop: '6px' }}>{formatStatusText(appStatus)}</span>
             </div>
 
             <div style={{ fontSize: '1.25rem', color: 'var(--text-muted)' }}>➜</div>
@@ -291,7 +304,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>🗄️</div>
               <h4 style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>DB Connector</h4>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Required: {activeApp.db}</p>
-              <span className={`status-badge-inline ${getStatusClass(dbStatus)}`} style={{ marginTop: '6px' }}>{dbStatus}</span>
+              <span className={`status-badge-inline ${getStatusClass(dbStatus)}`} style={{ marginTop: '6px' }}>{formatStatusText(dbStatus)}</span>
             </div>
 
             <div style={{ fontSize: '1.25rem', color: 'var(--text-muted)' }}>➜</div>
@@ -317,7 +330,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
               <div style={{ fontSize: '1.5rem', marginBottom: '4px' }}>💾</div>
               <h4 style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Storage Mount</h4>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{activeApp.nas}</p>
-              <span className={`status-badge-inline ${getStatusClass(nasStatus)}`} style={{ marginTop: '6px' }}>{nasStatus}</span>
+              <span className={`status-badge-inline ${getStatusClass(nasStatus)}`} style={{ marginTop: '6px' }}>{formatStatusText(nasStatus)}</span>
             </div>
 
           </div>
