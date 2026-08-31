@@ -1,180 +1,226 @@
 # Intelligent Observability & Autonomous Recovery Framework
 
-An enterprise self-hosting portal that automates metric collection, provides log pattern anomaly detection using a simulated local AI engine, and triggers automated Jenkins remediation jobs (with manual or autonomous runbook controls) across core infrastructure and application layers.
+An enterprise self-hosting observability portal that provides **real-time telemetry collection**, **local AI-driven log anomaly detection**, **autonomous self-healing runbooks**, and **four-eyes dual-approval governance** across core infrastructure and application layers.
+
+Designed for deployment on **Windows Server** behind enterprise **AVI Load Balancers** and **RefWeb / IIS reverse proxies**, accessible to all team members via a corporate URL.
 
 ---
 
 ## 💻 Tech Stack
 
-*   **Frontend**: React (JS, Vite, HTML5, CSS3)
-    *   **Styling**: Pure CSS Variables supporting **Dark / Light theme toggling**
-    *   **Visualizations**: PowerBI-like layouts using responsive custom inline SVG analytics charts
-*   **Backend**: Node.js, Express, WebSockets (`ws`)
-*   **Simulated Data Warehouses**:
-    *   **PostgreSQL**: Captures historical metrics timeseries data
-    *   **Snowflake**: Serves as the logs data lake audit store
-*   **Hosting**: Native Windows Server deployment (via `start.bat` startup and task scheduler hooks)
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | React 19 + Vite, Pure CSS (Dark / Light theme), Custom SVG Analytics Charts |
+| **Backend** | Node.js, Express, WebSockets (`ws`), HTTP Compression (`compression`) |
+| **Storage** | PostgreSQL / TimescaleDB (metrics time-series), Snowflake (log analytics lake) |
+| **Caching** | In-memory JSON DB (`sentinel_db.json`, rolling 200-item cap) |
+| **Auth** | Enterprise eLDAP / Active Directory, JWT sessions, CyberArk CCP credential provider |
+| **Telemetry** | OpenTelemetry OTLP/HTTP receiver, Dynatrace API v2, Prometheus Node Exporter |
+| **Hosting** | Windows Server (IIS via `web.config` + HttpPlatformHandler) |
+| **Load Balancer** | AVI Load Balancer Virtual Service with HTTPS health monitor probes |
 
 ---
 
-## 📐 Architecture Diagram
+## 📐 Architecture
 
-```mermaid
-graph TD
-    subgraph "Windows Server Environment"
-        direction TB
-        subgraph "Frontend Dashboard UI"
-            UI[React Dashboard - Dark/Light Theme]
-            PBI[PowerBI-like Historical Views]
-        end
-        
-        subgraph "Backend Daemon Services"
-            API[Express API & WebSocket Server]
-            LDB[Local Database - SQLite / JSON cache]
-            
-            subgraph "Modular Collectors"
-                IC[Infrastructure Collector]
-                AC[Application Collector]
-                DC[Dynatrace Collector]
-                FC[Fluentd Log Collector]
-                AI[Local AI Log Analyzer]
-            end
-            
-            subgraph "Integrations & Remediators"
-                JT[Jenkins Trigger Job Connector]
-                PG[(PostgreSQL Pool - Historical Metrics)]
-                SF[(Snowflake Warehouse - Log Store)]
-            end
-        end
-    end
-
-    UI <-->|HTTP/WS| API
-    PBI <-->|Fetch Postgres & Snowflake data| API
-    FC -->|Stream logs| AI
-    AI -->|OOM / Failures| JT
-    DC -->|Dynatrace alerts| JT
-    JT -->|Triggers Runbook| LDB
-    IC & AC & DC & FC -->|Log Telemetry| PG
-    AI -->|Log Telemetry| SF
+```
+Browser Users (via ordered URL / RefWeb)
+        │
+        ▼
+AVI Virtual Service  ──── GET /api/healthz ──→ HTTP 200 UP
+        │
+        ▼
+IIS (web.config + HttpPlatformHandler)
+        │
+        ▼
+Node.js Express Backend  (0.0.0.0:3001)
+  ├── GET  /api/health            Real-time environment health state
+  ├── GET  /api/metrics           Historical time-series from PostgreSQL
+  ├── POST /v1/metrics            OTLP/HTTP ingest from OTel Collector agents
+  ├── GET  /api/alerts            Active alerts (environment-segregated)
+  ├── GET  /api/yaml/*            GitOps YAML config read/write
+  ├── POST /api/environment       Switch active environment (prod/staging/demo)
+  ├── POST /api/auth/sso/login    eLDAP/AD SSO authentication
+  └── WS   /ws                   Real-time telemetry WebSocket stream (30s heartbeat)
+        │
+        ├── Background Collectors (concurrent: prod + staging)
+        │     ├── App Collector (Bitbucket, Artifactory, Jenkins, ArgoCD, ...)
+        │     ├── Infra Collector (AVI, NAS, SSO, Windows, Linux, K8s)
+        │     ├── Dynatrace Collector (API v2 metric sync)
+        │     └── Fluentd Log Collector (real log paths)
+        │
+        ├── AI Analysis Engine (real_analyzer.js)
+        │     └── Pattern-match alerts → Autonomous self-healing trigger
+        │
+        ├── Remediation Engine (recovery.js)
+        │     └── Jenkins job triggers, four-eyes approval, recovery runbooks
+        │
+        └── Data Layer
+              ├── PostgreSQL (time-series hypertable)
+              ├── Snowflake (log analytics warehouse)
+              └── JSON Cache (sentinel_db.json, 200-item rolling cap)
 ```
 
 ---
 
-## ⚙️ Staging (STG) Environment Configuration Guide
+## ⚡ Quick Start
 
-To deploy this application in a real Staging (STG) environment, all connection configurations have been unified into a single configuration file:
+### Prerequisites
+- Node.js v18+
+- Windows Server (or any OS for dev)
 
-*   **Config File**: [`backend/config.js`](file:///c:/Users/admin/project/Desktop/iosph2/backend/config.js)
-    *   `USE_SIMULATED_COLLECTORS`: Set to `false` to activate real staging network pings.
-    *   `STG_URLS`: Configures endpoints for Avi APIs, Postgres JDBC strings, NAS folder mounts, S3, Bitbucket, Artifactory, NexusIQ, Fortify, TeamCity, ArgoCD, MCP, and Jenkins integrations.
-    *   `POSTGRES_STG_CONFIG` & `SNOWFLAKE_STG_CONFIG`: Connection pools parameters for the historical database and Snowflake data lake logs index.
+### Install & Run
 
----
-
-## 📦 Yarn & pnpm Package Manager Support
-
-Instead of `npm`, you can use `yarn` or `pnpm` to install dependencies and compile the workspace:
-
-### Using pnpm:
-```bash
-# Install root and frontend workspace dependencies
-pnpm install
-cd frontend && pnpm install
-
-# Compile React client build target files
-pnpm run build-frontend
-
-# Boot backend server daemon
-pnpm start
+**Option A — `start.bat` (Windows, one-click):**
 ```
+Double-click start.bat
+```
+This auto-installs dependencies, builds the frontend, and starts the server.
 
-### Using Yarn:
-```bash
+**Option B — Manual:**
+```powershell
 # Install dependencies
-yarn install
-cd frontend && yarn install
+npm install
+cd frontend && npm install && cd ..
 
-# Compile React client files
-yarn build-frontend
+# Build frontend production assets
+npm run build-frontend
 
-# Boot backend server daemon
-yarn start
+# Start the server
+npm start
+```
+
+**Access**: Navigate to `http://<SERVER_IP>:3001` (or your ordered corporate URL).
+
+---
+
+## ⚙️ Configuration
+
+**All production URLs, AVI endpoints, and environment settings live in one file:**
+
+### [`config/global_config.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/global_config.yaml) — Single Source of Truth
+
+```yaml
+environment: "production"   # Startup default environment (also switchable live via UI)
+telemetry_provider: "hybrid"  # "opentelemetry" | "dynatrace" | "node_exporter" | "hybrid"
+
+prod_urls:
+  app_url: "https://<YOUR-ORDERED-APP-URL>"
+  avi_virtual_service_url: "https://<YOUR-AVI-VS-URL>"
+  avi_api: "https://avi-prod.internal.corp/api/v1/telemetry"
+  sso_api: "https://sso-auth-prod.internal.corp/oauth2/token"
+  db_jdbc: "jdbc:postgresql://db-prod-primary.internal.corp:5432/telemetry_db"
+  nas_mount: "d:\\production_shares\\nas_logs"
+  bitbucket_api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
+  # ... (see full file for all endpoints)
+
+sso_ldap_config:
+  enabled: true
+  ldap_url: "ldaps://ldap.enterprise.corp:636"
+  bind_dn: "cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp"
+  # ...
+```
+
+### Per-Application YAML — [`config/applications/*.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/applications)
+
+Each application has its own YAML topology file (`bitbucket.yaml`, `artifactory.yaml`, etc.) declaring its prod/staging endpoints, server hostnames, layers, and Jenkins remediation job.
+
+---
+
+## 🌐 OpenTelemetry Integration
+
+Project Sentinel acts as a **passive OTLP/HTTP receiver** — no OTel SDK is embedded. Point your existing OTel Collector agents at the app:
+
+```yaml
+# otel-collector-config.yaml (deployed on each server / K8s DaemonSet)
+exporters:
+  otlphttp:
+    endpoint: "https://<YOUR-ORDERED-APP-URL>/v1/metrics"
+    headers:
+      Authorization: "Bearer <sentinel_service_token>"
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics, kubeletstats, jmx]
+      exporters: [otlphttp]
+```
+
+**Supported OTel metric types**: `system.cpu.utilization`, `system.memory.utilization`, `system.filesystem.utilization`, `system.disk.io`, `system.network.io`, `jvm.memory.used`, `container.cpu.usage.total`, `k8s.pod.memory_working_set_bytes`, and all standard OTel semantic conventions.
+
+---
+
+## 🏗️ AVI Load Balancer Health Monitor
+
+| Setting | Value |
+| :--- | :--- |
+| **Health Check Path** | `GET /api/healthz` |
+| **Expected HTTP Status** | `200 OK` |
+| **Expected Body** | `{ "status": "UP" }` |
+| **Interval** | 15 seconds |
+
+Additional probes also available: `/health`, `/status`, `/api/ping`.
+
+---
+
+## 🌍 Environment Switching (Prod / Staging / Demo)
+
+The UI environment selector (`PROD` | `STAGING` | `DEMO`) dynamically controls:
+- Which database environment rows are served in API responses
+- Which collector endpoint URLs are used (prod vs staging)
+- Whether `"Data Not Available"` is shown for missing feeds
+
+**Background collection continues for both `prod` and `staging` concurrently regardless of which environment the UI is viewing.**
+
+---
+
+## 🧪 QA Test Suite
+
+Run `npm test` — executes all 11 automated assurance suites:
+
+```
+✅ PASSED: CyberArk Credential Provider Lookup
+✅ PASSED: Authentication Lockdown & JWT Role Enforcement
+✅ PASSED: YAML Schema Validation
+✅ PASSED: Telemetry Profile Selector (OTel / Dynatrace / Prometheus)
+✅ PASSED: OTLP Metric Normalizer (OTel → Sentinel key mapping)
+✅ PASSED: Datastore Migration & Rolling Cap Enforcement
+✅ PASSED: Misc Operations & Custom Checks Registry
+✅ PASSED: Production Data Availability Segregation
+✅ PASSED: Concurrent Dual-Environment Collection
+✅ PASSED: 200-Host Fan-out Concurrency Load Test
+✅ PASSED: E2E QA Suite (DB, API, Recovery, Chaos Engineering)
 ```
 
 ---
 
-## 🐍 Python & Selenium Active UI Checks Setup
+## 🛡️ Windows Background Daemon (Task Scheduler)
 
-For applications requiring active browser simulations (SSO authentication checks, page-load latency timings, dashboard validations), the real collectors spawn a headless Chrome instance using Python and Selenium.
+To run the server continuously, surviving reboots:
 
-### Prerequisite Installation:
-1. Ensure Python 3 is installed and added to your system `PATH`.
-2. Install the Selenium and WebDriver Manager packages using `pip`:
-   ```bash
-   pip install -r backend/collectors/real/python_checks/requirements.txt
-   ```
-3. The Node backend dynamically spawns the browser check script [`selenium_ui_check.py`](file:///c:/Users/admin/project/Desktop/iosph2/backend/collectors/real/python_checks/selenium_ui_check.py) as a child process during real telemetry collection cycles. If Python dependencies are missing, the collector logs a warning and falls back to baseline defaults automatically without crashing.
+```powershell
+# Run as Administrator from the root workspace folder
+Set-ExecutionPolicy Bypass -Scope Process -Force
+./install_service.ps1
+```
 
----
-
-## ⚡ Local Windows Server Execution & Portability Setup
-
-### How to Start this Website on Another Computer:
-To host the Observability & Autonomous Recovery Portal on another compute instance (e.g. windows server, laptop, virtual machine) without needing internet connectivity or external servers:
-
-1. **Copy the Workspace**: Transfer the entire workspace folder containing backend and frontend directories to the target machine.
-2. **Install Node.js**: Ensure Node.js (v18+) is installed on the target machine.
-3. **Execution Options**:
-   * **Automatic**: Simply double-click the `start.bat` file in the root workspace folder. This script automatically checks, installs dependencies for both backend and frontend, builds the React assets, and starts the server.
-   * **Manual Command Line Setup**:
-     ```powershell
-     # 1. Install root & backend dependencies
-     npm install
-
-     # 2. Navigate to frontend directory and install dependencies
-     cd frontend
-     npm install
-
-     # 3. Build the frontend production build
-     npm run build
-
-     # 4. Navigate back to root and start the server
-     cd ..
-     npm run start
-     ```
-4. **Access the Portal**: Open any web browser and navigate to `http://<TARGET_COMPUTE_IP>:3001` or `http://localhost:3001`.
+This registers the Node.js daemon with Windows Task Scheduler for automatic startup.
 
 ---
 
-## 🛠️ Troubleshooting: "'vite' is not recognized as an internal or external command"
+## 🛠️ Troubleshooting
 
-If you encounter the `vite is not recognized` error when launching the application, this means the frontend dependency tree was not installed or compiled. Follow these quick steps to resolve:
+**`vite is not recognized`**:
+```powershell
+cd frontend
+npm install --no-audit --no-fund
+npm run build
+```
 
-1. **Delete Existing Build Caches**:
-   Navigate to the `frontend/` directory and delete the `node_modules` folder (if present) to prevent locks.
-2. **Re-install Frontend Dependencies**:
-   Open a terminal in the `frontend/` directory and execute:
-   ```bash
-   npm install --no-audit --no-fund
-   ```
-   *(Using `--no-audit` makes the installation much faster when running on resource-constrained enterprise servers).*
-3. **Compile the App**:
-   Verify compilation works by running:
-   ```bash
-   npm run build
-   ```
-4. If the machine cannot execute global command aliases, you can compile and start the server directly using Node.js executors by running `npm run build-frontend` in the root workspace directory.
+**Cannot reach backend**:
+- Confirm `HOST=0.0.0.0` and `PORT=3001` are set (or not overridden to `127.0.0.1`).
+- Confirm Windows Firewall allows inbound TCP on `3001` (or the IIS-forwarded port).
+- Check IIS Application Pool identity has read/execute permissions on the workspace folder.
 
----
-
-## ⚡ Windows Server Background Daemon Hosting Service
-
-To run this observability daemon continuously in the background on Windows Server (surviving reboots and logouts):
-1. Open PowerShell as Administrator in the root workspace folder.
-2. Run the script:
-   ```powershell
-   Set-ExecutionPolicy Bypass -Scope Process -Force
-   ./install_service.ps1
-   ```
-   This registers the Express & WebSocket daemon to launch automatically via Windows Task Scheduler.
-
+**WebSocket disconnects through AVI / RefWeb**:
+- The 30-second WebSocket ping/pong heartbeat is built-in. Ensure the AVI Virtual Service idle timeout is ≥ 60 seconds.

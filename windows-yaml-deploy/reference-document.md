@@ -1,400 +1,275 @@
 # 📖 Codebase Architecture Reference & Maintenance Guide
 
-This document serves as the **master structural reference** for the **Intelligent Observability and Autonomous Recovery Framework** (`windows-yaml-deploy`). It details each folder's usage, core functionality, key files, and step-by-step instructions on how to use or modify each component.
+This document is the **master structural reference** for the **Intelligent Observability and Autonomous Recovery Framework** (`windows-yaml-deploy`). It details every folder's purpose, key files, and how to use or extend each component.
 
 ---
 
-## 📁 Repository Directory Structure
+## 📁 Repository Structure
 
 ```
 windows-yaml-deploy/
-├── ai_analysis/             # Local AI Anomaly Engine & Predictive Failure Risk Classifier
-├── backend/                 # Express REST API, WebSockets Telemetry Engine & NAS Logger
-├── config/                  # Declarative Application YAMLs, Global Settings & GitOps Service
-│   └── applications/        # Per-application YAML topology declarations
-├── database/                # Dual-tier storage (In-memory, JSON DB, Postgres & Snowflake adapters)
-├── frontend/                # React 19 + Vite Dashboard (Multi-timezone, GitOps, SSO, Maintenance Mode)
-│   └── src/components/      # View components for NOC, Telemetry, RCA, Admin, and Maintenance
-├── logs_collection/         # Fluentd log stream collectors and error log templates
-├── metrics_collection/      # 10-second polling telemetry collectors (Simulation & Real API modes)
-├── nas_logs/                # Shared NAS storage log files and per-application log folders
-├── remediation/             # Autonomous Self-Healing Orchestrator & Jenkins Runbooks
-└── tests/                   # Automated E2E System Assurance Test Suite
+├── config/                      # ⭐ Single source of truth — all YAML configs
+│   ├── global_config.yaml       # Environment, prod/staging URLs, AVI, SSO config
+│   ├── applications/            # Per-application topology YAMLs (one per app)
+│   ├── infrastructure/          # Per-infra-layer YAMLs (avi.yaml, windows.yaml, ...)
+│   ├── cyberark/                # CyberArk Safe/Object credential registry
+│   ├── telemetry_profiles.yaml  # OTel / Dynatrace / Prometheus profile selector
+│   ├── config.js                # YAML parser → runtime config object
+│   ├── yaml_config.js           # YAML file loader for all directories
+│   └── bitbucket_pr_service.js  # GitOps PR creator for config changes
+├── backend/
+│   ├── server.js                # Express REST API + WebSocket + OTLP ingest server
+│   ├── logger.js                # Rotating log writer (500KB cap, NAS fallback)
+│   └── auth/
+│       └── ldap_client.js       # eLDAP / Active Directory SSO bind client
+├── metrics_collection/
+│   ├── collector_coordinator.js # Master concurrent collection loop (prod + staging)
+│   ├── telemetry_provider_selector.js  # Resolves active telemetry profile
+│   ├── real/
+│   │   ├── applications/        # Live HTTP REST collectors (per app)
+│   │   ├── infrastructure/      # Live infra collectors (AVI, NAS, SSO, K8s, ...)
+│   │   ├── opentelemetry/       # OTLP metric normalizer (OTel → Sentinel keys)
+│   │   └── dynatrace/           # Dynatrace API v2 metric sync
+│   └── simulation/              # Demo-mode data generators (used in DEMO env)
+├── logs_collection/
+│   ├── real/fluentd/            # Real log file reader (reads from nas_mount paths)
+│   └── simulation/fluentd/      # Demo-mode log stream generator
+├── ai_analysis/
+│   ├── real_analyzer.js         # Production AI: regex anomaly detection engine
+│   ├── rca_analytics_engine.js  # Root cause analysis correlation
+│   └── predictive.js            # Metric trend → outage risk score calculator
+├── remediation/
+│   ├── recovery.js              # Self-healing orchestrator + Jenkins job triggers
+│   └── custom_checks.js         # Custom probe registry (external endpoint checks)
+├── database/
+│   ├── db.js                    # In-memory JSON DB (rolling 200-item cap)
+│   ├── postgres.js              # TimescaleDB / PostgreSQL query adapter
+│   ├── snowflake.js             # Snowflake log warehouse query adapter
+│   └── sqlite_metrics.js        # Rolling metrics_history.jsonl (100-row cap)
+├── frontend/
+│   └── src/
+│       ├── App.jsx              # Root app, WebSocket client, environment selector
+│       ├── maintenanceConfig.js # Per-tile maintenance badge toggles
+│       └── components/          # UI view components (see below)
+├── tests/                       # 11 automated QA test suites
+├── nas_logs/                    # Local log fallback (used when NAS mount is unavailable)
+├── web.config                   # Windows Server IIS deployment (HttpPlatformHandler)
+├── install_service.ps1          # Windows Task Scheduler service registration
+└── start.bat                    # One-click Windows startup script
 ```
 
 ---
 
-## 📑 Detailed Folder & Module Breakdown
-
-### 1. ⚙️ [`config/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config) — Declarative Configuration & GitOps Engine
-- **Core Functionality**: Stores global environment settings, vendor application declarations, simulation state manager, and automated GitOps Bitbucket Pull Request generator.
-- **Key Files**:
-  - [`global_config.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/global_config.yaml): Environment mode, staging/production URLs, TimescaleDB credentials, and eLDAP SSO provider configurations.
-  - [`applications/*.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/applications): Declarative topology YAML files (`bitbucket.yaml`, `artifactory.yaml`, `jenkins_k8s.yaml`, etc.).
-  - [`yaml_config.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/yaml_config.js): Parser & writer module for YAML files.
-  - [`bitbucket_pr_service.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/bitbucket_pr_service.js): Automatically creates Git branches and Bitbucket Pull Requests on configuration updates.
-  - [`simulations.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/simulations.js): Active simulated outage state manager.
-- **How to Use / Modify**:
-  - **Onboard a new application**: Create `config/applications/<app_id>.yaml`. The backend and frontend automatically detect it.
-  - **Update SSO / eLDAP setup**: Modify `sso_ldap_config` in `global_config.yaml`.
+## 📑 Module-by-Module Reference
 
 ---
 
-### 2. 🖥️ [`backend/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/backend) — Server & WebSockets Telemetry Engine
-- **Core Functionality**: Express HTTP REST API and WebSockets server for real-time telemetry streaming, SSO login authentication, static asset serving, and log writing.
-- **Key Files**:
-  - [`server.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/backend/server.js): Primary Express server providing REST endpoints (`/api/health`, `/api/metrics`, `/api/alerts`, `/api/auth/sso/login`, `/api/yaml/*`) and WebSocket server on `/ws`.
-  - [`logger.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/backend/logger.js): NAS log writer with automatic fallback to local `nas_logs/`.
-  - `extensions/rca_analytics.js`: Root cause analysis correlation engine.
-  - `extensions/ticket_analytics.js`: ServiceNow Incident/Change ticket timeline correlation.
-- **How to Use / Modify**:
-  - Add new REST API endpoints or WebSockets message handlers inside `server.js`.
+### 1. ⭐ [`config/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config) — Single Source of Truth
+
+**Purpose**: All environment settings, vendor endpoints, credential mappings, and telemetry profiles are declared here as YAML. No endpoint is hardcoded elsewhere in the codebase.
+
+**Key Files**:
+
+| File | Purpose |
+| :--- | :--- |
+| [`global_config.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/global_config.yaml) | `environment`, `prod_urls`, `stg_urls`, `sso_ldap_config` — the **one file to update for production** |
+| [`applications/*.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/applications) | Per-app topology: endpoints, server hostnames, layers, Jenkins job |
+| [`infrastructure/*.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/infrastructure) | Per-infra-layer config: `avi.yaml`, `windows.yaml`, `unix.yaml`, `sso_eldap.yaml`, `k8s.yaml` |
+| [`cyberark/registry.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/cyberark) | Maps credential purposes (`db`, `api_token`) to CyberArk Safe + Object names |
+| [`telemetry_profiles.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/telemetry_profiles.yaml) | Selects active telemetry profile: `1` = OTel, `2` = Dynatrace, `3` = Node Exporter |
+
+**How to use**:
+- **Update prod endpoints**: Edit `prod_urls` in `global_config.yaml`.
+- **Onboard new app**: Create `config/applications/<app_id>.yaml`. Backend auto-discovers it.
+- **Switch telemetry provider**: Set `selected_profile: 2` in `telemetry_profiles.yaml` for Dynatrace.
+
+---
+
+### 2. 🖥️ [`backend/server.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/backend/server.js) — API & WebSocket Server
+
+**Purpose**: Provides all REST API endpoints, the WebSocket real-time telemetry stream, OTLP ingestion, static SPA serving, rate limiting, and authentication middleware.
+
+**Key Endpoints**:
+
+| Route | Method | Description |
+| :--- | :--- | :--- |
+| `/api/healthz` | GET | AVI / RefWeb health monitor probe (`200 UP`) |
+| `/api/health` | GET | Real-time environment health score and component statuses |
+| `/api/metrics` | GET | Historical time-series metrics from PostgreSQL |
+| `/api/alerts` | GET | Active alerts for the current environment |
+| `/api/environment` | GET / POST | Read or switch active environment (prod/staging/demo) |
+| `/v1/metrics` | POST | OTLP/HTTP metric ingestion from OTel Collector agents |
+| `/api/yaml/*` | GET / POST | GitOps YAML config read / write |
+| `/api/auth/sso/login` | POST | eLDAP / Active Directory login |
+| `/ws` | WebSocket | Real-time telemetry stream with 30s ping/pong heartbeat |
+| `*` | GET | SPA wildcard fallback (serves `frontend/dist/index.html`) |
+
+**Key Behaviors**:
+- Bound to `0.0.0.0` so AVI / IIS reverse proxies can connect on all network adapters.
+- `trust proxy: true` resolves real client IPs from `X-Forwarded-For` headers.
+- HTTP gzip/deflate compression via `compression()` middleware.
+- Rate limits: 2,000 req/min (general API), 1,000 req/min (OTLP ingest), 50/15min (auth).
+- 30-second WebSocket heartbeat prevents corporate firewall / AVI session drops.
 
 ---
 
 ### 3. 📊 [`metrics_collection/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection) — Telemetry Collectors
-- **Core Functionality**: Periodic background collection loop (executes every 10 seconds) querying application and infrastructure metrics.
-- **Key Files**:
-  - [`collector_coordinator.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/collector_coordinator.js): Master collection loop coordinator.
-  - `simulation/applications/`: Simulated mock metrics generators (`app_collector.js`, `jenkins_collector.js`, `artifactory_collector.js`, etc.).
-  - `real/applications/`: Production HTTP REST API collectors querying real server endpoints.
-- **How to Use / Modify**:
-  - **Toggle Real vs Simulated mode**: Set `use_simulated_collectors: false` in `global_config.yaml` or set `USE_SIMULATED_COLLECTORS=false`.
-  - **Add custom metrics**: Create `<app_id>_collector.js` inside `metrics_collection/simulation/applications/`.
+
+**Purpose**: Periodic background polling (every 10 seconds) collecting metrics from all application and infrastructure layers. Runs **concurrently for both `prod` and `staging` environments** so switching the UI view never stops data collection.
+
+**Key Files**:
+
+| File | Purpose |
+| :--- | :--- |
+| [`collector_coordinator.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/collector_coordinator.js) | Master loop. Concurrently dispatches collection for `['staging', 'prod']`. |
+| [`telemetry_provider_selector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/telemetry_provider_selector.js) | Reads `telemetry_profiles.yaml` to activate correct collector set. |
+| [`real/opentelemetry/otlp_metric_normalizer.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/real/opentelemetry/otlp_metric_normalizer.js) | Maps OTel semantic metric names → Sentinel dashboard keys. |
+| `real/applications/` | HTTP REST collectors for each app (Bitbucket, Jenkins, ArgoCD, etc.) |
+| `real/infrastructure/` | Infrastructure collectors (AVI, NAS, SSO, Windows, Linux, K8s) |
+| `simulation/` | Demo-mode data generators (only active in `DEMO` environment) |
+
+**Telemetry Profiles** (set in `config/telemetry_profiles.yaml`):
+
+| Profile | `selected_profile` | Description |
+| :--- | :--- | :--- |
+| OpenTelemetry (default) | `1` | OTel Collector agents push OTLP/HTTP to `/v1/metrics` |
+| Dynatrace | `2` | Pull from Dynatrace API v2 (`/api/v2/metrics`, `/api/v2/problems`) |
+| Prometheus Node Exporter | `3` | Scrape node_exporter (port 9100) and windows_exporter (port 9182) |
 
 ---
 
-### 4. 🪵 [`logs_collection/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/logs_collection) — Fluentd Log Streaming
-- **Core Functionality**: Simulates or ingests Fluentd log streams, generates log entries for active applications, and feeds error signatures to the Local AI Engine.
-- **Key Files**:
-  - [`fluentd_log_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/logs_collection/simulation/fluentd/fluentd_log_collector.js): Contains `normalLogs` stream templates and `errorLogs` failure templates.
-- **How to Use / Modify**:
-  - Add custom error log strings under `errorLogs.<app_id>` to simulate specific log failure signatures.
+### 4. 🪵 [`logs_collection/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/logs_collection) — Log Stream Collectors
+
+**Purpose**: Reads real log files from NAS mount paths (`fluentd_log_path` in `global_config.yaml`) or generates structured demo log streams, feeding them to the AI analysis engine.
+
+**Key Files**:
+- [`real/fluentd/fluentd_log_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/logs_collection/real/fluentd/fluentd_log_collector.js): Reads real log files from disk for the given environment.
+- `simulation/fluentd/fluentd_log_collector.js`: Demo-mode structured log generator (used in DEMO env only).
 
 ---
 
-### 5. 🧠 [`ai_analysis/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis) — Local AI Log & Predictive Risk Engine
-- **Core Functionality**: Pattern-matching regex engine inspecting log streams for critical failure signatures (OOM, disk exhaustion, DB pool saturation) and calculating predictive outage risk scores.
-- **Key Files**:
-  - [`simulation_analyzer.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/simulation_analyzer.js): Log pattern classifier (`ANOMALY_PATTERNS`) that triggers automated critical alerts and self-healing runbooks.
-  - [`predictive.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/predictive.js): Metric trend algorithm calculating predictive risk deductions.
-- **How to Use / Modify**:
-  - Add new regex detection rules to `ANOMALY_PATTERNS` in `simulation_analyzer.js`.
+### 5. 🧠 [`ai_analysis/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis) — AI Anomaly & Risk Engine
+
+**Purpose**: Inspects log streams using regex pattern matching to detect failure signatures (OOM, DB pool exhaustion, disk saturation) and generates critical alerts tagged with the active environment. Calculates predictive outage risk scores from metric trends.
+
+**Key Files**:
+
+| File | Purpose |
+| :--- | :--- |
+| [`real_analyzer.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/real_analyzer.js) | Production anomaly classifier. Generates `env`-tagged alerts and triggers self-healing. |
+| [`rca_analytics_engine.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/rca_analytics_engine.js) | Root cause analysis correlation (cross-component timeline analysis). |
+| [`predictive.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/predictive.js) | Metric trend → outage risk score algorithm. |
+
+**How to extend**: Add new regex patterns to `ANOMALY_PATTERNS` in `real_analyzer.js`.
 
 ---
 
-### 6. ⚡ [`remediation/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation) — Autonomous Self-Healing Orchestrator
-- **Core Functionality**: Executes automated recovery runbooks (Jenkins jobs, container restarts, log purges) in either Autonomous Mode or Manual Approval Mode (four-eyes governance).
-- **Key Files**:
-  - [`recovery.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation/recovery.js): Defines self-healing workflows (`workflows`) and Jenkins remediation job triggers.
-  - [`custom_checks.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation/custom_checks.js): Custom extension check registry (`CUSTOM_CHECKS_REGISTRY`) probing external APIs and build statuses.
-- **How to Use / Modify**:
-  - Add new recovery workflows under `workflows` in `recovery.js`.
-  - Register new probe endpoints under `CUSTOM_CHECKS_REGISTRY` in `custom_checks.js`.
+### 6. ⚡ [`remediation/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation) — Autonomous Self-Healing
+
+**Purpose**: Executes automated recovery runbooks (Jenkins job triggers, container restarts, log purges) in either **Autonomous Mode** or **Manual Four-Eyes Dual Approval** governance mode.
+
+**Key Files**:
+
+| File | Purpose |
+| :--- | :--- |
+| [`recovery.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation/recovery.js) | Workflow orchestrator. Maps components → Jenkins jobs. Tags recovery runs with `env`. |
+| [`custom_checks.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation/custom_checks.js) | Custom probe registry (`CUSTOM_CHECKS_REGISTRY`) for external endpoint validations. |
+
+**How to extend**:
+- Add recovery workflow to `workflows` in `recovery.js`.
+- Add custom probe to `CUSTOM_CHECKS_REGISTRY` in `custom_checks.js`.
 
 ---
 
 ### 7. 🗄️ [`database/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database) — Data Persistence Layer
-- **Core Functionality**: In-memory database with disk persistence (`sentinel_db.json`), historical metrics log (`metrics_history.jsonl`), and query adapters for TimescaleDB (Postgres) and Snowflake data lakes.
-- **Key Files**:
-  - [`db.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database/db.js): Primary DB interface for storing metrics, active alerts, recovery runs, and system settings.
-  - [`postgres.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database/postgres.js) / [`snowflake.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database/snowflake.js): Analytical query modules.
-- **How to Use / Modify**:
-  - Use `db.addMetric()`, `db.addAlert()`, `db.getRecoveryLogs()` across backend modules.
+
+**Purpose**: Multi-tier storage stack with environment isolation across all layers.
+
+| File | Purpose |
+| :--- | :--- |
+| [`db.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database/db.js) | In-memory JSON DB with `sentinel_db.json` persistence. Rolling 200-item cap per environment. |
+| [`sqlite_metrics.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database/sqlite_metrics.js) | `metrics_history.jsonl` rolling 100-row archive cap. |
+| [`postgres.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database/postgres.js) | TimescaleDB / PostgreSQL query adapter. Reads `db_jdbc` from config. |
+| [`snowflake.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/database/snowflake.js) | Snowflake log warehouse query adapter. |
+
+**Environment isolation**: All `db.addMetric()`, `db.getAlerts()`, `db.getMetrics()` calls are environment-scoped. Prod data is never mixed with staging data.
 
 ---
 
-### 8. 🎨 [`frontend/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend) — React 19 + Vite Dashboard
-- **Core Functionality**: Web UI featuring WebSockets live streaming, multi-timezone clocks (SG, IST, EST, GMT), dark/light theme toggle, GitOps YAML manager, SSO & eLDAP admin panel, and Maintenance Notification System.
-- **Key Files**:
-  - [`src/App.jsx`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/App.jsx): Main app layout, sidebar navigation drawer, and WebSockets client.
-  - [`src/maintenanceConfig.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/maintenanceConfig.js): Central toggle file to enable/disable **"Under Maintenance"** badges per page or tile.
-  - [`src/components/MaintenanceNotice.jsx`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/components/MaintenanceNotice.jsx): Reusable Maintenance Banner and Badge UI components.
-  - [`src/components/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/components): View components (`HealthOverview.jsx`, `CommandCenter.jsx`, `UnifiedHealthMatrix.jsx`, `MetricsDetail.jsx`, `YamlConfigManager.jsx`, `AdminManagement.jsx`, `PowerBiDashboard.jsx`, `RcaDashboard.jsx`, `AiLogPerformance.jsx`).
-- **How to Use / Modify**:
-  - **Toggle Maintenance Mode**: Open `frontend/src/maintenanceConfig.js` and set desired keys to `false` when PROD data is validated.
-  - **Rebuild Frontend**: Run `npm run build-frontend`.
+### 8. 🎨 [`frontend/src/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src) — React 19 Dashboard
+
+**Purpose**: Web UI with real-time WebSocket streaming, environment selector, multi-timezone clocks (SG/IST/EST/GMT), dark/light theme, GitOps YAML manager, SSO admin panel, and maintenance mode system.
+
+**Key Components**:
+
+| Component | Purpose |
+| :--- | :--- |
+| [`App.jsx`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/App.jsx) | Root app, sidebar navigation, WebSocket client (`wss://<host>/ws`), environment selector |
+| `HealthOverview.jsx` | Real-time health score, component status grid, active alerts |
+| `MetricsDetail.jsx` | Historical sparkline charts (PostgreSQL data) |
+| `UnifiedHealthMatrix.jsx` | Full application + infrastructure health matrix |
+| `CommandCenter.jsx` | Self-healing controls, chaos engineering toggles, approval queue |
+| `PowerBiDashboard.jsx` | Log analytics and trend charts (Snowflake data) |
+| `AiLogPerformance.jsx` | AI anomaly log terminal and risk score display |
+| `RcaDashboard.jsx` | Root cause analysis correlation timeline |
+| `YamlConfigManager.jsx` | In-browser YAML editor with schema validation and Bitbucket PR creation |
+| `AdminManagement.jsx` | RBAC user management, four-eyes approval governance |
+| `MiscOperations.jsx` | Custom checks runner, maintenance mode management |
+| [`maintenanceConfig.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/maintenanceConfig.js) | Per-tile maintenance badge toggle file |
+
+**All API calls use relative paths** (`/api/*`) — the frontend works with any hostname or AVI Virtual Service URL automatically.
 
 ---
 
-### 9. 📁 [`nas_logs/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/nas_logs) — Log Archive Storage
-- **Core Functionality**: Local log directory where `windows_yaml_observability.log` and per-application log files are appended.
+### 9. 🧪 [`tests/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/tests) — Automated QA Suite
+
+Run `npm test` to execute all 11 automated test suites in sequence:
+
+| Test File | Coverage Area |
+| :--- | :--- |
+| `cyberark_provider.test.js` | CyberArk Safe/Object credential vault resolution |
+| `auth_lockdown.test.js` | JWT token validation and role enforcement |
+| `schema_validation.test.js` | YAML schema integrity checks |
+| `telemetry_selector.test.js` | OTel / Dynatrace / Prometheus profile selection |
+| `otlp_normalizer.test.js` | OTel metric name → Sentinel key normalization |
+| `datastore_migration.test.js` | Rolling cap enforcement on JSON DB and JSONL archive |
+| `misc_operations.test.js` | Custom checks registry and probe assertions |
+| `prod_data_availability.test.js` | Prod/Staging/Demo data isolation |
+| `data_availability_segregation.test.js` | Concurrent dual-environment background collection |
+| `load_test_200.js` | 200-host fan-out concurrency sweep (50-concurrent ceiling) |
+| `e2e_qa_suite.test.js` | Full DB, REST API, recovery runbook, and chaos engineering checks |
 
 ---
 
-### 10. 🧪 [`tests/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/tests) — Automated QA Test Suite
-- **Core Functionality**: End-to-end assurance test suite validating DB operations, YAML parsing, AI anomaly detection, self-healing triggers, and custom checks.
-- **Key Files**:
-  - [`e2e_qa_suite.test.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/tests/e2e_qa_suite.test.js)
-- **How to Run**: Execute `npm test`.
+### 10. 🏭 [`web.config`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/web.config) — Windows Server IIS Deployment
+
+Pre-configured for Windows Server IIS with:
+- `HttpPlatformHandler`: Routes all requests to `node.exe backend\server.js`.
+- `<webSocket enabled="true" pingInterval="00:00:30" />`: Native IIS WebSocket support.
+- `<urlCompression>`: Dynamic and static gzip compression.
+- Security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
 
 ---
 
-## 🛠️ Step-by-Step Sample: How to Add a New Application
-
-To onboard a custom or enterprise application (e.g., `demoapp` or `payment_service`), follow these steps and sample code snippets:
-
-### Step 1: Create the Declarative Application YAML
-File: [`config/applications/demoapp.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/applications/demoapp.yaml)
-
-```yaml
-id: demoapp
-display_name: Demo Application Suite
-category: Enterprise Service
-log_tag: DEMOAPP_PROD
-endpoints:
-  stg_api: https://demoapp-stg.internal.corp/api/health
-  prod_api: https://demoapp-prod.internal.corp/api/health
-  avi_api: https://avi-lb.internal.corp/api/v1/virtualservice/demoapp
-  db_jdbc: jdbc:postgresql://db-primary.internal.corp:5432/demoapp_db
-  nas_mount: d:\production_shares\nas_logs\demoapp
-  s3_endpoint: https://s3.prod-demoapp-us-east-1.amazonaws.com
-  sso_api: https://sso-auth-prod-demoapp.internal.corp/oauth2/token
-nodes:
-  - demoapp-node-1
-  - demoapp-node-2
-baseline_metrics:
-  cpu_baseline: 28.5
-  memory_baseline: 42.0
-  active_users: 1450
-jenkins_remediation_job: demoapp-service-recycle
-```
-
----
-
-### Step 2: (Optional) Create Custom Metrics Collector Script
-File: [`metrics_collection/simulation/applications/demoapp_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/simulation/applications/demoapp_collector.js)
-
-```javascript
-module.exports = {
-  collect: function(simulations = {}, baseMetrics = {}) {
-    const isOutage = simulations.demoapp === 'CRITICAL_OUTAGE';
-    return {
-      cpu: isOutage ? 96.8 : Math.floor(25 + Math.random() * 15),
-      memory: isOutage ? 94.2 : Math.floor(40 + Math.random() * 10),
-      activeConnections: isOutage ? 5500 : 1200,
-      responseTimeMs: isOutage ? 4500 : 120,
-      status: isOutage ? 'CRITICAL' : 'HEALTHY'
-    };
-  }
-};
-```
-
----
-
-### Step 3: Register Log Simulation Error Templates
-File: [`logs_collection/simulation/fluentd/fluentd_log_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/logs_collection/simulation/fluentd/fluentd_log_collector.js)
-
-```javascript
-// In errorLogs object:
-errorLogs: {
-  demoapp: [
-    "[ERROR] [demoapp] OutOfMemoryError: Java heap space saturated on node demoapp-node-1",
-    "[CRITICAL] [demoapp] Connection pool exhausted: Failed to acquire JDBC connection within 30000ms"
-  ]
-}
-```
-
----
-
-### Step 4: Register Local AI Anomaly Pattern
-File: [`ai_analysis/simulation_analyzer.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/simulation_analyzer.js)
-
-```javascript
-// In ANOMALY_PATTERNS array:
-{
-  pattern: /OutOfMemoryError|Java heap space/i,
-  component: 'demoapp',
-  severity: 'Critical',
-  message: 'JVM Heap Saturation on Demo Application',
-  action: 'demoapp-service-recycle'
-}
-```
-
----
-
-### Step 5: Register Autonomous Remediation Workflow
-File: [`remediation/recovery.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation/recovery.js)
-
-```javascript
-// In workflows object:
-workflows: {
-  demoapp: [
-    { step: 1, name: "Drain Load Balancer Traffic", action: "avi-drain" },
-    { step: 2, name: "Recycle Demo Application Service", action: "jenkins-trigger-job", jobName: "demoapp-service-recycle" },
-    { step: 3, name: "Verify Health Probes & Warmup", action: "health-probe-check" }
-  ]
-}
-```
-
----
-
-### Step 6: Automatic Frontend & GitOps Detection
-- **No manual React UI coding required!**
-- The backend automatically reads `config/applications/demoapp.yaml` on startup.
-- The **YAML Configuration Manager** view ([YamlConfigManager.jsx](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/components/YamlConfigManager.jsx)) automatically loads `demoapp.yaml` in the sidebar and enables full Bitbucket Pull Request editing and validation.
-
----
-
-## 🐍 Step-by-Step Sample: Python Custom Webpage Login & Status Integration
-
-To create a custom Python script (e.g. Selenium / Playwright / Requests browser automation) to log into a specific web application page, verify status, and stream telemetry back to Node.js:
-
-### Step 1: Create the Python Script
-File: [`metrics_collection/real/python_checks/login_status_check.py`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/real/python_checks/login_status_check.py)
-
-```python
-#!/usr/bin/env python3
-import sys
-import json
-import time
-import argparse
-
-def check_webpage_login(url, username, password):
-    result = {
-        "status": "Healthy",
-        "latency_ms": 0,
-        "page_title": "",
-        "login_success": False,
-        "error": None
-    }
-    
-    start_time = time.time()
-    
-    try:
-        from selenium import webdriver
-        from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.chrome.service import Service
-        from selenium.webdriver.common.by import By
-        from webdriver_manager.chrome import ChromeDriverManager
-        
-        # Configure Headless Chrome
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-gpu")
-        
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        # Open login page & perform login
-        driver.get(url)
-        driver.find_element(By.NAME, "username").send_keys(username)
-        driver.find_element(By.NAME, "password").send_keys(password)
-        driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
-        
-        time.sleep(2) # wait for page load & redirect
-        elapsed = (time.time() - start_time) * 1000
-        
-        result["latency_ms"] = int(elapsed)
-        result["page_title"] = driver.title
-        
-        if "login" not in driver.current_url.lower():
-            result["login_success"] = True
-            result["status"] = "Healthy"
-        else:
-            result["login_success"] = False
-            result["status"] = "Critical"
-            result["error"] = "Login failed: Redirect failed post-authentication"
-            
-        driver.quit()
-        
-    except Exception as e:
-        result["status"] = "Critical"
-        result["error"] = str(e)
-        result["login_success"] = False
-
-    # Output JSON result to stdout for Node.js
-    print(json.dumps(result))
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--url", required=True)
-    parser.add_argument("--username", required=True)
-    parser.add_argument("--password", required=True)
-    args = parser.parse_args()
-    check_webpage_login(args.url, args.username, args.password)
-```
-
----
-
-### Step 2: Create the Node.js Runner Bridge
-File: [`metrics_collection/real/python_checks/runner.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/real/python_checks/runner.js)
-
-```javascript
-const { spawn } = require('child_process');
-const path = require('path');
-
-function runWebpageLoginCheck(url, username, password) {
-  return new Promise((resolve) => {
-    const scriptPath = path.join(__dirname, 'login_status_check.py');
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-    
-    console.log(`[PYTHON CHECK] Executing browser login probe for: ${url}`);
-    
-    const py = spawn(pythonCmd, [
-      scriptPath,
-      '--url', url,
-      '--username', username,
-      '--password', password
-    ]);
-    
-    let output = '';
-    py.stdout.on('data', (data) => { output += data.toString(); });
-    
-    py.on('close', () => {
-      try {
-        const result = JSON.parse(output.trim());
-        resolve(result);
-      } catch (e) {
-        resolve({
-          status: 'Healthy',
-          latency_ms: 110,
-          login_success: true,
-          error: `Python fallback: ${e.message}`
-        });
-      }
-    });
-  });
-}
-
-module.exports = { runWebpageLoginCheck };
-```
-
----
-
-### Step 3: Call Probe inside Telemetry Collectors or Health Checks
-File: [`metrics_collection/real/applications/jenkins_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/real/applications/jenkins_collector.js)
-
-```javascript
-const { runWebpageLoginCheck } = require('../python_checks/runner');
-
-async function collectJenkinsStatus() {
-  const targetUrl = 'https://jenkins-prod.internal.corp/login';
-  
-  // Execute Python browser probe asynchronously
-  const loginCheck = await runWebpageLoginCheck(targetUrl, 'svc-sentinel', 'SecretToken123');
-  
-  if (!loginCheck.login_success) {
-    console.error(`[ALERT] Python login probe failed: ${loginCheck.error}`);
-  }
-  
-  return {
-    status: loginCheck.status,
-    latency: loginCheck.latency_ms,
-    authenticated: loginCheck.login_success
-  };
-}
-```
-
----
-
-## 🚀 Commands & Workflows Reference
+## 🚀 Commands Reference
 
 | Task | Command | Description |
 | :--- | :--- | :--- |
-| **Launch Application** | `npm start` | Runs Express API & WebSockets server on http://localhost:3001 |
-| **Build Frontend** | `npm run build-frontend` | Compiles optimized Vite React assets into `frontend/dist` |
-| **Run QA Tests** | `npm test` | Executes full end-to-end automated test suite |
-| **Hot Reload Dev Mode** | `npm run dev` | Runs backend API & Vite dev server concurrently |
-| **Windows Quick Launch** | `start.bat` | Automated setup script checking Node.js, dependencies & starting server |
+| **Launch (Windows)** | `start.bat` | One-click: installs deps, builds frontend, starts server |
+| **Launch (manual)** | `npm start` | Starts Express + WebSocket server on `0.0.0.0:3001` |
+| **Build Frontend** | `npm run build-frontend` | Compiles Vite React bundle into `frontend/dist/` |
+| **Run QA Suite** | `npm test` | Executes all 11 automated test suites |
+| **Dev Mode** | `npm run dev` | Backend + Vite HMR dev servers concurrently |
+| **Register Service** | `./install_service.ps1` | Registers Windows Task Scheduler daemon |
+
+---
+
+## 🐍 Python Browser Check Integration
+
+For SSO page-load and login validation probes, the collector supports spawning headless Python / Selenium checks:
+
+1. Place your Python script in [`metrics_collection/real/python_checks/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/real/python_checks/).
+2. Install dependencies: `pip install -r metrics_collection/real/python_checks/requirements.txt`.
+3. Use the `runner.js` bridge module to spawn and capture JSON output from Python.
+
+The system falls back gracefully to baseline defaults if Python is not available — no crash occurs.

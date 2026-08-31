@@ -1,204 +1,217 @@
-# 🚀 Comprehensive Production Integration & Deployment Plan
+# 🚀 Production Integration & Deployment Plan
 
-This document serves as the **master reference blueprint** for deploying the **Intelligent Observability and Autonomous Recovery Framework** into Tier-1 Production environments (MNC Banking Standard).
-
----
-
-## 1. ⚙️ Fast Production Activation Toggle
-
-To activate real live HTTP collectors and production database queries:
-1. Copy [`.env.example`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/.env.example) to `.env` or set environment variables in your Kubernetes / SystemD deployment.
-2. Set `USE_SIMULATED_COLLECTORS=false` (or set `USE_SIMULATED_COLLECTORS: false` inside [`config/config.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/config/config.js)).
-3. Execute the automated QA test suite: `npm test`.
+This document is the **master deployment blueprint** for the **Intelligent Observability and Autonomous Recovery Framework** on Windows Server with AVI Load Balancer and enterprise RefWeb URL exposure.
 
 ---
 
-## 2. 🗄️ Database Setup Schemas
+## 1. ⚙️ Pre-Deployment Checklist
 
-### A. PostgreSQL / TimescaleDB Setup (Metrics Table)
-Execute the following SQL script on your PostgreSQL instance to create time-partitioned hypertables for historical metrics:
+| Step | Action | File / Location |
+| :--- | :--- | :--- |
+| ✅ 1 | Update production endpoints, AVI VS URL, and ordered app URL | [`config/global_config.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/global_config.yaml) → `prod_urls:` |
+| ✅ 2 | Update eLDAP / Active Directory bind credentials | [`config/global_config.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/global_config.yaml) → `sso_ldap_config:` |
+| ✅ 3 | Map CyberArk Safe names and Object IDs for all credentials | [`config/cyberark/registry.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/cyberark/registry.yaml) |
+| ✅ 4 | Set runtime secrets in `.env` (copy from `.env.example`) | [`/.env.example`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/.env.example) |
+| ✅ 5 | Run automated QA suite | `npm test` (11 suites) |
+| ✅ 6 | Build optimized frontend bundle | `npm run build-frontend` |
+| ✅ 7 | Start server | `npm start` or `start.bat` |
+| ✅ 8 | Point AVI Health Monitor to `/api/healthz` (HTTP 200 = UP) | [`backend/server.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/backend/server.js) |
 
-```sql
--- 1. Create base metrics table
-CREATE TABLE IF NOT EXISTS metrics (
-    timestamp TIMESTAMPTZ NOT NULL,
-    component VARCHAR(100) NOT NULL,    -- e.g., 'bitbucket', 'database', 'sso_gateway'
-    metric_name VARCHAR(100) NOT NULL,  -- e.g., 'cpu_usage', 'memory_usage', 'active_connections'
-    value DOUBLE PRECISION NOT NULL
-);
+---
 
--- 2. Convert into TimescaleDB hypertable (partitioned by 7-day intervals)
-SELECT create_hypertable('metrics', 'timestamp', chunk_time_interval => INTERVAL '7 days', if_not_exists => TRUE);
+## 2. 🔑 Single Source of Truth: `config/global_config.yaml`
 
--- 3. Create index for fast historical trend lookups
-CREATE INDEX IF NOT EXISTS idx_metrics_query ON metrics (component, metric_name, timestamp DESC);
+**All production URLs, AVI endpoints, and infrastructure settings live in one file.**
+Update the `prod_urls` section with your ordered/assigned production values:
+
+```yaml
+# Environment Mode (also dynamically switchable via UI)
+environment: "production"
+
+prod_urls:
+  app_url: "https://<YOUR-ORDERED-APP-URL>"              # Ordered RefWeb / public URL
+  avi_virtual_service_url: "https://<YOUR-AVI-VS-URL>"   # Ordered AVI Virtual Service URL
+
+  avi_api: "https://avi-prod.internal.corp/api/v1/telemetry"
+  sso_api: "https://sso-auth-prod.internal.corp/oauth2/token"
+  nas_mount: "d:\\production_shares\\nas_logs"
+  windows_api: "https://win-compute-prod.internal.corp/api/v1/metrics"
+  unix_api: "https://linux-compute-prod.internal.corp/api/v1/metrics"
+  db_jdbc: "jdbc:postgresql://db-prod-primary.internal.corp:5432/telemetry_db"
+  k8s_api: "https://k8s-apiserver-prod.internal.corp:6443"
+  bitbucket_api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
+  artifactory_api: "https://artifactory-prod.internal.corp/artifactory/api"
+  argocd_api: "https://argocd-prod.internal.corp/api/v1"
+  argoworkflows_api: "https://argo-workflows-prod.internal.corp/api/v1"
+  jenkins_master_url: "https://jenkins-prod.internal.corp/job"
+  teamcity_api: "https://teamcity-prod.internal.corp/app/rest"
+  sonarqube_api: "https://sonarqube-prod.internal.corp/api"
+  nexusiq_api: "https://nexusiq-prod.internal.corp/api/v2"
+  fortify_api: "https://fortify-prod.internal.corp/ssc/api/v1"
 ```
 
-### B. Snowflake Data Warehouse Setup (Log Analytics Table)
-Execute the following SQL script on your Snowflake warehouse instance:
+> **No other file needs editing for endpoint configuration.** The backend, all collectors, and the AVI health monitor all read from this single YAML at startup.
+
+---
+
+## 3. 🗄️ Database Setup Schemas
+
+### A. PostgreSQL / TimescaleDB (Metrics Time-Series)
+
+```sql
+CREATE TABLE IF NOT EXISTS metrics (
+    timestamp   TIMESTAMPTZ NOT NULL,
+    component   VARCHAR(100) NOT NULL,
+    metric_name VARCHAR(100) NOT NULL,
+    value       DOUBLE PRECISION NOT NULL,
+    environment VARCHAR(20) DEFAULT 'prod'
+);
+
+-- Convert to TimescaleDB hypertable (7-day partitions)
+SELECT create_hypertable('metrics', 'timestamp', chunk_time_interval => INTERVAL '7 days', if_not_exists => TRUE);
+
+CREATE INDEX IF NOT EXISTS idx_metrics_query ON metrics (component, metric_name, environment, timestamp DESC);
+```
+
+### B. Snowflake Data Warehouse (Log Analytics)
 
 ```sql
 CREATE TABLE IF NOT EXISTS LOG_ANALYTICS (
-    TIMESTAMP TIMESTAMP_NTZ NOT NULL,
-    COMPONENT VARCHAR(100) NOT NULL,
-    LOG_LEVEL VARCHAR(20) NOT NULL,    -- 'INFO', 'WARN', 'ERROR'
-    MESSAGE TEXT,
+    TIMESTAMP   TIMESTAMP_NTZ NOT NULL,
+    COMPONENT   VARCHAR(100) NOT NULL,
+    LOG_LEVEL   VARCHAR(20) NOT NULL,
+    MESSAGE     TEXT,
     ENVIRONMENT VARCHAR(50) DEFAULT 'PROD'
 );
 
-CREATE INDEX IF NOT EXISTS IDX_LOG_ANALYTICS ON LOG_ANALYTICS (COMPONENT, TIMESTAMP DESC);
+CREATE INDEX IF NOT EXISTS IDX_LOG_ANALYTICS ON LOG_ANALYTICS (COMPONENT, ENVIRONMENT, TIMESTAMP DESC);
 ```
 
 ---
 
-## 3. 🗺️ One-Stop Vendor Application & Infrastructure Reference Map
+## 4. 🌐 OpenTelemetry Collector Configuration
 
-| Component Category | Application Name | Source Code Collector File Path | config/config.js Variable | Env Variable Override | Description & Configuration |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Telemetry DB** | TimescaleDB / Postgres | [`database/postgres.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/database/postgres.js) | `db_jdbc` | `PROD_DB_JDBC` | PostgreSQL JDBC connection URL. Credentials read from `PGUSER` and `PGPASSWORD`. |
-| **Bitbucket** | Atlassian Bitbucket | [`metrics_collection/real/applications/bitbucket_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/bitbucket_collector.js) | `bitbucket_api` | `PROD_BITBUCKET_API` | REST base URL. Authenticates via Bearer Personal Access Token (PAT). |
-| **Artifactory** | JFrog Artifactory | [`metrics_collection/real/applications/artifactory_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/artifactory_collector.js) | `artifactory_api` | `PROD_ARTIFACTORY_API` | Queries system/storage stats and system ping latencies. |
-| **Fortify SSC** | OpenText Fortify SSC | [`metrics_collection/real/applications/fortify_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/fortify_collector.js) | `fortify_api` | `PROD_FORTIFY_API` | Synchronizes static security review queue status. |
-| **NexusIQ** | Sonatype NexusIQ | [`metrics_collection/real/applications/nexusiq_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/nexusiq_collector.js) | `nexusiq_api` | `PROD_NEXUSIQ_API` | Scans vulnerability metrics and policy violations. |
-| **SonarQube** | SonarQube Enterprise | [`metrics_collection/real/applications/sonarqube_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/sonarqube_collector.js) | `sonarqube_api` | `PROD_SONARQUBE_API` | Inspects quality gates status and scanner queues. |
-| **Jenkins Master** | CloudBees Jenkins CI | [`metrics_collection/real/applications/jenkins_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/jenkins_collector.js) | `jenkins_master_url` | `PROD_JENKINS_MASTER_URL` | Pulls build executor usage states and task queue delays. |
-| **TeamCity** | JetBrains TeamCity | [`metrics_collection/real/applications/teamcity_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/teamcity_collector.js) | `teamcity_api` | `PROD_TEAMCITY_API` | Inspects active agent workloads and pool ratios. |
-| **ArgoCD** | ArgoCD Hub | [`metrics_collection/real/applications/argocd_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/argocd_collector.js) | `argocd_api` | `PROD_ARGOCD_API` | Queries Git repository synchronization status mapping. |
-| **Argo Workflows** | Argo Workflows | [`metrics_collection/real/applications/argoworkflows_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/argoworkflows_collector.js) | `argoworkflows_api` | `PROD_ARGOWORKFLOWS_API` | Monitors batch pipeline status and completion counts. |
-| **GitHub** | GitHub Enterprise | [`metrics_collection/real/applications/github_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/github_collector.js) | `github` | `PROD_GITHUB_API` | Monitors repo pool status and Actions runner usage. |
-| **Bitbucket Ext** | Bitbucket External | [`metrics_collection/real/applications/bitbucket_external_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/bitbucket_external_collector.js) | `bitbucket_external_api` | `PROD_BITBUCKET_EXTERNAL_API` | External Bitbucket REST base URL for cross-org repos. |
-| **OTKR** | OTKR Security Engine | [`metrics_collection/real/applications/otkr_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/otkr_collector.js) | `otkr_api` | `PROD_OTKR_API` | Internal security scan tool REST API for auditing. |
-| **Perf Center** | Performance Center | [`metrics_collection/real/applications/performance_center_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/applications/performance_center_collector.js) | `performance_center_api` | `PROD_PERFORMANCE_CENTER_API` | Performance testing platform API for load benchmarks. |
-| **Avi Balancer** | AVI Load Balancer | [`metrics_collection/real/infrastructure/avi_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/avi_collector.js) | `avi_api` | `PROD_AVI_API` | Reads network flow, bandwidth load, and connection drops. |
-| **SSO / LDAP** | SSO & eLDAP Gateway | [`metrics_collection/real/infrastructure/sso_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/sso_collector.js) | `sso_api` | `PROD_SSO_API` | Monitors credentials validation and LDAP sync response delay. |
-| **NAS Share** | NAS Storage Share | [`metrics_collection/real/infrastructure/nas_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/nas_collector.js) | `nas_mount` | `PROD_NAS_MOUNT` | UNC path to write/archive aggregated logs. |
-| **Windows Hosts** | Windows Host Cluster | [`metrics_collection/real/infrastructure/windows_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/windows_collector.js) | `windows_api` | `PROD_WINDOWS_API` | Queries Windows servers for CPU, RAM, and Disk metrics. |
-| **Linux Hosts** | Linux Host Clusters | [`metrics_collection/real/infrastructure/linux_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/metrics_collection/real/infrastructure/linux_collector.js) | `unix_api / linux_api` | `PROD_UNIX_API` | Queries Linux cluster VMs for system load factors. |
-
----
-
-## 🛠️ Step-by-Step Production Deployment Procedure
-
-1. **Database Provisioning**: Run the PostgreSQL & Snowflake SQL scripts above to create tables and indexes.
-2. **Environment Variable Configuration**: Create `.env` from [`.env.example`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/.env.example) and set secrets (`PGUSER`, `PGPASSWORD`, `PROD_DB_JDBC`, `USE_SIMULATED_COLLECTORS=false`).
-3. **Execute QA Test Suite**: Run `npm test` to verify all 5 automated system assurance checks pass.
-4. **Build Production Assets**: Run `npm run build-frontend` to compile optimized client static bundles.
-5. **Launch Application**:
-   - On Windows: Run `npm start` or execute `start.bat`
-   - On Linux: Run `npm start` or execute `./start.sh`
-6. **Verify Four-Eyes Governance**: Open [Admin Management](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/Windows-Deploy/frontend/src/components/AdminManagement.jsx) to confirm RBAC roles and dual approval requirements.
-
----
-
-## 4. 📦 Sample Custom Application Onboarding (`testdemoapp.yaml`)
-
-This sample reference implementation demonstrates how to onboard a new microservice/application (`testdemoapp`) into the Intelligent Observability & Autonomous Recovery Framework.
-
-### Step 1: Create Declarative Application YAML Configuration
-Create [`config/applications/testdemoapp.yaml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/config/applications/testdemoapp.yaml):
+Project Sentinel acts as a **passive OTLP/HTTP receiver** on `POST /v1/metrics`.
+Point your OTel Collector fleet at the application's ordered URL:
 
 ```yaml
-id: "testdemoapp"
-display_name: "Test Demo Application"
+# otel-collector-config.yaml (deploy on each Linux / Windows / K8s host)
+exporters:
+  otlphttp:
+    endpoint: "https://<YOUR-ORDERED-APP-URL>/v1/metrics"
+    headers:
+      Authorization: "Bearer <sentinel_service_token>"
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics, kubeletstats, jmx]
+      exporters: [otlphttp]
+```
+
+The normalizer ([`metrics_collection/real/opentelemetry/otlp_metric_normalizer.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/real/opentelemetry/otlp_metric_normalizer.js)) automatically maps standard OTel metric names (e.g. `system.cpu.utilization`, `jvm.memory.used`) to Sentinel dashboard keys.
+
+---
+
+## 5. 🖥️ Windows Server IIS Deployment (web.config)
+
+The [`web.config`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/web.config) at the root is pre-configured for:
+- **HttpPlatformHandler**: Routes all IIS traffic directly to `node.exe backend\server.js`.
+- **IIS WebSocket Support**: Native 30-second ping interval.
+- **IIS URL Compression**: Dynamic + static gzip compression.
+- **Security Headers**: `X-Content-Type-Options`, `X-Frame-Options`.
+
+No additional IIS configuration is needed beyond enabling the `HttpPlatformHandler` module.
+
+---
+
+## 6. 🏗️ AVI Load Balancer Health Monitor
+
+Configure the AVI Virtual Service health monitor to probe:
+
+| Setting | Value |
+| :--- | :--- |
+| **Protocol** | HTTPS |
+| **Method** | GET |
+| **Path** | `/api/healthz` |
+| **Expected Response Code** | 200 |
+| **Expected Response Body** | `"status":"UP"` |
+| **Interval** | 15s |
+| **Timeout** | 5s |
+
+The server also responds to `/health`, `/status`, and `/api/ping` for compatibility with different health monitor configurations.
+
+---
+
+## 7. 🗺️ Vendor Application & Infrastructure Reference Map
+
+| Component | Config YAML | YAML Key | Description |
+| :--- | :--- | :--- | :--- |
+| **TimescaleDB / Postgres** | `global_config.yaml` | `db_jdbc` | PostgreSQL JDBC connection. Credentials via `PGUSER` / `PGPASSWORD` env vars or CyberArk. |
+| **Bitbucket** | `applications/bitbucket.yaml` | `endpoints.prod.api` | REST API base URL. Bearer PAT token via CyberArk. |
+| **Artifactory** | `applications/artifactory.yaml` | `endpoints.prod.api` | JFrog system stats and storage API. |
+| **Fortify SSC** | `applications/fortify.yaml` | `endpoints.prod.api` | Security review queue status. |
+| **NexusIQ** | `applications/nexusiq.yaml` | `endpoints.prod.api` | Vulnerability policy violation metrics. |
+| **SonarQube** | `applications/sonarqube.yaml` | `endpoints.prod.api` | Quality gate status and scanner queues. |
+| **Jenkins** | `applications/jenkins_k8s.yaml` | `endpoints.prod.api` | Build executor usage and queue delays. |
+| **TeamCity** | `applications/teamcity.yaml` | `endpoints.prod.api` | Agent workloads and pool ratios. |
+| **ArgoCD** | `applications/argocd.yaml` | `endpoints.prod.api` | Git sync status and app health. |
+| **Argo Workflows** | `applications/argoworkflows.yaml` | `endpoints.prod.api` | Batch pipeline status and completion counts. |
+| **AVI Load Balancer** | `infrastructure/avi.yaml` | `endpoint` | Network flow, bandwidth, connection metrics. |
+| **SSO / eLDAP** | `infrastructure/sso_eldap.yaml` | `endpoint` | LDAP sync response and bind validation. |
+| **NAS Share** | `global_config.yaml` | `nas_mount` | UNC path for log archive. |
+| **Windows Hosts** | `infrastructure/windows.yaml` | `endpoint` | CPU, RAM, disk metrics via API. |
+| **Linux Hosts** | `infrastructure/unix.yaml` | `endpoint` | System load metrics via API. |
+
+---
+
+## 8. 📦 Onboarding a New Application
+
+To register a new application, create a single declarative YAML in `config/applications/`:
+
+```yaml
+# config/applications/myapp.yaml
+id: "myapp"
+display_name: "My Application"
 category: "custom_microservice"
-log_tag: "[TEST-DEMO-APP]"
+log_tag: "[MYAPP]"
 
 endpoints:
   prod:
-    api: "https://testdemoapp-prod.internal.corp/api/v1"
+    api: "https://myapp-prod.internal.corp/api/v1"
   stg:
-    api: "https://testdemoapp-stg.internal.corp/api/v1"
+    api: "https://myapp-stg.internal.corp/api/v1"
 
 layers:
-  avi_api: "https://avi-prod-testdemoapp.internal.corp/api/v1/telemetry"
-  db_jdbc: "jdbc:postgresql://db-prod-testdemoapp.internal.corp:5432/testdemoapp_db"
-  nas_mount: "d:\\production_shares\\nas_logs\\testdemoapp"
-  s3_endpoint: "https://s3.prod-testdemoapp-us-east-1.amazonaws.com"
-  sso_api: "https://sso-auth-prod-testdemoapp.internal.corp/oauth2/token"
-  network_latency_hosts:
-    - "testdemoapp-prod.internal.corp"
+  avi_api: "https://avi-prod.internal.corp/api/v1/pools/myapp"
+  db_jdbc: "jdbc:postgresql://db-prod-primary.internal.corp:5432/myapp_db"
+  nas_mount: "d:\\production_shares\\nas_logs\\myapp"
 
 servers:
-  - node: "testdemoapp-node-1"
+  - hostname: "myapp-prod-01.internal.corp"
     type: "linux"
-    api: "https://linux-compute-prod-testdemoapp-1.internal.corp/api/v1/metrics"
 
-metrics_baseline:
-  activeBuilds: 5
-  agents: 8
-  load: 30.0
-
-jenkins_remediation_job: "JOB_RESTART_TESTDEMOAPP_SERVICE"
+jenkins_remediation_job: "JOB_RESTART_MYAPP_SERVICE"
 ```
 
-### Step 2: Create Custom Application Metrics Collector
-Create [`metrics_collection/simulation/applications/testdemoapp_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/metrics_collection/simulation/applications):
+**That's all.** No backend, frontend, or collector code changes are required. The backend auto-discovers all YAML files under `config/applications/` on startup and integrates `myapp` into the health matrix, environment-segregated data store, and YAML Config Manager UI.
 
-```javascript
-function collect(simulations, baseMetrics) {
-  const isOutage = simulations.testdemoapp && simulations.testdemoapp.type === 'outage';
+---
 
-  return {
-    activeBuilds: isOutage ? 0 : Math.floor((baseMetrics.activeBuilds || 5) + (Math.random() * 2 - 1)),
-    agents: baseMetrics.agents || 8,
-    load: isOutage ? 99.9 : parseFloat(((baseMetrics.load || 30) + (Math.random() * 4 - 2)).toFixed(2))
-  };
-}
+## 9. 🧪 QA Test Suite
 
-module.exports = { collect };
-```
+Run `npm test` to execute all 11 automated assurance suites:
 
-### Step 3: Register Log Simulation Templates
-In [`logs_collection/simulation/fluentd/fluentd_log_collector.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/logs_collection/simulation/fluentd/fluentd_log_collector.js):
-
-- Add standard log stream entry to `normalLogs`:
-  `"[TESTDEMOAPP] Processed request on /api/v1/demo - Status 200 OK (elapsed: 18ms)"`
-
-- Add error templates to `errorLogs.testdemoapp`:
-  ```javascript
-  errorLogs.testdemoapp = [
-    "[TESTDEMOAPP-FATAL] java.lang.OutOfMemoryError: Container memory limit exceeded on node-1.",
-    "[TESTDEMOAPP-CRASH] Application service crashed with exit code 137."
-  ];
-  ```
-
-### Step 4: Configure AI Anomaly Detection Signature
-In [`ai_analysis/simulation_analyzer.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/ai_analysis/simulation_analyzer.js):
-
-Append rule to `ANOMALY_PATTERNS`:
-```javascript
-{
-  regex: /TESTDEMOAPP-FATAL|Container memory limit exceeded/i,
-  category: 'TestDemoApp Memory Anomaly',
-  component: 'testdemoapp',
-  jenkinsJob: 'JOB_RESTART_TESTDEMOAPP_SERVICE',
-  severity: 'Critical',
-  message: 'Local AI Anomaly: Detected memory limit exhaustion in testdemoapp logs.'
-}
-```
-
-### Step 5: Register Autonomous Self-Healing Workflow
-In [`remediation/recovery.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/remediation/recovery.js):
-
-- Add workflow definition to `workflows`:
-  ```javascript
-  testdemoapp: {
-    actionName: 'Restart Test Demo App Service and recycle JVM pool',
-    steps: [
-      'Analyzing container crash logs for testdemoapp...',
-      'Restarting testdemoapp service instances...',
-      'Verifying health check http://testdemoapp-prod.internal.corp/api/v1... HTTP 200 OK',
-      'Incident resolved and Dynatrace status updated.'
-    ]
-  }
-  ```
-
-- Map Jenkins Job inside `executeRecoveryWorkflow`:
-  ```javascript
-  if (component === 'testdemoapp') jobName = 'JOB_RESTART_TESTDEMOAPP_SERVICE';
-  ```
-
-### Step 6: Verify Dynamic UI & API Auto-Discovery
-Once the YAML configuration is placed in `config/applications/testdemoapp.yaml`:
-1. **Backend Integration**: [`backend/server.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/backend/server.js) dynamically loads all YAML applications via `yamlConfig.loadAllApplications()` and incorporates `testdemoapp` into the system health matrix score and component status map.
-2. **GitOps UI Integration**: [`frontend/src/components/YamlConfigManager.jsx`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/windows-yaml-deploy/frontend/src/components/YamlConfigManager.jsx) automatically lists `testdemoapp.yaml` under application declarations and enables GitOps Bitbucket Pull Request creation for config changes.
+| Test | File | Coverage |
+| :--- | :--- | :--- |
+| CyberArk Credential Lookup | `cyberark_provider.test.js` | Safe/Object vault resolution |
+| Auth Lockdown | `auth_lockdown.test.js` | JWT and role enforcement |
+| Schema Validation | `schema_validation.test.js` | YAML / API schema integrity |
+| Telemetry Selector | `telemetry_selector.test.js` | OTel / Dynatrace / Prometheus profile resolution |
+| OTLP Normalizer | `otlp_normalizer.test.js` | OTel metric name → Sentinel key mapping |
+| Datastore Migration | `datastore_migration.test.js` | JSON DB rolling cap enforcement |
+| Misc Operations | `misc_operations.test.js` | Custom checks registry |
+| Prod Data Availability | `prod_data_availability.test.js` | Prod/Staging data isolation |
+| Environment Segregation | `data_availability_segregation.test.js` | Concurrent dual-environment collection |
+| Load Test (200 Hosts) | `load_test_200.js` | 200-host fan-out concurrency sweep |
+| E2E QA Suite | `e2e_qa_suite.test.js` | Full DB, API, recovery, chaos checks |

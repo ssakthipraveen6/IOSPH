@@ -2,11 +2,8 @@
 # GLOBAL OBSERVABILITY CONFIGURATION (global_config.yaml)
 # =========================================================================
 
-# TOGGLE: Set to true for simulated mock collectors, or false for real APIs
-use_simulated_collectors: false
-
-# Environment Mode: staging or production
-environment: "staging"
+# Environment Mode: staging or production (also switchable dynamically via UI)
+environment: "production"
 
 # Telemetry Provider Selector
 # Options: "dynatrace" | "opentelemetry" | "node_exporter" | "native" | "hybrid"

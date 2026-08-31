@@ -12,7 +12,7 @@ const infraConfig = yamlConfig.loadAllInfrastructureLayers();
 
 const useSimulated = process.env.USE_SIMULATED_COLLECTORS !== undefined 
   ? (process.env.USE_SIMULATED_COLLECTORS === 'true')
-  : (globalConfig.use_simulated_collectors !== undefined ? globalConfig.use_simulated_collectors : true);
+  : (globalConfig.use_simulated_collectors !== undefined ? Boolean(globalConfig.use_simulated_collectors) : false);
 
 // Map applications declared in YAML into the config.applications structure
 const applicationsObj = {};
