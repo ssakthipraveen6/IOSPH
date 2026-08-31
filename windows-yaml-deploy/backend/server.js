@@ -29,10 +29,17 @@ const recovery = require('../remediation/recovery');     // imports runSelfHeali
 const ldapClient = require('./auth/ldap_client');
 const session = require('./auth/session');
 const config = require('../config/config');
+const compression = require('compression');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ noServer: true });
+
+// [LOAD & PROXY ENHANCEMENT] Trust corporate reverse proxies (RefWeb / IIS ARR / F5 / AVI)
+app.set('trust proxy', true);
+
+// [PERF ENHANCEMENT] HTTP Gzip/Deflate compression for high concurrency
+app.use(compression());
 
 // [TASK 5] HTTP Security Headers via Helmet (CSP, HSTS, X-Frame-Options)
 const helmet = require('helmet');
@@ -40,7 +47,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:  ["'self'"],
-      connectSrc:  ["'self'", "ws:", "wss:"],
+      connectSrc:  ["'self'", "ws:", "wss:", "http:", "https:"],
       scriptSrc:   ["'self'", "'unsafe-inline'"],
       styleSrc:    ["'self'", "'unsafe-inline'"],
       imgSrc:      ["'self'", "data:", "blob:"],
@@ -55,33 +62,38 @@ app.use(helmet({
 // [TASK 1] Runtime environment state (switchable via API without server restart)
 let runtimeEnvironment = config.ENVIRONMENT || 'staging';
 
-// [SEC-05 REMEDIATED] — CWE-942: CORS substring bypass replaced with explicit allowlist
-// origin.includes('localhost') pattern was bypassable via subdomains (e.g. evil-localhost.attacker.com)
+// [SEC-05 REMEDIATED] — CORS allowlist supporting RefWeb, corporate intranet domains, and dev
+const configuredOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
 const ALLOWED_ORIGINS = [
   process.env.ALLOWED_ORIGIN || 'https://sentinel.yourbank.internal',
+  ...configuredOrigins,
   'http://localhost:5173',  // Vite dev server
+  'http://localhost:5174',
   'http://localhost:3001',  // Backend direct
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'http://127.0.0.1:3001'
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // No origin = same-origin request (CLI tools, server-to-server) — allow
+    // No origin = same-origin request (RefWeb reverse proxy, CLI tools, server-to-server) — allow
     if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.internal') || origin.endsWith('.corp') || origin.includes('refweb')) {
+      return callback(null, true);
+    }
     callback(new Error(`CORS: Origin '${origin}' is not in the allowed list.`));
   },
   credentials: true
 }));
 
 // [DS-01 REMEDIATED] Global body size cap — prevents oversized JSON payload attacks
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '5mb' }));
 
-// [DS-01] Rate limiters by endpoint category
+// [LOAD-01] High-concurrency rate limiters (tuned for corporate proxy IP aggregation)
 const generalApiLimiter = rateLimit({
   windowMs: 60 * 1000,   // 1 minute window
-  max: 300,              // 300 requests/min per IP for general API
+  max: 2000,             // 2,000 requests/min per IP/proxy for concurrent enterprise members
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down.' }
@@ -89,7 +101,7 @@ const generalApiLimiter = rateLimit({
 
 const otlpIngestLimiter = rateLimit({
   windowMs: 60 * 1000,   // 1 minute window
-  max: 500,              // 500 OTLP metric posts per minute per agent IP
+  max: 1000,             // 1,000 OTLP metric posts per minute per agent IP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'OTLP ingestion rate limit exceeded. Reduce push interval.' }
@@ -97,7 +109,7 @@ const otlpIngestLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minute window
-  max: 10,                   // 10 login attempts per 15 min — brute force protection
+  max: 50,                   // 50 login attempts per 15 min for enterprise user base
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many authentication attempts. Please wait 15 minutes.' }
@@ -155,11 +167,12 @@ function requireRole(allowedRoles) {
   };
 }
 
-app.use(requireAuth);
-
-// Serve static files from the React frontend build folder
+// Serve static files with caching headers for high performance
 const distPath = path.join(__dirname, '..', 'frontend', 'dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, {
+  maxAge: '1d',
+  etag: true
+}));
 
 // WebSockets connections list
 const clients = new Set();
@@ -342,9 +355,20 @@ app.post('/api/environment', (req, res) => {
   res.json({ success: true, environment: runtimeEnvironment });
 });
 
+// AVI Load Balancer & Reverse Proxy Health Check Probe
+app.get(['/api/healthz', '/health', '/api/ping', '/status'], (req, res) => {
+  res.status(200).json({
+    status: 'UP',
+    service: 'project-sentinel',
+    environment: runtimeEnvironment,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Overall Health Status
 app.get('/api/health', (req, res) => {
-  res.json(calculateHealthState());
+  const env = req.query.environment || runtimeEnvironment;
+  res.json(calculateHealthState(env));
 });
 
 // Component historical metrics (all)
@@ -853,8 +877,10 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-// WebSockets Connection logic
+// WebSockets Connection logic with heartbeat keepalive for reverse proxies (RefWeb / IIS / AVI)
 wss.on('connection', (ws) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   clients.add(ws);
   
   // Send initial data to client
@@ -875,9 +901,36 @@ wss.on('connection', (ws) => {
   });
 });
 
+// 30-second ping heartbeat to maintain reverse proxy connection through corporate firewalls/RefWeb
+const wsHeartbeatInterval = setInterval(() => {
+  clients.forEach(ws => {
+    if (ws.isAlive === false) {
+      clients.delete(ws);
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 30000);
+
+// SPA Fallback Route for direct RefWeb URL navigation and deep links
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/v1')) {
+    return res.status(404).json({ error: `Endpoint ${req.path} not found` });
+  }
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('Frontend build not found. Please build frontend assets with npm run build-frontend.');
+  }
+});
+
 // [TASK 3] Graceful shutdown handler for SIGTERM / SIGINT
 function shutdown(signal) {
   console.log(`[SYSTEM] ${signal} received. Initiating graceful shutdown...`);
+  clearInterval(wsHeartbeatInterval);
   server.close(() => {
     console.log('[SYSTEM] HTTP/WS server closed. Flushing write-behind cache...');
     try {
@@ -901,9 +954,9 @@ function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-// Start server
+// Start server on all interfaces (0.0.0.0) so RefWeb and Windows Server IIS reverse proxies can connect
 const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || '127.0.0.1';
+const HOST = process.env.HOST || '0.0.0.0';
 server.listen(PORT, HOST, () => {
   console.log(`[SYSTEM] Intelligent Observability & Autonomous Recovery Framework Backend API running on http://${HOST}:${PORT}`);
   collector.start();

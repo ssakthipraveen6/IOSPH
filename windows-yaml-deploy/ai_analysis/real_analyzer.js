@@ -35,27 +35,28 @@ const ANOMALY_PATTERNS = [
   }
 ];
 
-function analyzeServerLogs(logLines, writeNasLog, triggerRecoveryFunc) {
+function analyzeServerLogs(logLines, writeNasLog, triggerRecoveryFunc, env = 'staging') {
   if (!logLines || logLines.length === 0) return;
   
   logLines.forEach(line => {
     ANOMALY_PATTERNS.forEach(pattern => {
       if (pattern.regex.test(line)) {
-        writeNasLog('WARNING', 'AI_ENGINE_REAL', `[LOCAL AI ANALYZER] Log pattern match: ${pattern.category}. Raw: "${line}"`);
+        writeNasLog('WARNING', 'AI_ENGINE_REAL', `[LOCAL AI ANALYZER] [${env.toUpperCase()}] Log pattern match: ${pattern.category}. Raw: "${line}"`);
         
-        const activeAlerts = db.getAlerts().filter(
+        const activeAlerts = db.getAlerts(env).filter(
           a => a.component === pattern.component && a.status === 'Active' && a.severity === pattern.severity
         );
         
         if (activeAlerts.length === 0) {
-          db.addAlert(pattern.component, pattern.severity, pattern.message);
-          writeNasLog('CRITICAL', 'AI_ENGINE_REAL', `[LOCAL AI PREDICTOR] Raised ${pattern.severity} Alert for ${pattern.component}: "${pattern.message}"`);
+          db.addAlert(pattern.component, pattern.severity, pattern.message, env);
+          writeNasLog('CRITICAL', 'AI_ENGINE_REAL', `[LOCAL AI PREDICTOR] [${env.toUpperCase()}] Raised ${pattern.severity} Alert for ${pattern.component}: "${pattern.message}"`);
           
           if (triggerRecoveryFunc) {
             triggerRecoveryFunc(
               pattern.component, 
               `Local AI detected logs signature: "${pattern.category}"`, 
-              pattern.jenkinsJob
+              pattern.jenkinsJob,
+              env
             );
           }
         }

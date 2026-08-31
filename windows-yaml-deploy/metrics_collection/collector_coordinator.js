@@ -24,29 +24,37 @@ async function collectTier(tierName) {
     const activeSims = simulations.getSimulations();
     customChecks.runCustomChecks(activeSims);
 
-    if (tierName === 'high' || tierName === 'all') {
-      if (providerSelector.shouldRunCollector('app_collector')) {
-        await appCollector.collectAppMetrics(activeSims, db, writeNasLog);
-      }
-      
-      if (providerSelector.shouldRunCollector('dynatrace')) {
-        await dynatraceCollector.collectDynatraceAlerts(db, writeNasLog);
-      }
-      
-      const rawLogs = await fluentdCollector.collectFluentdLogs(activeSims, db, writeNasLog);
-      aiAnalyzer.analyzeServerLogs(rawLogs, writeNasLog, (comp, reason) => {
-        triggerRecovery(comp, reason);
-      });
-    }
+    // Concurrently collect telemetry for both staging and prod so switching environments never halts background collection
+    const environments = ['staging', 'prod'];
+    for (const env of environments) {
+      const simsForEnv = env === 'staging' ? activeSims : {};
 
-    if (tierName === 'medium' || tierName === 'all' || tierName === 'low') {
-      const infraMetrics = await infraCollector.collectInfraMetrics(activeSims, db, writeNasLog);
-      
-      if (global.runPredictiveAnalysis) {
-        global.runPredictiveAnalysis(infraMetrics);
+      if (tierName === 'high' || tierName === 'all') {
+        if (providerSelector.shouldRunCollector('app_collector')) {
+          await appCollector.collectAppMetrics(simsForEnv, db, writeNasLog, env);
+        }
+        
+        if (providerSelector.shouldRunCollector('dynatrace')) {
+          await dynatraceCollector.collectDynatraceAlerts(db, writeNasLog, env);
+        }
+        
+        const rawLogs = await fluentdCollector.collectFluentdLogs(simsForEnv, db, writeNasLog, env);
+        if (aiAnalyzer && typeof aiAnalyzer.analyzeServerLogs === 'function') {
+          aiAnalyzer.analyzeServerLogs(rawLogs, writeNasLog, (comp, reason) => {
+            triggerRecovery(comp, reason, env);
+          }, env);
+        }
       }
-      if (global.runSelfHealingOrchestrator) {
-        global.runSelfHealingOrchestrator(infraMetrics);
+
+      if (tierName === 'medium' || tierName === 'all' || tierName === 'low') {
+        const infraMetrics = await infraCollector.collectInfraMetrics(simsForEnv, db, writeNasLog, env);
+        
+        if (global.runPredictiveAnalysis) {
+          global.runPredictiveAnalysis(infraMetrics, env);
+        }
+        if (global.runSelfHealingOrchestrator) {
+          global.runSelfHealingOrchestrator(infraMetrics, env);
+        }
       }
     }
 

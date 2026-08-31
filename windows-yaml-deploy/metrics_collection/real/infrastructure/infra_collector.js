@@ -55,9 +55,9 @@ const baselines = {
   node_exporter: { active_node_exporters: 0, avg_cpu_idle: 82.5, avg_memory_available_pct: 64.2 }
 };
 
-async function collectInfraMetrics(simulations, db, writeNasLog) {
+async function collectInfraMetrics(simulations, db, writeNasLog, targetEnv = null) {
   const currentMetrics = {};
-  const currentEnv = global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
+  const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
   const isProd = currentEnv === 'prod';
   
   const componentsList = [

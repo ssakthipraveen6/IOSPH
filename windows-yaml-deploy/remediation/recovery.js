@@ -165,7 +165,7 @@ function executeRecoveryWorkflow(runId, component) {
 }
 
 // Manual trigger or automated initiation of a pending action
-function triggerRecovery(component, triggerReason, isManualTrigger = false) {
+function triggerRecovery(component, triggerReason, isManualTrigger = false, env = null) {
   const workflow = resolveWorkflow(component);
   if (!workflow) return null;
   
@@ -175,7 +175,7 @@ function triggerRecovery(component, triggerReason, isManualTrigger = false) {
   }
   
   const settings = db.getSettings();
-  const run = db.addRecoveryRun(component, workflow.actionName, triggerReason);
+  const run = db.addRecoveryRun(component, workflow.actionName, triggerReason, env);
   
   activeRecoveries.set(component, run);
   

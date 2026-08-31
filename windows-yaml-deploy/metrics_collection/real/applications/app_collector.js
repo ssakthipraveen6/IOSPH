@@ -8,11 +8,11 @@ const config = require('../../../config/config');
  * Automatically discovers all applications defined in config/applications/*.yaml
  * and dynamically matches them with custom collector JS modules in this directory.
  */
-async function collectAppMetrics(simulations, db, writeNasLog) {
+async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null) {
   const currentMetrics = {};
   const appsConfig = yamlConfig.loadAllApplications();
   const collectorsDir = __dirname;
-  const currentEnv = global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
+  const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
   const isProd = currentEnv === 'prod';
 
   const appKeys = Object.keys(appsConfig);

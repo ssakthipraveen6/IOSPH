@@ -1,0 +1,1409 @@
+{
+  "metrics": [
+    {
+      "timestamp": "2026-08-31T14:15:09.834Z",
+      "component": "argocd_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.834Z",
+      "component": "argocd_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows",
+      "metricName": "activeWorkflows",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows",
+      "metricName": "failedWorkflows",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:09.843Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.013Z",
+      "component": "artifactory",
+      "metricName": "heap",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.013Z",
+      "component": "artifactory",
+      "metricName": "space",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.013Z",
+      "component": "artifactory",
+      "metricName": "latency",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.163Z",
+      "component": "bitbucket",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.163Z",
+      "component": "bitbucket",
+      "metricName": "successRate",
+      "value": 99.77,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.163Z",
+      "component": "bitbucket",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "bitbucket_external",
+      "metricName": "responseTime",
+      "value": 1,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "bitbucket_external",
+      "metricName": "successRate",
+      "value": 99.67,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "bitbucket_external",
+      "metricName": "requests",
+      "value": 33,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.312Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.316Z",
+      "component": "fortify",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.316Z",
+      "component": "fortify",
+      "metricName": "cpu",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.316Z",
+      "component": "fortify",
+      "metricName": "failures",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "github",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "github",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "github",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "github",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "github",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "jenkins_k8s",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "jenkins_k8s",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "jenkins_k8s",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "jenkins_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.317Z",
+      "component": "jenkins_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jfrog_artifactory",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jfrog_artifactory",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jfrog_artifactory",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jfrog_artifactory",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "jfrog_artifactory",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "mcp_server_k8s",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "mcp_server_k8s",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "mcp_server_k8s",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "mcp_server_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.318Z",
+      "component": "mcp_server_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.326Z",
+      "component": "nexusiq",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.326Z",
+      "component": "nexusiq",
+      "metricName": "violations",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.326Z",
+      "component": "nexusiq",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.329Z",
+      "component": "otkr",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.329Z",
+      "component": "otkr",
+      "metricName": "findings",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.329Z",
+      "component": "otkr",
+      "metricName": "responseTime",
+      "value": 101,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.330Z",
+      "component": "performance_center",
+      "metricName": "activeTests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.330Z",
+      "component": "performance_center",
+      "metricName": "avgResponseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.330Z",
+      "component": "performance_center",
+      "metricName": "throughput",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.334Z",
+      "component": "sonarqube",
+      "metricName": "systemStatus",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.334Z",
+      "component": "sonarqube",
+      "metricName": "qualityGatesPassed",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.334Z",
+      "component": "sonarqube",
+      "metricName": "analysisQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.334Z",
+      "component": "sonarqube",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.338Z",
+      "component": "teamcity",
+      "metricName": "activeBuilds",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.338Z",
+      "component": "teamcity",
+      "metricName": "agents",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.338Z",
+      "component": "teamcity",
+      "metricName": "load",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.364Z",
+      "component": "argocd",
+      "metricName": "syncStatus",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.364Z",
+      "component": "argocd",
+      "metricName": "latency",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.364Z",
+      "component": "argocd",
+      "metricName": "clusterCount",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.364Z",
+      "component": "argocd_k8s",
+      "metricName": "responseTime",
+      "value": 71.79,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.364Z",
+      "component": "argocd_k8s",
+      "metricName": "successRate",
+      "value": 96.97,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.364Z",
+      "component": "argocd_k8s",
+      "metricName": "requests",
+      "value": 144.45,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.371Z",
+      "component": "argoworkflows",
+      "metricName": "activeWorkflows",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.372Z",
+      "component": "argoworkflows",
+      "metricName": "failedWorkflows",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.372Z",
+      "component": "argoworkflows",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.372Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "responseTime",
+      "value": 76.14,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.372Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "successRate",
+      "value": 97.96,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.372Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "requests",
+      "value": 115.4,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.539Z",
+      "component": "artifactory",
+      "metricName": "heap",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.539Z",
+      "component": "artifactory",
+      "metricName": "space",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.539Z",
+      "component": "artifactory",
+      "metricName": "latency",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.688Z",
+      "component": "bitbucket",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.688Z",
+      "component": "bitbucket",
+      "metricName": "successRate",
+      "value": 99.79,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.688Z",
+      "component": "bitbucket",
+      "metricName": "requests",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.831Z",
+      "component": "bitbucket_external",
+      "metricName": "responseTime",
+      "value": 2,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.831Z",
+      "component": "bitbucket_external",
+      "metricName": "successRate",
+      "value": 99.66,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.831Z",
+      "component": "bitbucket_external",
+      "metricName": "requests",
+      "value": 36,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.831Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "responseTime",
+      "value": 104.6,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.831Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "successRate",
+      "value": 97.69,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.831Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "requests",
+      "value": 80.43,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.840Z",
+      "component": "fortify",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.840Z",
+      "component": "fortify",
+      "metricName": "cpu",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.840Z",
+      "component": "fortify",
+      "metricName": "failures",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.842Z",
+      "component": "github",
+      "metricName": "responseTime",
+      "value": 66.63,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.842Z",
+      "component": "github",
+      "metricName": "successRate",
+      "value": 102.64,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.842Z",
+      "component": "github",
+      "metricName": "requests",
+      "value": 195.77,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jenkins_k8s",
+      "metricName": "responseTime",
+      "value": 106.28,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jenkins_k8s",
+      "metricName": "successRate",
+      "value": 101.24,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jenkins_k8s",
+      "metricName": "requests",
+      "value": 82.41,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "responseTime",
+      "value": 103.03,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "successRate",
+      "value": 95.83,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "requests",
+      "value": 57.46,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jfrog_artifactory",
+      "metricName": "responseTime",
+      "value": 93.37,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jfrog_artifactory",
+      "metricName": "successRate",
+      "value": 103.05,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.843Z",
+      "component": "jfrog_artifactory",
+      "metricName": "requests",
+      "value": 123.78,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.844Z",
+      "component": "mcp_server_k8s",
+      "metricName": "responseTime",
+      "value": 86.98,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.844Z",
+      "component": "mcp_server_k8s",
+      "metricName": "successRate",
+      "value": 101.66,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.844Z",
+      "component": "mcp_server_k8s",
+      "metricName": "requests",
+      "value": 53.45,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.852Z",
+      "component": "nexusiq",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.852Z",
+      "component": "nexusiq",
+      "metricName": "violations",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.852Z",
+      "component": "nexusiq",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.853Z",
+      "component": "otkr",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.853Z",
+      "component": "otkr",
+      "metricName": "findings",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.853Z",
+      "component": "otkr",
+      "metricName": "responseTime",
+      "value": 101,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.854Z",
+      "component": "performance_center",
+      "metricName": "activeTests",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.854Z",
+      "component": "performance_center",
+      "metricName": "avgResponseTime",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.854Z",
+      "component": "performance_center",
+      "metricName": "throughput",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.869Z",
+      "component": "sonarqube",
+      "metricName": "systemStatus",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.869Z",
+      "component": "sonarqube",
+      "metricName": "qualityGatesPassed",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.869Z",
+      "component": "sonarqube",
+      "metricName": "analysisQueue",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.869Z",
+      "component": "sonarqube",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.879Z",
+      "component": "teamcity",
+      "metricName": "activeBuilds",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.879Z",
+      "component": "teamcity",
+      "metricName": "agents",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.879Z",
+      "component": "teamcity",
+      "metricName": "load",
+      "value": null,
+      "env": "staging"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd",
+      "metricName": "syncStatus",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd",
+      "metricName": "latency",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd",
+      "metricName": "clusterCount",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd_k8s",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd_k8s",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd_k8s",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.888Z",
+      "component": "argocd_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows",
+      "metricName": "activeWorkflows",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows",
+      "metricName": "failedWorkflows",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:10.895Z",
+      "component": "argoworkflows_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.059Z",
+      "component": "artifactory",
+      "metricName": "heap",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.060Z",
+      "component": "artifactory",
+      "metricName": "space",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.060Z",
+      "component": "artifactory",
+      "metricName": "latency",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.193Z",
+      "component": "bitbucket",
+      "metricName": "responseTime",
+      "value": 2,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.193Z",
+      "component": "bitbucket",
+      "metricName": "successRate",
+      "value": 99.78,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.193Z",
+      "component": "bitbucket",
+      "metricName": "requests",
+      "value": 45,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.342Z",
+      "component": "bitbucket_external",
+      "metricName": "responseTime",
+      "value": 90,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.343Z",
+      "component": "bitbucket_external",
+      "metricName": "successRate",
+      "value": 99.67,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.343Z",
+      "component": "bitbucket_external",
+      "metricName": "requests",
+      "value": 34,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.343Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.343Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.343Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.343Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.343Z",
+      "component": "cloudbees_jenkins",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.349Z",
+      "component": "fortify",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.349Z",
+      "component": "fortify",
+      "metricName": "cpu",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.349Z",
+      "component": "fortify",
+      "metricName": "failures",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.352Z",
+      "component": "github",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.352Z",
+      "component": "github",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.352Z",
+      "component": "github",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.352Z",
+      "component": "github",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.352Z",
+      "component": "github",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jenkins_k8s",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jenkins_k8s",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jenkins_k8s",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jenkins_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jenkins_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jetbrains_teamcity",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jfrog_artifactory",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jfrog_artifactory",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jfrog_artifactory",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jfrog_artifactory",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "jfrog_artifactory",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "mcp_server_k8s",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "mcp_server_k8s",
+      "metricName": "successRate",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "mcp_server_k8s",
+      "metricName": "requests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "mcp_server_k8s",
+      "metricName": "isLive",
+      "value": false,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.353Z",
+      "component": "mcp_server_k8s",
+      "metricName": "error",
+      "value": "Data Not Available",
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.358Z",
+      "component": "nexusiq",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.358Z",
+      "component": "nexusiq",
+      "metricName": "violations",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.358Z",
+      "component": "nexusiq",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.358Z",
+      "component": "otkr",
+      "metricName": "scanQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.359Z",
+      "component": "otkr",
+      "metricName": "findings",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.359Z",
+      "component": "otkr",
+      "metricName": "responseTime",
+      "value": 98,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.359Z",
+      "component": "performance_center",
+      "metricName": "activeTests",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.359Z",
+      "component": "performance_center",
+      "metricName": "avgResponseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.359Z",
+      "component": "performance_center",
+      "metricName": "throughput",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.365Z",
+      "component": "sonarqube",
+      "metricName": "systemStatus",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.365Z",
+      "component": "sonarqube",
+      "metricName": "qualityGatesPassed",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.365Z",
+      "component": "sonarqube",
+      "metricName": "analysisQueue",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.365Z",
+      "component": "sonarqube",
+      "metricName": "responseTime",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.368Z",
+      "component": "teamcity",
+      "metricName": "activeBuilds",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.368Z",
+      "component": "teamcity",
+      "metricName": "agents",
+      "value": null,
+      "env": "prod"
+    },
+    {
+      "timestamp": "2026-08-31T14:15:11.368Z",
+      "component": "teamcity",
+      "metricName": "load",
+      "value": null,
+      "env": "prod"
+    }
+  ],
+  "alerts": [],
+  "recovery": [],
+  "settings": {
+    "autonomousMode": false
+  }
+}

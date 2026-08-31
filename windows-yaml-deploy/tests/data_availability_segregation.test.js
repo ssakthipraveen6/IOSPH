@@ -73,8 +73,31 @@ console.log('======================================================');
   assert.ok(demoHist.length > 0, 'Demo environment provides synthetic historical timeseries');
   console.log('✔ Test 3 Passed: Demo mode provides simulated data points isolated from prod/staging');
 
+  // ----------------------------------------------------
+  // Test 4: Concurrent Multi-Environment Collection (Switching to PROD continues Staging collection)
+  // ----------------------------------------------------
+  config.ENVIRONMENT = 'prod';
+  global.runtimeEnvironment = 'prod';
+
+  // Explicitly collect for staging and prod in background
+  const stgMetrics = await appCollector.collectAppMetrics({}, db, () => {}, 'staging');
+  const prodMetrics = await appCollector.collectAppMetrics({}, db, () => {}, 'prod');
+
+  // Verify staging data was collected and saved under staging tag
+  const latestStaging = db.getMetrics('bitbucket', 5, 'staging');
+  assert.ok(latestStaging.length > 0, 'Staging collection must continue when runtimeEnvironment is prod');
+  assert.ok(latestStaging.every(m => m.env === 'staging'), 'Staging metrics must strictly be tagged staging');
+
+  // Verify prod query only returns prod metrics
+  const latestProd = db.getMetrics('bitbucket', 5, 'prod');
+  assert.ok(latestProd.length > 0, 'Prod collection must record prod telemetry');
+  assert.ok(latestProd.every(m => m.env === 'prod'), 'Prod metrics must strictly be tagged prod');
+
+  console.log('✔ Test 4 Passed: Dual background collection maintains continuous updates for both Prod and Staging');
+
   // Restore environment
   config.ENVIRONMENT = originalEnv;
+  global.runtimeEnvironment = originalEnv;
   console.log('\n======================================================');
   console.log('📊 ENVIRONMENT SEGREGATION & DATA AVAILABILITY TESTS PASSED');
   console.log('======================================================\n');

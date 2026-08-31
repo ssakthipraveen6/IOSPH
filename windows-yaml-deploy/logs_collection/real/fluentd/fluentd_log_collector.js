@@ -13,9 +13,9 @@ const normalLogs = [
   "[S3-BUCK] Performing multipart backup archiving snapshot sentinel_db_dump.sql (bandwidth: 84.5 MB/s)"
 ];
 
-async function collectFluentdLogs(simulations, db, writeNasLog) {
-  const logPath = config.STG_URLS.fluentd_log_path;
-  const currentEnv = global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
+async function collectFluentdLogs(simulations, db, writeNasLog, targetEnv = null) {
+  const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
+  const logPath = currentEnv === 'prod' ? config.PROD_URLS.fluentd_log_path : config.STG_URLS.fluentd_log_path;
   const linesGenerated = [];
 
   try {

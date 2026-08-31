@@ -20,9 +20,9 @@ async function resolveApiToken() {
  * @param {object} db Datastore manager
  * @param {function} writeNasLog Logging function
  */
-async function collectDynatraceAlerts(db, writeNasLog) {
-  const currentEnv = global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
-  const targetConfig = config.ACTIVE_URLS || {};
+async function collectDynatraceAlerts(db, writeNasLog, targetEnv = null) {
+  const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
+  const targetConfig = (currentEnv === 'prod' ? config.PROD_URLS : config.STG_URLS) || config.ACTIVE_URLS || {};
   const baseUrl = targetConfig.dynatrace_api_endpoint || 'https://dynatrace.internal.corp';
 
   if (currentEnv === 'demo') {
