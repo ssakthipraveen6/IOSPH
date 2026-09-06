@@ -10,6 +10,11 @@ const nasCollector = require('./nas_collector');
 const s3Collector = require('./s3_collector');
 const ssoCollector = require('./sso_collector');
 const networkCollector = require('./network_collector');
+const dockerCollector = require('./docker_collector');
+const k8sCollector = require('./k8s_collector');
+const nodeExporterCollector = require('./node_exporter_collector');
+const providerSelector = require('../../telemetry_provider_selector');
+const config = require('../../../config/config');
 
 // Baseline configs
 const baselines = {
@@ -57,10 +62,13 @@ const baselines = {
     bitbucket_external_spaceUsed: 10.2, bitbucket_external_iops: 85,
     otkr_spaceUsed: 3.5, otkr_iops: 25,
     performance_center_spaceUsed: 5.8, performance_center_iops: 48
-  }
+  },
+  docker: { registry_status: 'Healthy', image_pull_latency_ms: 42.0, container_count: 52, active_registries: 13 },
+  k8s: { cluster_status: 'Healthy', apiserver_latency_ms: 18.5, active_namespaces: 13, pod_restarts: 0 },
+  node_exporter: { active_node_exporters: 8, avg_cpu_idle: 82.5, avg_memory_available_pct: 64.2 }
 };
 
-function collectInfraMetrics(simulations, db, writeNasLog) {
+function collectInfraMetrics(simulations, db, writeNasLog, targetEnv = 'demo') {
   const currentMetrics = {};
   
   const componentsList = [
@@ -71,12 +79,20 @@ function collectInfraMetrics(simulations, db, writeNasLog) {
     { key: 'nas_performance', collector: nasCollector },
     { key: 's3_storage', collector: s3Collector },
     { key: 'sso_gateway', collector: ssoCollector },
-    { key: 'network_latency', collector: networkCollector }
-  ];
+    { key: 'network_latency', collector: networkCollector },
+    { key: 'docker', collector: dockerCollector },
+    { key: 'k8s', collector: k8sCollector },
+    { key: 'node_exporter', collector: nodeExporterCollector }
+  ].filter(c => {
+    if (targetEnv === 'demo' || config.USE_SIMULATED_COLLECTORS) {
+      return true;
+    }
+    return typeof providerSelector?.shouldRunCollector !== 'function' || providerSelector.shouldRunCollector(c.key);
+  });
 
   componentsList.forEach(({ key, collector }) => {
     let state = 'Healthy';
-    const base = baselines[key];
+    const base = baselines[key] || {};
     
     // Check general simulated outage override
     if (simulations[key] && simulations[key].type === 'outage') {
@@ -85,6 +101,10 @@ function collectInfraMetrics(simulations, db, writeNasLog) {
       state = 'Critical';
     } else if (key === 'avi_load_balancer' && simulations['avi_load_balancer']) {
       state = 'Warning';
+    } else if (key === 'docker' && simulations['docker'] && simulations['docker'].type === 'memory_leak') {
+      state = 'Warning';
+    } else if (key === 'k8s' && simulations['k8s'] && simulations['k8s'].type === 'memory_leak') {
+      state = 'Warning';
     }
 
     // Call individual collector logic
@@ -92,12 +112,14 @@ function collectInfraMetrics(simulations, db, writeNasLog) {
 
     // Save metrics
     Object.keys(data).forEach(mName => {
-      db.addMetric(key, mName, data[mName]);
+      if (data[mName] !== undefined && data[mName] !== null) {
+        db.addMetric(key, mName, data[mName], targetEnv);
+      }
     });
 
     currentMetrics[key] = { status: state, metrics: data };
     const metricsStr = Object.keys(data).map(k => `${k}: ${data[k]}`).join(', ');
-    writeNasLog('INFO', 'INFRA_SIMULATOR', `${key} | Status: ${state} | Metrics: ${metricsStr}`);
+    writeNasLog('INFO', 'INFRA_SIMULATOR', `${key} [${(targetEnv || 'demo').toUpperCase()}] | Status: ${state} | Metrics: ${metricsStr}`);
   });
 
   return currentMetrics;
