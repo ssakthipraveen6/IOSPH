@@ -70,6 +70,7 @@ app.use(helmet({
 let runtimeEnvironment = config.ENVIRONMENT || 'staging';
 
 // [SEC-05 REMEDIATED] — CORS allowlist supporting RefWeb, corporate intranet domains, and dev
+const { isAllowedOrigin } = require('./cors_validator');
 const configuredOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
 const ALLOWED_ORIGINS = [
   process.env.ALLOWED_ORIGIN || 'https://sentinel.yourbank.internal',
@@ -86,7 +87,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // No origin = same-origin request (RefWeb reverse proxy, CLI tools, server-to-server) — allow
     if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.internal') || origin.endsWith('.corp') || origin.includes('refweb')) {
+    if (isAllowedOrigin(origin, ALLOWED_ORIGINS)) {
       return callback(null, true);
     }
     callback(new Error(`CORS: Origin '${origin}' is not in the allowed list.`));

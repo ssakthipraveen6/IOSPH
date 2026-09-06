@@ -29,7 +29,45 @@ async function runAuthTests() {
   assert.strictEqual(invalidToken, null);
   console.log('✔ Test 4 Passed: Invalid token signature rejected');
 
-  console.log('=== ALL AUTHENTICATION TESTS PASSED ===\n');
+  // Test 4: Strict CORS Origin Validation (Task 8)
+  const { isAllowedOrigin, createCorsOriginCallback } = require('../apps/api/src/cors_validator');
+  const allowedList = ['https://sentinel.yourbank.internal', 'http://localhost:5173'];
+
+  // Legitimate intranet and explicitly allowed origins
+  assert.strictEqual(isAllowedOrigin('https://sentinel.internal.corp', allowedList), true);
+  assert.strictEqual(isAllowedOrigin('https://refweb.internal.corp', allowedList), true);
+  assert.strictEqual(isAllowedOrigin('https://dashboards.refweb.internal.corp', allowedList), true);
+  assert.strictEqual(isAllowedOrigin('http://localhost:5173', allowedList), true);
+  assert.strictEqual(isAllowedOrigin(null, allowedList), true); // Server-to-server / CLI
+
+  // Crafted / malicious attacker origins that would have passed loose .includes('refweb') / .endsWith('.corp')
+  assert.strictEqual(isAllowedOrigin('https://notrefweb.attacker.com', allowedList), false);
+  assert.strictEqual(isAllowedOrigin('https://attacker.com/refweb-phish', allowedList), false);
+  assert.strictEqual(isAllowedOrigin('https://evilcorp.com', allowedList), false);
+  assert.strictEqual(isAllowedOrigin('https://internal.hacker.io', allowedList), false);
+  assert.strictEqual(isAllowedOrigin('javascript:alert(1)', allowedList), false);
+
+  // Test CORS callback wrapper behavior
+  const corsCallback = createCorsOriginCallback(allowedList);
+  let accepted = false;
+  corsCallback('https://sentinel.internal.corp', (err, allow) => {
+    assert.strictEqual(err, null);
+    assert.strictEqual(allow, true);
+    accepted = true;
+  });
+  assert.strictEqual(accepted, true);
+
+  let rejected = false;
+  corsCallback('https://notrefweb.attacker.com', (err, allow) => {
+    assert(err instanceof Error);
+    assert(err.message.includes('CORS: Origin'));
+    rejected = true;
+  });
+  assert.strictEqual(rejected, true);
+
+  console.log('✔ Test 5 Passed: CORS origin validation strictly rejects crafted origins and accepts corporate intranet origins');
+
+  console.log('=== ALL AUTHENTICATION & SECURITY TESTS PASSED ===\n');
 }
 
 if (require.main === module) {
