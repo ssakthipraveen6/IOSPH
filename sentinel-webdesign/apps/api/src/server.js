@@ -28,9 +28,8 @@ const collector = require('@sentinel/collector');
 const config = require('@sentinel/config');
 const postgresDb = require(path.join(ROOT_DIR, 'packages/database/postgres'));
 const snowflakeDb = require(path.join(ROOT_DIR, 'packages/database/snowflake'));
-const customChecks = require('./services/remediation/custom_checks');
-const predictive = require('./services/ai_analysis/predictive'); // imports runPredictiveAnalysis and attaches globally
-const recovery = require('./services/remediation/recovery');     // imports runSelfHealingOrchestrator and attaches globally
+const { customChecks, recovery } = require('@sentinel/remediation');
+const { predictive, rcaAnalyticsEngine: rcaEngine, teamRotaService } = require('@sentinel/analysis');
 const healthCalculator = require('./services/health/healthCalculator');
 const uptimeResolver = require('./services/telemetry/uptimeResolver');
 
@@ -131,7 +130,7 @@ app.use(['/v1/metrics', '/api/metrics/otlp'], otlpIngestLimiter);
 app.use('/api/auth/sso/login', authLimiter);
 
 const credentialProvider = require(path.join(ROOT_DIR, 'packages/config/cyberark/credential_provider'));
-const rcaEngine = require('./services/ai_analysis/rca_analytics_engine');
+// rcaEngine imported from @sentinel/analysis
 
 // Authentication and Role Middleware
 function requireAuth(req, res, next) {
@@ -669,7 +668,7 @@ app.get('/api/servicenow/active-incidents', (req, res) => {
   }
 });
 
-const teamRotaService = require('./services/ai_analysis/team_rota_service');
+// teamRotaService imported from @sentinel/analysis
 const dynatraceCollector = require(path.join(ROOT_DIR, 'apps/collector/src/metrics_collection/real/dynatrace/dynatrace_collector'));
 
 // [DS-03 REMEDIATED] Multer with strict memory and file size limits

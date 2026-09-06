@@ -1,5 +1,5 @@
 const assert = require('assert');
-const teamRotaService = require('../apps/api/src/services/ai_analysis/team_rota_service');
+const { teamRotaService } = require('@sentinel/analysis');
 const dynatraceCollector = require('../apps/collector/src/metrics_collection/real/dynatrace/dynatrace_collector');
 
 console.log('======================================================');

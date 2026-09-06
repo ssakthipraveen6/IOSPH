@@ -87,7 +87,7 @@ async function main() {
   // Test 3: Custom Checks Endpoint & Operational Rule Engine
   totalCount++;
   if (await runTest('REST API & REMEDIATION: Custom checks operational rule assertions', async () => {
-    const customChecks = require('../apps/collector/src/remediation/custom_checks');
+    const { customChecks } = require('@sentinel/remediation');
     let checksData = customChecks.runCustomChecks({});
     if (!Array.isArray(checksData) || checksData.length === 0) {
       const res = await httpGet('/api/custom-checks');

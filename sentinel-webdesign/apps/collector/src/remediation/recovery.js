@@ -1,2 +1,2 @@
-const path = require('path');
-module.exports = require(path.resolve(__dirname, '../../../api/src/services/remediation/recovery'));
+const remediation = require('@sentinel/remediation');
+module.exports = remediation.recovery;

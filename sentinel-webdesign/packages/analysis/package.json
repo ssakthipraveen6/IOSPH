@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/analysis",
+  "version": "1.0.0",
+  "description": "Project Sentinel AI & Predictive Analysis Package",
+  "main": "index.js"
+}

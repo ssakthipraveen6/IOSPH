@@ -2,7 +2,7 @@ const db = require('@sentinel/database');
 const { writeNasLog } = require('@sentinel/logger');
 const simulations = require('@sentinel/config/simulations');
 const config = require('@sentinel/config');
-const customChecks = require('../remediation/custom_checks');
+const { customChecks, triggerRecovery } = require('@sentinel/remediation');
 
 // Determine execution folder mode
 const mode = config.USE_SIMULATED_COLLECTORS ? 'simulation' : 'real';
@@ -13,9 +13,8 @@ const infraCollector = require(`./${mode}/infrastructure/infra_collector`);
 const appCollector = require(`./${mode}/applications/app_collector`);
 const dynatraceCollector = require(`./${mode}/dynatrace/dynatrace_collector`);
 const fluentdCollector = require(`../logs_collection/${mode}/fluentd/fluentd_log_collector`);
-const aiAnalyzer = require(`../ai_analysis/${mode}_analyzer`);
+const aiAnalyzer = require('@sentinel/analysis').getAnalyzer(mode);
 const providerSelector = require('./telemetry_provider_selector');
-const { triggerRecovery } = require('../remediation/recovery');
 
 const timers = [];
 

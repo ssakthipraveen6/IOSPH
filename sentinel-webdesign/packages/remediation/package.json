@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/remediation",
+  "version": "1.0.0",
+  "description": "Project Sentinel Remediation & Autonomous Recovery Package",
+  "main": "index.js"
+}
