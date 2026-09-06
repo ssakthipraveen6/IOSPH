@@ -109,6 +109,30 @@ This section provides explicit instructions, file paths, functions, and **exact 
 | **Line 33 (`credential_provider.js`)** | `getCredential(appId, purpose)` | Queries CyberArk CCP HTTP endpoint: `GET /AIMWebService/api/Accounts?AppID=...&Safe=...&Object=...`. Cached in-memory for sub-5ms lookups with a 91.5% hit rate. |
 | **Line 55 (`credential_provider.js`)** | Fallback Protocol | If CyberArk CCP is temporarily unreachable, checks environment variable overrides (`BITBUCKET_API_TOKEN`, `PGPASSWORD`, `DYNATRACE_API_TOKEN`) before logging `WARN`. |
 
+#### JWT Signing Secret Rotation Protocol (`SENTINEL_JWT_SECRET`)
+To rotate an exposed or scheduled JWT signing secret:
+1. **Generate a New Cryptographic Secret**:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+   ```
+2. **Update Enterprise Deployment Secret Store**:
+   - **Kubernetes**: Update Secret object:
+     ```bash
+     kubectl create secret generic sentinel-jwt --from-literal=SENTINEL_JWT_SECRET=<NEW_SECRET> --dry-run=client -o yaml | kubectl apply -f -
+     ```
+   - **Windows Server (IIS / Service)**: Update machine environment variable:
+     ```powershell
+     [Environment]::SetEnvironmentVariable('SENTINEL_JWT_SECRET', '<NEW_SECRET>', 'Machine')
+     ```
+   - **Linux (systemd)**: Update service environment:
+     ```bash
+     systemctl edit sentinel-api --drop-in=secrets.conf
+     # Add: Environment="SENTINEL_JWT_SECRET=<NEW_SECRET>"
+     systemctl daemon-reload && systemctl restart sentinel-api
+     ```
+   - **Local / Staging**: Update `.env` (confirming `.env` remains in `.gitignore` and is never committed).
+3. **Restart API Services**: Perform rolling restart of `apps/api` pods/processes to invalidate active tokens and enforce fresh eLDAP authentication.
+
 ---
 
 ### Step 3: PostgreSQL / TimescaleDB Setup (`packages/database/postgres.js`)
