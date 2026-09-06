@@ -1,0 +1,14 @@
+image: node:20
+
+pipelines:
+  default:
+    - step:
+        name: Project Sentinel — Build, Lint & Test
+        caches:
+          - node
+        script:
+          - cd sentinel-webdesign
+          - npm install
+          - npm run lint:constants
+          - npm test
+          - npm run build

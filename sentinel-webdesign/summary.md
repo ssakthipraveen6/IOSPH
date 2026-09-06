@@ -10,6 +10,14 @@ The core codebase is organized as an enterprise modular monorepo using npm works
 
 ```text
 sentinel-webdesign/
+├── .github/                     # GitHub Actions CI/CD workflows & automated quality gates
+│   └── workflows/ci.yml         # Dual-OS matrix build, linter & test runner (Ubuntu & Windows)
+├── .runtime/                    # Local runtime storage & emulated NAS shares (.gitignore protected)
+│   ├── nas_logs/                # Local NAS directory holding rotating logs & .log.gz archives
+│   ├── sentinel_db.json         # Local write-behind fallback database for metrics & alerts
+│   ├── metrics_history.jsonl    # Local append-only metric data buffer
+│   ├── team_rota.json           # Active monthly on-call schedule state
+│   └── sentinel_users.json      # Offline user session & RBAC fallback accounts
 ├── apps/                        # Executable application microservices & frontend UI
 │   ├── api/                     # Backend Express REST API, WebSockets & OTLP receiver
 │   ├── collector/               # Telemetry collection daemon & scheduling orchestrator
@@ -31,9 +39,44 @@ sentinel-webdesign/
 
 ## 📂 Detailed Folder Breakdown
 
-### 1. `apps/` — Application Daemons & Presentation
+### 1. `.github/` & `.runtime/` — Continuous Integration & Local Runtime Storage
 
-#### 1.1 `apps/api/` — Backend Orchestration Service
+#### 1.1 `.github/` — Continuous Integration & Quality Gates (GitHub Actions)
+* **Primary Role:** Automated enterprise CI/CD pipeline triggered automatically on every commit, pull request, and release branch.
+* **Architecture & Locations:**
+  * Root Repository CI: [`.github/workflows/ci.yml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/.github/workflows/ci.yml) (runs when pushing root repository to GitHub).
+  * Monorepo Standalone CI: [`sentinel-webdesign/.github/workflows/ci.yml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/.github/workflows/ci.yml) (runs when pushing `sentinel-webdesign` directly).
+  * Bitbucket Equivalent: [`bitbucket-pipelines.yml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/bitbucket-pipelines.yml) (runs automated quality gates when pushed to Bitbucket Cloud/Server).
+* **Key Functions & Verification Pipeline:**
+  * **Dual-OS Matrix**: Runs parallel verification on `ubuntu-latest` and `windows-latest` to prevent cross-platform pathing or command syntax regressions.
+  * **Node.js Alignment**: Synchronizes runtime version with `.nvmrc` (`v24.x` / `v20.x`) with automated npm package caching.
+  * **Constants Linter**: Executes `npm run lint:constants` (`scripts/lint_severity_constants.js`) to guarantee strict conformance to `@sentinel/shared-constants` (preventing un-sanitized strings like `"critical"` or `"warn"`).
+  * **Automated Test Suite**: Executes `npm test` across all 11 enterprise test suites (authentication lockdown, CORS validation, CyberArk resolution, TimescaleDB batching, OTLP normalization, telemetry provider selection, and autonomous recovery).
+  * **Frontend Compilation**: Builds the production React 19 single-page application (`npm run build`) to catch bundling, JSX, or CSS errors before deployment.
+  * **Security Vulnerability Audit**: Scans dependencies for high/critical security advisories via `npm audit`.
+* **Usage & Enforcement:** Acts as an immutable quality gate protecting `main`, `master`, and `release/*` branches. Any failing test or syntax error blocks the merge.
+
+---
+
+#### 1.2 `.runtime/` — Local Persistence, Write-Behind Cache & Emulated NAS Shares
+* **Primary Role:** High-availability local runtime storage directory dynamically created by backend services and collectors. Serves as a zero-data-loss fallback layer and emulates production network-attached storage during local or offline execution.
+* **Security & Git-Ignore Protection:** Strictly listed in `.gitignore`. Transient telemetry, active session tokens, and local log dumps are never committed to version control.
+* **Key Files, Folders & Operational Responsibilities:**
+  * `nas_logs/`: Emulates the production enterprise UNC share (`d:\production_shares\nas_logs` or `\\corp.internal\shares\sentinel_logs`). Holds the live application log stream (`windows_yaml_observability.log`) and automated daily gzip archives (`*.log.gz` / `*.log.txt`).
+  * `sentinel_db.json`: High-availability local write-behind cache storing real-time component statuses, active alert queues, chaos injection states, and autonomous recovery run histories when remote PostgreSQL / TimescaleDB is unreachable.
+  * `metrics_history.jsonl`: Append-only newline-delimited JSON buffer capturing streaming metric data points before batch insertion into TimescaleDB.
+  * `team_rota.json`: Local working copy and state persistence for the 24/7 monthly SRE on-call rotation schedules across Core, BAU, and Montreal squads.
+  * `sentinel_users.json`: Offline user authentication store and hashed credentials used during air-gapped testing and development when enterprise eLDAP/Active Directory is unreachable.
+* **Usage & Failover Flow:**
+  1. If PostgreSQL connection drops (`ENOTFOUND` / timeout), the datastore adapter automatically writes to `.runtime/sentinel_db.json`.
+  2. If the production NAS share is unmounted or permission-denied, the logger automatically writes to `.runtime/nas_logs/`.
+  3. When services restart, `.runtime/` state is loaded into memory to ensure seamless continuity.
+
+---
+
+### 2. `apps/` — Application Daemons & Presentation
+
+#### 2.1 `apps/api/` — Backend Orchestration Service
 * **Primary Role:** Central Express.js backend server listening on `0.0.0.0:3001` with WebSocket streaming.
 * **Key Functions & Files:**
   * [`src/server.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/apps/api/src/server.js): Master router, WebSocket broadcast server, AVI health check probe (`GET /api/healthz`), and runtime environment switcher (`prod`, `staging`, `demo`).
@@ -47,7 +90,7 @@ sentinel-webdesign/
 
 ---
 
-#### 1.2 `apps/collector/` — Telemetry Collection & Ingestion Engine
+#### 2.2 `apps/collector/` — Telemetry Collection & Ingestion Engine
 * **Primary Role:** Autonomous background daemon executing scheduled health checks, API polling, and metric extraction.
 * **Key Functions & Files:**
   * [`src/metrics_collection/collector_coordinator.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/apps/collector/src/metrics_collection/collector_coordinator.js): Master scheduler orchestrating tiered collection loops (`high`: 10s, `medium`: 30s, `low`: 60s) and demo mode lifecycle management.
@@ -60,7 +103,7 @@ sentinel-webdesign/
 
 ---
 
-#### 1.3 `apps/web/` — Frontend React Dashboard UI
+#### 2.3 `apps/web/` — Frontend React Dashboard UI
 * **Primary Role:** High-performance React 19 + Vite Single-Page Application (SPA) structured into domain-specific pods.
 * **Key Pods & Components:**
   * `src/components/health/`:
@@ -85,9 +128,9 @@ sentinel-webdesign/
 
 ---
 
-### 2. `packages/` — Shared Domain Libraries (`@sentinel/*`)
+### 3. `packages/` — Shared Domain Libraries (`@sentinel/*`)
 
-#### 2.1 `packages/analysis/` (`@sentinel/analysis`)
+#### 3.1 `packages/analysis/` (`@sentinel/analysis`)
 * **Primary Role:** Machine learning, statistical regression, log pattern analysis, and roster scheduling.
 * **Key Functions & Files:**
   * `real_analyzer.js` & `simulation_analyzer.js`: Regex anomaly detectors scanning server log streams for critical fault signatures (`OOMKilled`, `Disk Full`, `Connection Pool Saturated`).
@@ -98,7 +141,7 @@ sentinel-webdesign/
 
 ---
 
-#### 2.2 `packages/remediation/` (`@sentinel/remediation`)
+#### 3.2 `packages/remediation/` (`@sentinel/remediation`)
 * **Primary Role:** Autonomous recovery orchestration, custom operational assertions, and multi-signature security governance.
 * **Key Functions & Files:**
   * `custom_checks.js`: Registry and evaluation engine for operational health checks (`check_jenkins_billing`, `check_payment_gateway`, `check_private_harbor`).
@@ -108,7 +151,7 @@ sentinel-webdesign/
 
 ---
 
-#### 2.3 `packages/config/` (`@sentinel/config`)
+#### 3.3 `packages/config/` (`@sentinel/config`)
 * **Primary Role:** Single source of truth declarative configuration and credential vault integration.
 * **Key Functions & Files:**
   * `config.js` & `yaml_config.js`: Parses and validates `global_config.yaml`, `applications/*.yaml`, and `infrastructure/*.yaml`.
@@ -119,7 +162,7 @@ sentinel-webdesign/
 
 ---
 
-#### 2.4 `packages/database/` (`@sentinel/database`)
+#### 3.4 `packages/database/` (`@sentinel/database`)
 * **Primary Role:** Multi-backend persistence abstraction layer for time-series metrics and historical logs.
 * **Key Functions & Files:**
   * `postgres.js`: Connection pool manager (`pg.Pool`) and multi-row batch insert engine for PostgreSQL / TimescaleDB.
@@ -129,7 +172,7 @@ sentinel-webdesign/
 
 ---
 
-#### 2.5 `packages/logger/` (`@sentinel/logger`)
+#### 3.5 `packages/logger/` (`@sentinel/logger`)
 * **Primary Role:** High-throughput rotating log stream engine.
 * **Key Functions & Files:**
   * `logger.js`: Rotating file stream configured with 10MB slice caps, daily rotation, and 30-day retention with gzip compression.
@@ -138,7 +181,7 @@ sentinel-webdesign/
 
 ---
 
-#### 2.6 `packages/shared-constants/` (`@sentinel/shared-constants`)
+#### 3.6 `packages/shared-constants/` (`@sentinel/shared-constants`)
 * **Primary Role:** Centralized dictionary of immutable enterprise domain constants.
 * **Key Enums:**
   * `SEVERITY`: `CRITICAL`, `WARNING`, `HEALTHY`, `INFO`, `UNKNOWN`.
@@ -147,7 +190,7 @@ sentinel-webdesign/
 
 ---
 
-### 3. Supporting Monorepo Directories
+### 4. Supporting Monorepo Directories
 
 | Directory | Primary Responsibility | Usage in Project Sentinel |
 | :--- | :--- | :--- |
@@ -158,7 +201,7 @@ sentinel-webdesign/
 
 ---
 
-### 4. Workspace Root Legacy Folders (Parent Directory)
+### 5. Workspace Root Legacy Folders (Parent Directory)
 
 | Directory | Status | Usage / Description |
 | :--- | :--- | :--- |
@@ -172,6 +215,8 @@ sentinel-webdesign/
 
 | Functional Requirement | Primary Implementation Location |
 | :--- | :--- |
+| **CI/CD Quality Gate Pipeline** | [`.github/workflows/ci.yml`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/.github/workflows/ci.yml) |
+| **Local Cache & NAS Storage** | [`.runtime/`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/.runtime) |
 | **REST API & WebSockets** | [`apps/api/src/server.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/apps/api/src/server.js) |
 | **CORS Origin Security** | [`apps/api/src/cors_validator.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/apps/api/src/cors_validator.js) |
 | **Active Directory / LDAP Auth** | [`apps/api/src/auth/ldap_client.js`](file:///c:/Users/sspra/OneDrive/Desktop/iosph2/sentinel-webdesign/apps/api/src/auth/ldap_client.js) |
