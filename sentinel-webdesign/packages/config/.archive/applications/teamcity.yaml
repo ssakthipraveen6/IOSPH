@@ -1,0 +1,28 @@
+id: "teamcity"
+display_name: "JetBrains TeamCity CI"
+category: "ci_cd"
+log_tag: "[TEAMCITY]"
+
+endpoints:
+  prod:
+    api: "https://teamcity-prod.internal.corp/app/rest"
+  stg:
+    api: "https://teamcity-stg.internal.corp/app/rest"
+
+layers:
+  db:
+    jdbc: "jdbc:postgresql://db-prod-teamcity.internal.corp:5432/teamcity_db"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "teamcity-server-1"
+      api: "https://linux-compute-prod-teamcity-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics_baseline:
+  responseTime: 105
+  successRate: 99.6
+  requests: 60
+
+jenkins_remediation_job: "JOB_RESTART_TEAMCITY_SERVICE"

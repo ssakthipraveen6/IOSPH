@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/database",
+  "version": "1.0.0",
+  "description": "Project Sentinel Datastore Package",
+  "main": "db.js"
+}

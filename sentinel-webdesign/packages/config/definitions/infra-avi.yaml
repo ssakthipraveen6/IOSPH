@@ -1,0 +1,27 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: AVI Load Balancer Layer
+# =========================================================================
+id: "avi"
+kind: "infrastructure"
+display_name: "AVI Load Balancer Layer"
+category: "load_balancer"
+poll_interval_seconds: 30
+credential_purpose: "api"
+endpoint: "https://avi-prod.internal.corp/api/v1/telemetry"
+
+metrics:
+  provider: "native"
+  scrape_interval: "30s"
+  monitored_metrics:
+    - "virtualservice.connections"
+    - "virtualservice.throughput_mbps"
+    - "pool.healthy_server_count"
+
+logs:
+  log_tag: "[AVI-ALB]"
+  log_path: "d:\\production_shares\\nas_logs\\avi_load_balancer.log"
+
+credentials:
+  safe: "SF-INFRA-AVI"
+  objects:
+    api: "AVI-API-SVC"

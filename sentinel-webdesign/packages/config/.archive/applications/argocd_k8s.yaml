@@ -1,0 +1,29 @@
+id: "argocd_k8s"
+display_name: "ArgoCD GitOps Operator"
+category: "gitops"
+log_tag: "[ARGOCD]"
+
+endpoints:
+  prod:
+    api: "https://argocd-prod.internal.corp/api/v1"
+  stg:
+    api: "https://argocd-stg.internal.corp/api/v1"
+
+layers:
+  k8s:
+    api: "https://k8s-apiserver-prod.internal.corp:6443"
+    namespace: "argocd"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "argocd-server-1"
+      api: "https://linux-compute-prod-argocd-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics_baseline:
+  responseTime: 75
+  successRate: 99.9
+  requests: 150
+
+jenkins_remediation_job: "JOB_RESTART_ARGOCD_PODS"

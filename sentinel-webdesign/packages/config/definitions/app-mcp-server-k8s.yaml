@@ -1,0 +1,43 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Model Context Protocol K8s Server
+# =========================================================================
+id: "mcp_server_k8s"
+kind: "application"
+display_name: "Model Context Protocol K8s Server (Placeholder)"
+category: "extra_placeholder"
+is_placeholder: true
+tier: "Tier-3 Development"
+log_tag: "[MCP-K8S]"
+
+endpoints:
+  prod:
+    api: "https://mcp-server-prod.internal.corp/api/v1"
+  stg:
+    api: "https://mcp-server-stg.internal.corp/api/v1"
+
+layers:
+  k8s:
+    api: "https://k8s-apiserver-prod.internal.corp:6443"
+    namespace: "mcp-server"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "mcp-server-1"
+      api: "https://linux-compute-prod-mcp-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics:
+  provider: "native"
+  scrape_interval: "60s"
+
+metrics_baseline:
+  responseTime: 90
+  successRate: 99.7
+  requests: 55
+
+logs:
+  log_tag: "[MCP-K8S]"
+  log_path: "d:\\production_shares\\nas_logs\\mcp_server.log"
+
+jenkins_remediation_job: "JOB_RESTART_MCP_SERVER"

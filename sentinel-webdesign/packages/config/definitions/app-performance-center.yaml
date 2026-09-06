@@ -1,0 +1,52 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Micro Focus Performance Center
+# =========================================================================
+id: "performance_center"
+kind: "application"
+display_name: "Micro Focus Performance Center"
+category: "performance_testing"
+tier: "Tier-2 Operational"
+log_tag: "[PERFCENTER]"
+
+endpoints:
+  prod:
+    api: "https://perfcenter-prod.internal.corp/api/v2"
+  stg:
+    api: "https://perfcenter-stg.internal.corp/api/v2"
+
+layers:
+  db:
+    jdbc: "jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db"
+    credential_purpose: "db"
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-perfcenter.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix: []
+  windows:
+    - node: "perfcenter-win-1"
+      api: "https://win-compute-prod-perfcenter-1.internal.corp/api/v1/metrics"
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 150
+  successRate: 99.2
+  requests: 25
+
+logs:
+  log_tag: "[PERFCENTER]"
+  log_path: "d:\\production_shares\\nas_logs\\perfcenter.log"
+
+credentials:
+  safe: "SF-PERFCENTER-PROD"
+  objects:
+    db: "PERFCENTER-DB-SVC"
+    api_token: "PERFCENTER-API-TOKEN"
+
+jenkins_remediation_job: "JOB_RESTART_PERFCENTER_SERVICE"

@@ -1,0 +1,174 @@
+pipeline {
+    agent {
+        label 'linux-ansible-agent'
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        ansiColor('xterm')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+
+    parameters {
+        choice(
+            name: 'COLLECTOR_TYPE',
+            choices: ['opentelemetry', 'node_exporter'],
+            description: 'Select which telemetry exporter to install on the fleet (Only installs the selected one)'
+        )
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['staging', 'production'],
+            description: 'Target deployment environment'
+        )
+        string(
+            name: 'TARGET_HOSTS',
+            defaultValue: 'linux_servers',
+            description: 'Ansible inventory group or host pattern (e.g., linux_servers, bitbucket-node-1.internal.corp)'
+        )
+        choice(
+            name: 'DEPLOY_ACTION',
+            choices: ['deploy', 'restart', 'status_check', 'uninstall'],
+            description: 'Deployment action to execute across the fleet'
+        )
+        booleanParam(
+            name: 'DRY_RUN',
+            defaultValue: false,
+            description: 'Perform an Ansible Check Mode (--check) dry-run without modifying servers'
+        )
+        choice(
+            name: 'ANSIBLE_VERBOSITY',
+            choices: ['-v', '-vv', '-vvv'],
+            description: 'Ansible execution verbosity level'
+        )
+    }
+
+    environment {
+        ANSIBLE_HOST_KEY_CHECKING = 'False'
+        ANSIBLE_FORCE_COLOR       = 'true'
+        INVENTORY_FILE            = 'deployments/ansible/inventory.ini'
+        PLAYBOOK_FILE             = 'deployments/ansible/playbook_linux_telemetry.yml'
+        CONFIG_FILE               = 'deployments/opentelemetry_configs/otel_linux_config.yaml'
+        SENTINEL_URL              = 'https://sentinel.yourbank.internal/v1/metrics'
+    }
+
+    stages {
+        stage('Pre-Flight & Syntax Validation') {
+            steps {
+                echo "=========================================================="
+                echo "🚀 STARTING FLEET TELEMETRY DEPLOYMENT PIPELINE"
+                echo "Collector:    ${params.COLLECTOR_TYPE}"
+                echo "Environment:  ${params.ENVIRONMENT}"
+                echo "Target Hosts: ${params.TARGET_HOSTS}"
+                echo "Action:       ${params.DEPLOY_ACTION}"
+                echo "Dry Run:      ${params.DRY_RUN}"
+                echo "=========================================================="
+
+                // Validate YAML Syntax
+                sh '''
+                    echo "[VALIDATION] Checking OpenTelemetry YAML syntax..."
+                    python3 -c "import yaml; yaml.safe_load(open('${CONFIG_FILE}'))"
+                    echo "[VALIDATION] Checking Ansible Playbook syntax..."
+                    ansible-playbook --syntax-check -i ${INVENTORY_FILE} ${PLAYBOOK_FILE}
+                '''
+            }
+        }
+
+        stage('Fleet Connectivity Check') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'ansible-svc-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+                ]) {
+                    sh '''
+                        echo "[CONNECTIVITY] Pinging target hosts: ${TARGET_HOSTS}..."
+                        ansible ${TARGET_HOSTS} \
+                            -i ${INVENTORY_FILE} \
+                            -m ping \
+                            --user ${SSH_USER} \
+                            --private-key ${SSH_KEY}
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Selected Telemetry Exporter') {
+            when {
+                expression { params.DEPLOY_ACTION == 'deploy' }
+            }
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'ansible-svc-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER'),
+                    string(credentialsId: 'cyberark-otel-ingest-token', variable: 'SF_INFRA_OTEL_TOKEN')
+                ]) {
+                    script {
+                        def checkFlag = params.DRY_RUN ? '--check --diff' : ''
+                        sh """
+                            echo "[ANSIBLE] Deploying ONLY '${params.COLLECTOR_TYPE}' across fleet..."
+                            ansible-playbook ${PLAYBOOK_FILE} \\
+                                -i ${INVENTORY_FILE} \\
+                                --limit "${params.TARGET_HOSTS}" \\
+                                --user ${SSH_USER} \\
+                                --private-key ${SSH_KEY} \\
+                                --extra-vars "collector_type=${params.COLLECTOR_TYPE} sentinel_url=${env.SENTINEL_URL} otel_token=${env.SF_INFRA_OTEL_TOKEN}" \\
+                                ${checkFlag} \\
+                                ${params.ANSIBLE_VERBOSITY}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Restart OTel Services') {
+            when {
+                expression { params.DEPLOY_ACTION == 'restart' }
+            }
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'ansible-svc-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+                ]) {
+                    sh '''
+                        echo "[ANSIBLE] Restarting otelcol-contrib across target fleet..."
+                        ansible ${TARGET_HOSTS} \
+                            -i ${INVENTORY_FILE} \
+                            -m systemd \
+                            -a "name=otelcol-contrib state=restarted" \
+                            --become \
+                            --user ${SSH_USER} \
+                            --private-key ${SSH_KEY}
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Service Status & Health') {
+            steps {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: 'ansible-svc-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')
+                ]) {
+                    sh '''
+                        echo "[VERIFY] Checking systemd status of otelcol-contrib..."
+                        ansible ${TARGET_HOSTS} \
+                            -i ${INVENTORY_FILE} \
+                            -m command \
+                            -a "systemctl is-active otelcol-contrib" \
+                            --user ${SSH_USER} \
+                            --private-key ${SSH_KEY}
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "=========================================================="
+            echo "✅ OPENTELEMETRY DEPLOYMENT COMPLETED SUCCESSFULLY"
+            echo "=========================================================="
+        }
+        failure {
+            echo "=========================================================="
+            echo "❌ OPENTELEMETRY DEPLOYMENT FAILED - CHECK ANSIBLE LOGS"
+            echo "=========================================================="
+        }
+    }
+}

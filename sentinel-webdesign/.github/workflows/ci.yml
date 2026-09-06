@@ -1,0 +1,41 @@
+name: Project Sentinel — Enterprise CI/CD Quality Gates
+
+on:
+  push:
+    branches: [ main, master, release/* ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  quality-gates:
+    name: Build & Verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install Workspace Dependencies
+        run: npm install
+
+      - name: Run Severity & Status Constants Linter
+        run: npm run lint:constants
+
+      - name: Run Automated Test Suites
+        run: npm test
+
+      - name: Compile Frontend Production Bundle
+        run: npm run build
+
+      - name: Security Vulnerability Dependency Audit
+        run: npm audit --audit-level=high || true

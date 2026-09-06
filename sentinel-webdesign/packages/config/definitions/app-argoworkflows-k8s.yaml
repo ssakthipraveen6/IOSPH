@@ -1,0 +1,42 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Argo Workflows Engine (Kubernetes)
+# =========================================================================
+id: "argoworkflows_k8s"
+kind: "application"
+display_name: "Argo Workflows Engine"
+category: "workflow_engine"
+tier: "Tier-2 Secondary"
+log_tag: "[ARGOWORKFLOWS]"
+
+endpoints:
+  prod:
+    api: "https://argo-workflows-prod.internal.corp/api/v1"
+  stg:
+    api: "https://argo-workflows-stg.internal.corp/api/v1"
+
+layers:
+  k8s:
+    api: "https://k8s-apiserver-prod.internal.corp:6443"
+    namespace: "argo-workflows"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "argo-workflows-server-1"
+      api: "https://linux-compute-prod-argo-workflows-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics:
+  provider: "prometheus"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 80
+  successRate: 99.8
+  requests: 110
+
+logs:
+  log_tag: "[ARGOWORKFLOWS]"
+  log_path: "d:\\production_shares\\nas_logs\\argoworkflows.log"
+
+jenkins_remediation_job: "JOB_RESTART_ARGO_WORKFLOWS"

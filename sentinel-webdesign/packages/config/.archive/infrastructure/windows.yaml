@@ -1,0 +1,6 @@
+id: "windows"
+display_name: "Windows Compute Nodes"
+category: "compute"
+poll_interval_seconds: 30
+credential_purpose: "winrm"
+api: "https://win-compute-prod.internal.corp/api/v1/metrics"

@@ -1,0 +1,135 @@
+---
+- name: Deploy Selected Telemetry Collector to Linux Fleet
+  hosts: linux_servers
+  become: yes
+  vars:
+    # Telemetry Collector Choice: 'opentelemetry' (Default/Recommended) or 'node_exporter'
+    telemetry_collector: "{{ collector_type | default('opentelemetry') }}"
+    
+    artifactory_otel_rpm_url: "https://artifactory-prod.internal.corp/artifactory/binaries/otelcol-contrib-0.95.0.x86_64.rpm"
+    artifactory_node_exporter_url: "https://artifactory-prod.internal.corp/artifactory/binaries/node_exporter-1.7.0.linux-amd64.tar.gz"
+    sentinel_url: "https://sentinel.yourbank.internal/v1/metrics"
+    otel_token: "{{ lookup('env', 'SF_INFRA_OTEL_TOKEN') | default('SF-INFRA-OTEL-TOKEN', true) }}"
+
+  tasks:
+    # =========================================================================
+    # CONDITION 1: Install OpenTelemetry Collector (When telemetry_collector == 'opentelemetry')
+    # =========================================================================
+    - name: "[OTEL] Disable node_exporter if present to prevent duplicate collection"
+      systemd:
+        name: node_exporter
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+      when: telemetry_collector == 'opentelemetry'
+
+    - name: "[OTEL] Download otelcol-contrib RPM package from internal Artifactory"
+      get_url:
+        url: "{{ artifactory_otel_rpm_url }}"
+        dest: "/tmp/otelcol-contrib.rpm"
+        mode: '0644'
+      when: telemetry_collector == 'opentelemetry'
+
+    - name: "[OTEL] Install otelcol-contrib RPM"
+      yum:
+        name: "/tmp/otelcol-contrib.rpm"
+        state: present
+      when: telemetry_collector == 'opentelemetry'
+
+    - name: "[OTEL] Deploy OpenTelemetry configuration"
+      copy:
+        src: "../opentelemetry_configs/otel_linux_config.yaml"
+        dest: "/etc/otelcol-contrib/config.yaml"
+        owner: otel
+        group: otel
+        mode: '0640'
+      when: telemetry_collector == 'opentelemetry'
+      notify: Restart OTel Collector
+
+    - name: "[OTEL] Ensure otelcol-contrib is enabled and started"
+      systemd:
+        name: otelcol-contrib
+        enabled: yes
+        state: started
+      when: telemetry_collector == 'opentelemetry'
+
+    # =========================================================================
+    # CONDITION 2: Install Prometheus Node Exporter (When telemetry_collector == 'node_exporter')
+    # =========================================================================
+    - name: "[NODE-EXPORTER] Disable otelcol-contrib if present"
+      systemd:
+        name: otelcol-contrib
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+      when: telemetry_collector == 'node_exporter'
+
+    - name: "[NODE-EXPORTER] Create prometheus user group"
+      group:
+        name: prometheus
+        system: yes
+      when: telemetry_collector == 'node_exporter'
+
+    - name: "[NODE-EXPORTER] Create node_exporter user"
+      user:
+        name: node_exporter
+        group: prometheus
+        system: yes
+        shell: /sbin/nologin
+      when: telemetry_collector == 'node_exporter'
+
+    - name: "[NODE-EXPORTER] Download & Unarchive node_exporter"
+      unarchive:
+        src: "{{ artifactory_node_exporter_url }}"
+        dest: "/tmp"
+        remote_src: yes
+      when: telemetry_collector == 'node_exporter'
+
+    - name: "[NODE-EXPORTER] Copy binary to /usr/local/bin"
+      copy:
+        src: "/tmp/node_exporter-1.7.0.linux-amd64/node_exporter"
+        dest: "/usr/local/bin/node_exporter"
+        owner: node_exporter
+        group: prometheus
+        mode: '0755'
+        remote_src: yes
+      when: telemetry_collector == 'node_exporter'
+
+    - name: "[NODE-EXPORTER] Deploy systemd service"
+      copy:
+        dest: "/etc/systemd/system/node_exporter.service"
+        content: |
+          [Unit]
+          Description=Prometheus Node Exporter
+          After=network.target
+
+          [Service]
+          User=node_exporter
+          Group=prometheus
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter --web.listen-address=:9100
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+      when: telemetry_collector == 'node_exporter'
+      notify: Restart Node Exporter
+
+    - name: "[NODE-EXPORTER] Ensure node_exporter is enabled and started"
+      systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+        daemon_reload: yes
+      when: telemetry_collector == 'node_exporter'
+
+  handlers:
+    - name: Restart OTel Collector
+      systemd:
+        name: otelcol-contrib
+        state: restarted
+
+    - name: Restart Node Exporter
+      systemd:
+        name: node_exporter
+        state: restarted

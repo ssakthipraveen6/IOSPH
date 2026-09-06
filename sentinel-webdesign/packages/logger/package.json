@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/logger",
+  "version": "1.0.0",
+  "description": "Project Sentinel Logging Package",
+  "main": "logger.js"
+}

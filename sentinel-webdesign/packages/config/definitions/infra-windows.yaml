@@ -1,0 +1,29 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Windows Compute Nodes
+# =========================================================================
+id: "windows"
+kind: "infrastructure"
+display_name: "Windows Compute Nodes"
+category: "compute"
+poll_interval_seconds: 30
+credential_purpose: "winrm"
+api: "https://win-compute-prod.internal.corp/api/v1/metrics"
+
+metrics:
+  provider: "opentelemetry"
+  exporter_port: 9182
+  scrape_interval: "30s"
+  monitored_metrics:
+    - "windows.cpu.percent"
+    - "windows.memory.available_mbytes"
+    - "windows.logical_disk.free_percent"
+    - "windows.iis.current_connections"
+
+logs:
+  log_tag: "[WIN-HOST]"
+  log_path: "d:\\production_shares\\nas_logs\\windows_hosts.log"
+
+credentials:
+  safe: "SF-INFRA-WINDOWS"
+  objects:
+    winrm: "WINDOWS-COMPUTE-SVC"

@@ -1,0 +1,48 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Sonatype Nexus IQ Server
+# =========================================================================
+id: "nexusiq"
+kind: "application"
+display_name: "Sonatype Nexus IQ Server"
+category: "security_scanner"
+tier: "Tier-2 Operational"
+log_tag: "[NEXUSIQ]"
+
+endpoints:
+  prod:
+    api: "https://nexusiq-prod.internal.corp/api/v2"
+  stg:
+    api: "https://nexusiq-stg.internal.corp/api/v2"
+
+layers:
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-nexusiq.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "nexusiq-node-1"
+      api: "https://linux-compute-prod-nexusiq-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 125
+  successRate: 99.7
+  requests: 40
+
+logs:
+  log_tag: "[NEXUSIQ]"
+  log_path: "d:\\production_shares\\nas_logs\\nexusiq.log"
+
+credentials:
+  safe: "SF-NEXUSIQ-PROD"
+  objects:
+    api_token: "NEXUSIQ-API-TOKEN"
+
+jenkins_remediation_job: "JOB_RESTART_NEXUSIQ_SERVICE"

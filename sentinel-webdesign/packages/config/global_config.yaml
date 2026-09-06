@@ -1,0 +1,153 @@
+# =========================================================================
+# GLOBAL OBSERVABILITY CONFIGURATION (global_config.yaml)
+# Single Source of Truth for Project Sentinel Enterprise NOC
+# =========================================================================
+# PRODUCTION DEPLOYMENT GUIDE:
+# 1. Set 'environment' to 'production' (Line 14).
+# 2. Verify 'telemetry_provider' is 'opentelemetry' for Profile 1 (Line 18).
+# 3. Update 'prod_urls' with your corporate DNS, AVI VIP, and service URLs (Lines 22-52).
+# 4. Configure 'sso_ldap_config' with your Active Directory/eLDAP bind details (Lines 55-68).
+# 5. Review 'components_enabled' & 'applications_enabled' to enable only active services.
+# =========================================================================
+
+# Environment Mode: staging or production (also switchable dynamically via UI)
+environment: "production"
+
+# Telemetry Provider Selector (Profile 1: OpenTelemetry + Sentinel Probers)
+# Options: "opentelemetry" (Profile 1) | "dynatrace" (Profile 2) | "node_exporter" (Profile 3) | "hybrid"
+telemetry_provider: "opentelemetry"
+
+# Production Endpoints (UPDATE FOR PRODUCTION INTEGRATION)
+prod_urls:
+  app_url: "https://sentinel-observability.internal.corp"
+  avi_virtual_service_url: "https://avi-vs.internal.corp"
+  bitbucket_api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
+  artifactory_api: "https://artifactory-prod.internal.corp/artifactory/api"
+  argocd_api: "https://argocd-prod.internal.corp/api/v1"
+  argoworkflows_api: "https://argo-workflows-prod.internal.corp/api/v1"
+  jenkins_master_url: "https://jenkins-prod.internal.corp/job"
+  teamcity_api: "https://teamcity-prod.internal.corp/app/rest"
+  sonarqube_api: "https://sonarqube-prod.internal.corp/api"
+  nexusiq_api: "https://nexusiq-prod.internal.corp/api/v2"
+  fortify_api: "https://fortify-prod.internal.corp/ssc/api/v1"
+  avi_api: "https://avi-prod.internal.corp/api/v1/telemetry"
+  sso_api: "https://sso-auth-prod.internal.corp/oauth2/token"
+  nas_mount: "d:\\production_shares\\nas_logs"
+  windows_api: "https://win-compute-prod.internal.corp/api/v1/metrics"
+  unix_api: "https://linux-compute-prod.internal.corp/api/v1/metrics"
+  db_jdbc: "jdbc:postgresql://db-prod-primary.internal.corp:5432/telemetry_db"
+  k8s_api: "https://k8s-apiserver-prod.internal.corp:6443"
+  s3_endpoint: "https://s3.us-east-1.amazonaws.com"
+  github_api: "https://github-enterprise-prod.internal.corp/api/v3"
+  bitbucket_external_api: "https://bitbucket-external-prod.internal.corp/rest/api/1.0"
+  otkr_api: "https://otkr-prod.internal.corp/api/v1"
+  performance_center_api: "https://perfcenter-prod.internal.corp/api/v2"
+  fluentd_log_path: "d:\\production_shares\\nas_logs\\fluentd.log"
+  network_latency_hosts:
+    - "sso-auth-prod.internal.corp"
+    - "avi-prod.internal.corp"
+    - "db-prod-primary.internal.corp"
+
+# Enterprise eLDAP & Active Directory SSO Authentication Setup
+sso_ldap_config:
+  enabled: true
+  provider: "eLDAP / Active Directory"
+  ldap_url: "ldaps://ldap.enterprise.corp:636"
+  base_dn: "ou=Users,dc=enterprise,dc=corp"
+  group_base_dn: "ou=Groups,dc=enterprise,dc=corp"
+  bind_dn: "cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp"
+  sso_issuer: "https://sso-auth-prod.internal.corp/oauth2/v2.0"
+  role_mapping:
+    super_admin_group: "cn=DevSecOps-Admins,ou=Groups,dc=enterprise,dc=corp"
+    sre_lead_group: "cn=SRE-Leads,ou=Groups,dc=enterprise,dc=corp"
+    noc_operator_group: "cn=NOC-Operators,ou=Groups,dc=enterprise,dc=corp"
+    security_auditor_group: "cn=Security-Auditors,ou=Groups,dc=enterprise,dc=corp"
+
+# Staging Endpoints
+stg_urls:
+  app_url: "https://sentinel-observability-stg.internal.corp"
+  avi_virtual_service_url: "https://avi-vs-stg.internal.corp"
+  avi_api: "https://avi-stg.internal.corp/api/v1/telemetry"
+  db_jdbc: "jdbc:postgresql://db-stg-primary.internal.corp:5432/telemetry_db"
+  nas_mount: "../nas_logs"
+  linux_api: "https://linux-compute-stg.internal.corp/api/v1/metrics"
+  windows_api: "https://win-compute-stg.internal.corp/api/v1/metrics"
+  s3_endpoint: "https://s3.stg-us-east-1.amazonaws.com"
+  bitbucket_api: "https://bitbucket-stg.internal.corp/rest/api/1.0"
+  artifactory_api: "https://artifactory-stg.internal.corp/artifactory/api"
+  jenkins_master_url: "https://jenkins-stg.internal.corp/job"
+  fortify_api: "https://fortify-stg.internal.corp/ssc/api/v1"
+  nexusiq_api: "https://nexusiq-stg.internal.corp/api/v2"
+  sonarqube_api: "https://sonarqube-stg.internal.corp/api"
+  argocd_api: "https://argocd-stg.internal.corp/api/v1"
+  argoworkflows_api: "https://argo-workflows-stg.internal.corp/api/v1"
+  teamcity_api: "https://teamcity-stg.internal.corp/app/rest"
+  github_api: "https://github-enterprise-stg.internal.corp/api/v3"
+  otkr_api: "https://otkr-stg.internal.corp/api/v1"
+  performance_center_api: "https://perfcenter-stg.internal.corp/api/v2"
+  bitbucket_external_api: "https://bitbucket-external-stg.internal.corp/rest/api/1.0"
+  sso_api: "https://sso-auth-stg.internal.corp/oauth2/token"
+  fluentd_log_path: "../nas_logs/fluentd_stg.log"
+  network_latency_hosts:
+    - "sso-auth-stg.internal.corp"
+    - "avi-stg.internal.corp"
+    - "db-stg-primary.internal.corp"
+
+# Database Settings (Passwords resolved securely via CyberArk / PGPASSWORD env var)
+postgres_stg_config:
+  host: "postgres-stg-srv.internal.corp"
+  port: 5432
+  database: "telemetry_historical"
+  user: "stg_admin"
+  credential_purpose: "db"
+
+# =========================================================================
+# FEATURE & COLLECTOR MASTER TOGGLES
+# =========================================================================
+collectors:
+  # Dynatrace Collector Configuration
+  dynatrace:
+    enabled: false                 # In Profile 1, Dynatrace is disabled by default; toggle true to enable
+    sync_problems: true            # Sync Davis AI active problem events to alerts
+    fetch_host_management: true    # Fetch management zone & host level telemetry via dedicated API
+  
+  # Python Synthetic Metrics Collector (Selenium UI Headless Browser Checks)
+  python_metrics:
+    enabled: true                  # Toggle false in environments without python/selenium installed
+
+# =========================================================================
+# COMPONENT-WISE INFRASTRUCTURE TOGGLES
+# Allows operators to selectively enable/disable metrics collection per component in production
+# =========================================================================
+components_enabled:
+  avi_load_balancer: true
+  database: true
+  nas_performance: true
+  s3_storage: true
+  sso_gateway: true
+  network_latency: true
+  docker: true
+  k8s: true
+  linux_servers: false             # In Profile 1, OTel Hostmetrics collects host metrics
+  windows_servers: false           # In Profile 1, OTel Hostmetrics collects host metrics
+  node_exporter: false
+
+# =========================================================================
+# APPLICATION-WISE DEVOPS TOOLCHAIN TOGGLES
+# Allows operators to enable/disable specific application probes in production
+# =========================================================================
+applications_enabled:
+  bitbucket: true
+  jenkins: true
+  artifactory: true
+  argocd: true
+  argoworkflows: true
+  github: true
+  sonarqube: true
+  fortify: true
+  nexusiq: true
+  teamcity: true
+  otkr: true
+  performance_center: true
+  bitbucket_external: true
+

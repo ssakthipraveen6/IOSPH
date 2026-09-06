@@ -1,0 +1,53 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Artifactory (Alias)
+# =========================================================================
+id: "artifactory"
+kind: "application"
+display_name: "JFrog Artifactory Enterprise"
+category: "artifact_repository"
+tier: "Tier-1 Mission Critical"
+log_tag: "[ARTIFACTORY]"
+
+endpoints:
+  prod:
+    api: "https://artifactory-prod.internal.corp/artifactory/api"
+  stg:
+    api: "https://artifactory-stg.internal.corp/artifactory/api"
+
+layers:
+  s3:
+    endpoint: "https://s3.prod-artifactory-us-east-1.amazonaws.com"
+    credential_purpose: null
+  db:
+    jdbc: "jdbc:postgresql://db-prod-artifactory.internal.corp:5432/artifactory_db"
+    credential_purpose: null
+  avi:
+    api: "https://avi-prod-artifactory.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "artifactory-node-1"
+      api: "https://linux-compute-prod-artifactory-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 95
+  successRate: 99.9
+  requests: 120
+
+logs:
+  log_tag: "[ARTIFACTORY]"
+  log_path: "d:\\production_shares\\nas_logs\\artifactory.log"
+
+credentials:
+  safe: "SF-ARTIFACTORY-PROD"
+  objects:
+    db: "ARTIFACTORY-DB-SVC"
+    api_token: "ARTIFACTORY-API-TOKEN"
+
+jenkins_remediation_job: "JOB_RESTART_ARTIFACTORY_SERVICE"

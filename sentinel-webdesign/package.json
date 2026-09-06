@@ -1,0 +1,39 @@
+{
+  "name": "project-sentinel-yaml",
+  "version": "1.0.0",
+  "description": "Project Sentinel: An Intelligent Observability & Autonomous Recovery Framework (YAML Configured)",
+  "main": "apps/api/src/server.js",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "node apps/api/src/server.js",
+    "dev-backend": "node apps/api/src/server.js",
+    "dev-frontend": "cd apps/web && npm run dev",
+    "dev": "concurrently \"npm run dev-backend\" \"npm run dev-frontend\"",
+    "build": "cd apps/web && npm run build",
+    "build-frontend": "cd apps/web && npm run build",
+    "install-all": "npm install && cd apps/web && npm install",
+    "test": "node tests/prod_data_availability.test.js && node tests/data_availability_segregation.test.js && node tests/schema_validation.test.js && node tests/misc_operations.test.js",
+    "lint:constants": "node scripts/lint_severity_constants.js",
+    "lint": "npm run lint:constants && cd apps/web && npm run lint",
+    "audit:check": "npm audit --audit-level=high"
+  },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "js-yaml": "^4.1.0",
+    "multer": "^2.3.0",
+    "pg": "^8.12.0",
+    "rotating-file-stream": "^3.2.10",
+    "ws": "^8.18.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

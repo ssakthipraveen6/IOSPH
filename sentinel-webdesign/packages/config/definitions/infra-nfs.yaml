@@ -1,0 +1,28 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Network File System (NFS / NAS)
+# =========================================================================
+id: "nfs"
+kind: "infrastructure"
+display_name: "Network File System (NFS / NAS)"
+category: "storage"
+poll_interval_seconds: 60
+credential_purpose: "mount"
+mount: "/mnt/nfs/production_shares"
+
+metrics:
+  provider: "native"
+  scrape_interval: "60s"
+  monitored_metrics:
+    - "storage.iops.read"
+    - "storage.iops.write"
+    - "storage.latency_ms"
+    - "storage.capacity_used_pct"
+
+logs:
+  log_tag: "[NFS-STORAGE]"
+  log_path: "d:\\production_shares\\nas_logs\\storage.log"
+
+credentials:
+  safe: "SF-INFRA-NFS"
+  objects:
+    mount: "NFS-MOUNT-SVC"

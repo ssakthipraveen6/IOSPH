@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/shared-constants",
+  "version": "1.0.0",
+  "description": "Project Sentinel Shared Status & Severity Constants",
+  "main": "index.js"
+}

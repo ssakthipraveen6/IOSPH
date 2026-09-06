@@ -1,0 +1,6 @@
+id: "docker"
+display_name: "Docker Container Registry & Runtime"
+category: "containers"
+poll_interval_seconds: 120
+credential_purpose: "registry"
+registry_api: "https://registry-prod.internal.corp/v2"

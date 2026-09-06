@@ -1,0 +1,33 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Enterprise eLDAP / Active Directory Gateway
+# =========================================================================
+id: "sso_eldap"
+kind: "infrastructure"
+display_name: "Enterprise eLDAP / Active Directory Gateway"
+category: "identity"
+poll_interval_seconds: 60
+credential_purpose: "bind"
+endpoint: "https://sso-auth-prod.internal.corp/oauth2/token"
+
+role_mappings:
+  "cn=sentinel-superadmins,ou=Groups,dc=enterprise,dc=corp": "Super Admin"
+  "cn=sentinel-sreleads,ou=Groups,dc=enterprise,dc=corp": "SRE Lead"
+  "cn=sentinel-operators,ou=Groups,dc=enterprise,dc=corp": "NOC Operator"
+  "cn=sentinel-readonly,ou=Groups,dc=enterprise,dc=corp": "Viewer"
+
+metrics:
+  provider: "native"
+  scrape_interval: "60s"
+  monitored_metrics:
+    - "ldap.bind_latency_ms"
+    - "ldap.auth_success_rate"
+    - "ldap.active_connections"
+
+logs:
+  log_tag: "[SSO-LDAP]"
+  log_path: "d:\\production_shares\\nas_logs\\ldap_auth.log"
+
+credentials:
+  safe: "SF-INFRA-SSO"
+  objects:
+    bind: "ELDAP-BIND-SVC"

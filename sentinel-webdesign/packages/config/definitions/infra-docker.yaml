@@ -1,0 +1,27 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Docker Container Registry & Runtime
+# =========================================================================
+id: "docker"
+kind: "infrastructure"
+display_name: "Docker Container Registry & Runtime"
+category: "containers"
+poll_interval_seconds: 120
+credential_purpose: "registry"
+registry_api: "https://registry-prod.internal.corp/v2"
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "60s"
+  monitored_metrics:
+    - "container.cpu.usage"
+    - "container.memory.usage"
+    - "container.restart_count"
+
+logs:
+  log_tag: "[DOCKER-RUNTIME]"
+  log_path: "d:\\production_shares\\nas_logs\\docker_runtime.log"
+
+credentials:
+  safe: "SF-INFRA-DOCKER"
+  objects:
+    registry: "DOCKER-REGISTRY-SVC"

@@ -1,0 +1,33 @@
+id: "bitbucket_external"
+display_name: "Bitbucket External Vendor SCM"
+category: "source_control"
+log_tag: "[BB-EXT]"
+
+endpoints:
+  prod:
+    api: "https://bitbucket-external-prod.internal.corp/rest/api/1.0"
+  stg:
+    api: "https://bitbucket-external-stg.internal.corp/rest/api/1.0"
+
+layers:
+  db:
+    jdbc: "jdbc:postgresql://db-prod-bitbucket-ext.internal.corp:5432/bitbucket_ext_db"
+    credential_purpose: "db"
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-bitbucket-ext.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "bitbucket-ext-node-1"
+      api: "https://linux-compute-prod-bitbucket-ext-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics_baseline:
+  responseTime: 90
+  successRate: 99.7
+  requests: 35
+
+jenkins_remediation_job: "JOB_RESTART_BITBUCKET_EXT"

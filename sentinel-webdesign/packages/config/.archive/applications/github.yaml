@@ -1,0 +1,28 @@
+id: "github"
+display_name: "GitHub Enterprise Cloud / Server"
+category: "source_control"
+log_tag: "[GITHUB]"
+
+endpoints:
+  prod:
+    api: "https://api.github.com"
+  stg:
+    api: "https://api.github.com"
+
+layers:
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-github.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix: []
+  windows: []
+
+metrics_baseline:
+  responseTime: 65
+  successRate: 99.9
+  requests: 200
+
+jenkins_remediation_job: "JOB_RECONNECT_GITHUB_WEBHOOKS"

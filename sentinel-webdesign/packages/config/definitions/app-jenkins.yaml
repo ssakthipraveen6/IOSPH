@@ -1,0 +1,50 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Jenkins (Alias)
+# =========================================================================
+id: "jenkins"
+kind: "application"
+display_name: "CloudBees Jenkins CI/CD"
+category: "ci_cd"
+tier: "Tier-1 Mission Critical"
+log_tag: "[JENKINS]"
+
+endpoints:
+  prod:
+    api: "https://jenkins-prod.internal.corp/job"
+  stg:
+    api: "https://jenkins-stg.internal.corp/job"
+
+layers:
+  db:
+    jdbc: "jdbc:postgresql://db-prod-jenkins.internal.corp:5432/jenkins_db"
+    credential_purpose: null
+  avi:
+    api: "https://avi-prod-jenkins.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "jenkins-master-1"
+      api: "https://linux-compute-prod-jenkins-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 110
+  successRate: 99.5
+  requests: 80
+
+logs:
+  log_tag: "[JENKINS]"
+  log_path: "d:\\production_shares\\nas_logs\\jenkins.log"
+
+credentials:
+  safe: "SF-JENKINS-PROD"
+  objects:
+    db: "JENKINS-DB-SVC"
+    remediation_token: "JENKINS-REMEDIATION-TOKEN"
+
+jenkins_remediation_job: "JOB_RESTART_JENKINS_MASTER"

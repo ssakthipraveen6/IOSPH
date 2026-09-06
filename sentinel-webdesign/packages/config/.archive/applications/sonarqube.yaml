@@ -1,0 +1,30 @@
+id: "sonarqube"
+display_name: "SonarQube Code Quality Platform"
+category: "code_quality"
+log_tag: "[SONARQUBE]"
+
+endpoints:
+  prod:
+    api: "https://sonarqube-prod.internal.corp/api"
+  stg:
+    api: "https://sonarqube-stg.internal.corp/api"
+
+layers:
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-sonarqube.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "sonarqube-server-1"
+      api: "https://linux-compute-prod-sonarqube-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics_baseline:
+  responseTime: 120
+  successRate: 99.6
+  requests: 70
+
+jenkins_remediation_job: "JOB_RESTART_SONARQUBE"

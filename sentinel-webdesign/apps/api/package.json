@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/api",
+  "version": "1.0.0",
+  "description": "Project Sentinel Backend Express Daemon",
+  "main": "src/server.js"
+}

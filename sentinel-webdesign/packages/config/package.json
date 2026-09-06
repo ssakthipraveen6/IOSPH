@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/config",
+  "version": "1.0.0",
+  "description": "Project Sentinel Configuration & Registry Package",
+  "main": "config.js"
+}

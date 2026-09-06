@@ -1,0 +1,48 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Micro Focus Fortify SSC
+# =========================================================================
+id: "fortify"
+kind: "application"
+display_name: "Micro Focus Fortify SSC"
+category: "security_scanner"
+tier: "Tier-2 Operational"
+log_tag: "[FORTIFY]"
+
+endpoints:
+  prod:
+    api: "https://fortify-prod.internal.corp/ssc/api/v1"
+  stg:
+    api: "https://fortify-stg.internal.corp/ssc/api/v1"
+
+layers:
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-fortify.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "fortify-ssc-1"
+      api: "https://linux-compute-prod-fortify-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 140
+  successRate: 99.4
+  requests: 30
+
+logs:
+  log_tag: "[FORTIFY]"
+  log_path: "d:\\production_shares\\nas_logs\\fortify.log"
+
+credentials:
+  safe: "SF-FORTIFY-PROD"
+  objects:
+    api_token: "FORTIFY-API-TOKEN"
+
+jenkins_remediation_job: "JOB_RESTART_FORTIFY_SERVICE"

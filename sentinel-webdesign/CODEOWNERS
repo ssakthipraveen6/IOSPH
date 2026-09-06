@@ -1,0 +1,42 @@
+# Project Sentinel — Code Owners Specification
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default global ownership fallback
+* @sentinel-org/core-architecture
+
+# Backend & Core Daemon Services
+/apps/api/ @sentinel-org/platform-team
+/apps/api/src/auth/ @sentinel-org/identity-security-team
+/apps/api/src/services/health/ @sentinel-org/platform-health-team
+/apps/api/src/services/ai_analysis/ @sentinel-org/observability-ai-team
+/apps/api/src/services/remediation/ @sentinel-org/devops-sre-team
+
+# Metrics & Telemetry Collectors
+/apps/collector/src/metrics_collection/infrastructure/ @sentinel-org/network-infra-team
+/apps/collector/src/metrics_collection/applications/ @sentinel-org/app-toolchain-team
+/apps/collector/src/metrics_collection/real/dynatrace/ @sentinel-org/observability-ai-team
+/apps/collector/src/logs_collection/ @sentinel-org/observability-ai-team
+
+# Declarative Packages & Shared Constants
+/packages/ @sentinel-org/platform-team
+/packages/shared-constants/ @sentinel-org/core-architecture
+/packages/config/definitions/ @sentinel-org/platform-team
+/packages/config/definitions/app-* @sentinel-org/app-toolchain-team
+/packages/config/definitions/infra-* @sentinel-org/network-infra-team
+/packages/config/cyberark/ @sentinel-org/identity-security-team
+/packages/database/ @sentinel-org/platform-team
+/packages/logger/ @sentinel-org/platform-team
+
+# Frontend Domain Pods (Web Application)
+/apps/web/src/components/health/ @sentinel-org/platform-health-team
+/apps/web/src/components/correlation/ @sentinel-org/observability-ai-team
+/apps/web/src/components/sre/ @sentinel-org/devops-sre-team
+/apps/web/src/components/admin/ @sentinel-org/platform-admin-team
+/apps/web/src/components/analytics/ @sentinel-org/telemetry-analytics-team
+/apps/web/src/components/shared/ @sentinel-org/frontend-core-team
+
+# Production Deployments, CI/CD Pipelines & Windows Infrastructure
+/deployments/ @sentinel-org/devops-sre-team
+/.github/ @sentinel-org/devops-sre-team
+/scripts/ @sentinel-org/devops-sre-team
+/tests/ @sentinel-org/core-architecture

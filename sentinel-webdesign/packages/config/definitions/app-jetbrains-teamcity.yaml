@@ -1,0 +1,56 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: JetBrains TeamCity CI
+# =========================================================================
+id: "jetbrains_teamcity"
+kind: "application"
+display_name: "JetBrains TeamCity CI"
+category: "ci_cd"
+tier: "Tier-1 Mission Critical"
+log_tag: "[TEAMCITY]"
+
+endpoints:
+  prod:
+    api: "https://teamcity-prod.internal.corp/app/rest"
+  stg:
+    api: "https://teamcity-stg.internal.corp/app/rest"
+
+layers:
+  db:
+    jdbc: "jdbc:postgresql://db-prod-teamcity.internal.corp:5432/teamcity_db"
+    credential_purpose: "db"
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-teamcity.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+  smb:
+    share: "\\\\storage-nas-prod.internal.corp\\teamcity_build_artifacts"
+    credential_purpose: null
+
+servers:
+  unix:
+    - node: "teamcity-server-1"
+      api: "https://linux-compute-prod-teamcity-1.internal.corp/api/v1/metrics"
+  windows: []
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 105
+  successRate: 99.6
+  requests: 60
+
+logs:
+  log_tag: "[TEAMCITY]"
+  log_path: "d:\\production_shares\\nas_logs\\teamcity.log"
+  retention_days: 30
+
+credentials:
+  safe: "SF-TEAMCITY-PROD"
+  objects:
+    db: "TEAMCITY-DB-SVC"
+    api_token: "TEAMCITY-API-TOKEN"
+
+jenkins_remediation_job: "JOB_RESTART_TEAMCITY_SERVICE"

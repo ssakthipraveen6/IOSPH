@@ -1,0 +1,47 @@
+id: "firewall"
+display_name: "Enterprise Perimeter & DMZ Next-Gen Firewalls"
+category: "network_security"
+poll_interval_seconds: 60
+credential_purpose: "api"
+endpoint: "https://fw-edge-cluster.internal.corp/api/v1/rules"
+
+rules:
+  - id: "FW-RULE-101"
+    name: "DMZ-to-Bitbucket-HTTPS"
+    src_cidr: "10.240.0.0/16"
+    dst_cidr: "10.240.10.50/32"
+    service_port: "TCP/443"
+    action: "PERMIT"
+    hit_count_delta_24h: 184520
+    last_hit_timestamp: "2026-09-06T11:20:00Z"
+    shadow_rule: false
+
+  - id: "FW-RULE-102"
+    name: "DMZ-to-Artifactory-Registry"
+    src_cidr: "10.240.0.0/16"
+    dst_cidr: "10.240.10.51/32"
+    service_port: "TCP/8081"
+    action: "PERMIT"
+    hit_count_delta_24h: 92410
+    last_hit_timestamp: "2026-09-06T11:22:00Z"
+    shadow_rule: false
+
+  - id: "FW-RULE-103"
+    name: "K8s-to-PostgreSQL-Core"
+    src_cidr: "10.242.0.0/16"
+    dst_cidr: "10.240.20.10/32"
+    service_port: "TCP/5432"
+    action: "PERMIT"
+    hit_count_delta_24h: 2450190
+    last_hit_timestamp: "2026-09-06T11:24:00Z"
+    shadow_rule: false
+
+  - id: "FW-RULE-999"
+    name: "Default-Deny-All-Inbound"
+    src_cidr: "0.0.0.0/0"
+    dst_cidr: "10.240.0.0/16"
+    service_port: "ANY"
+    action: "DENY"
+    hit_count_delta_24h: 34182
+    last_hit_timestamp: "2026-09-06T11:24:45Z"
+    shadow_rule: false
