@@ -1,4 +1,4 @@
-# 📋 Project Sentinel — Production Readiness Jira Backlog
+# 📋 Project Sentinel — Production Readiness Jira Backlog (Comprehensive 27-Task Blueprint)
 
 This document defines the complete enterprise Jira task backlog required for the production deployment and go-live certification of **Project Sentinel**. Each ticket includes standard Jira fields: **Issue Key**, **Type**, **Summary**, **Priority**, **Component**, **Estimate (Story Points)**, **Description**, and **Acceptance Criteria (Definition of Done)**.
 
@@ -21,10 +21,16 @@ This document defines the complete enterprise Jira task backlog required for the
 | `SENT-302` | Task | Configure TimescaleDB 30-Day Hypertables & Multi-Row Batch Retention | High | `Database` | 3 |
 | `SENT-303` | Task | Validate Local .runtime Cache Fallback & Write-Behind Resiliency | Medium | `Backend` | 3 |
 | **`SENT-EPIC-04`** | **Epic** | **Telemetry Pipeline & Observability Profiles Rollout** | Highest | `Observability` | — |
-| `SENT-401` | Story | Deploy OpenTelemetry Collector Fleet to Production Host Servers (Profile 1) | Highest | `Observability` | 8 |
-| `SENT-402` | Task | Configure Single Source of Truth Global Configuration & Toolchain Toggles | High | `Config` | 3 |
-| `SENT-403` | Task | Integrate Standalone Dynatrace API v2 Ingestion for Infrastructure Nodes | Medium | `Observability` | 5 |
-| `SENT-404` | Task | Mount Enterprise NAS UNC Share & Verify Daily Rotating Log Compression | High | `Storage` | 3 |
+| `SENT-401` | Story | Deploy OpenTelemetry Collector to Enterprise Linux Host Fleet (Ansible) | Highest | `Observability` | 5 |
+| `SENT-402` | Story | Deploy OpenTelemetry Collector to Windows Server Fleet (PowerShell / SCCM) | Highest | `Observability` | 5 |
+| `SENT-403` | Story | Deploy OpenTelemetry Collector DaemonSet to Kubernetes / OpenShift Clusters | High | `Observability` | 5 |
+| `SENT-404` | Task | Configure Global Production Toolchain & Endpoint Toggles (`global_config.yaml`) | High | `Config` | 3 |
+| `SENT-405` | Story | Authenticate & Activate Core Application Metric Collectors (Bitbucket, Jenkins, Artifactory, ArgoCD) | Highest | `Collectors` | 5 |
+| `SENT-406` | Story | Authenticate & Activate Security Scanner Metric Collectors (SonarQube, Fortify, NexusIQ, OTKR) | High | `Collectors` | 5 |
+| `SENT-407` | Story | Enable Infrastructure Telemetry Probes (AVI VIPs, Database TPS, NAS Mounts, eLDAP) | High | `Collectors` | 5 |
+| `SENT-408` | Task | Setup Python Selenium Synthetic Journey Engine & Fluentd Log Forwarding | Medium | `Observability` | 3 |
+| `SENT-409` | Task | Integrate Standalone Dynatrace API v2 Ingestion for Infrastructure Nodes | Medium | `Observability` | 5 |
+| `SENT-410` | Task | Mount Enterprise NAS UNC Share & Verify Daily Rotating Log Compression | High | `Storage` | 3 |
 | **`SENT-EPIC-05`** | **Epic** | **AI Anomaly Detection, RCA & ServiceNow ITSM Integration** | High | `AI/Analytics` | — |
 | `SENT-501` | Story | Validate Real-Time Log Anomaly Regex Matchers against Live Production Streams | High | `AI/Analytics` | 5 |
 | `SENT-502` | Story | Activate Linear Regression Predictive Forecasting for Capacity Exhaustion | High | `AI/Analytics` | 3 |
@@ -267,36 +273,73 @@ EPIC 4: TELEMETRY PIPELINE & OBSERVABILITY PROFILES ROLLOUT
 ================================================================================
 ```
 
-### `SENT-401` — Deploy OpenTelemetry Collector Fleet to Production Host Servers (Profile 1)
+### `SENT-401` — Deploy OpenTelemetry Collector to Enterprise Linux Host Fleet (Ansible)
 * **Issue Type:** Story
 * **Epic Link:** `SENT-EPIC-04`
 * **Priority:** Highest (P1)
 * **Component:** `Observability`
-* **Estimate:** 8 Story Points
-* **Assignee / Role:** Observability / SRE Lead
+* **Estimate:** 5 Story Points
+* **Assignee / Role:** Linux Systems Administrator / SRE
 * **Description:**
-  As an SRE, I need standard CNCF OpenTelemetry Collectors installed across all Linux and Windows host servers supporting Atlassian, JFrog, CloudBees, and Security scanner applications, streaming host OS metrics and JVM telemetry to Sentinel's OTLP ingestion endpoint via HTTP push.
+  Execute Ansible playbook across all target production Linux servers (hosting Bitbucket nodes, Jenkins runners, Artifactory VMs, PostgreSQL nodes) to install the approved `otelcol-contrib` RPM/DEB package, configure OTLP export, and register the systemd service.
 * **Technical Implementation:**
-  * File reference: `deployments/opentelemetry/otel-collector-config.yaml` and `apps/api/src/server.js` (`POST /v1/metrics`).
-  * Normalizer: `apps/collector/src/metrics_collection/real/opentelemetry/otlp_metric_normalizer.js`.
-  * Exporter configuration in agent:
-    ```yaml
-    exporters:
-      otlphttp/sentinel:
-        endpoint: "https://sentinel.yourbank.internal/v1/metrics"
-        headers:
-          Authorization: "Bearer ${OTEL_INGESTION_KEY}"
+  * File reference: `deployments/ansible/playbook_linux_otel.yml` and `deployments/opentelemetry_configs/otel_linux_config.yaml`.
+  * Target hosts: Defined in `deployments/ansible/inventory.ini`.
+  * Ansible execution command:
+    ```bash
+    ansible-playbook -i deployments/ansible/inventory.ini deployments/ansible/playbook_linux_otel.yml
     ```
-  * Verify normalization of: `system.cpu.utilization`, `system.memory.utilization`, `jvm.memory.used`, `system.disk.io`.
+  * Verify `otelcol-contrib` service starts on boot and streams `system.cpu.utilization`, `system.memory.utilization`, `system.disk.io`, and `process.*` metrics to `https://sentinel.yourbank.internal/v1/metrics`.
 * **Acceptance Criteria (Definition of Done):**
-  - [ ] OpenTelemetry agents running on target servers and reporting heartbeat.
-  - [ ] Sentinel `POST /v1/metrics` receiver ingests batches and normalizes metrics.
-  - [ ] Unit test `tests/otlp_normalizer.test.js` passes with 100% assertions.
-  - [ ] Redundant scrapers remain disabled (verifying Profile 1 efficiency).
+  - [ ] Ansible playbook finishes with 0 failed tasks across 100% of target Linux hosts.
+  - [ ] `systemctl status otelcol-contrib` is active (running) on all hosts.
+  - [ ] Sentinel backend receives live OTLP push payloads via `POST /v1/metrics`.
 
 ---
 
-### `SENT-402` — Configure Single Source of Truth Global Configuration & Toolchain Toggles
+### `SENT-402` — Deploy OpenTelemetry Collector to Windows Server Fleet (PowerShell / SCCM)
+* **Issue Type:** Story
+* **Epic Link:** `SENT-EPIC-04`
+* **Priority:** Highest (P1)
+* **Component:** `Observability`
+* **Estimate:** 5 Story Points
+* **Assignee / Role:** Windows Systems Engineer / SCCM Administrator
+* **Description:**
+  Deploy the OpenTelemetry Collector MSI package to all Windows Server application hosts (Fortify IIS nodes, TeamCity build agents, Windows build executors) via PowerShell / SCCM, deploying the configuration and starting the `otelcol` Windows Service.
+* **Technical Implementation:**
+  * File reference: `deployments/powershell/deploy_windows_otel.ps1` and `deployments/opentelemetry_configs/otel_windows_config.yaml`.
+  * Silent MSI installation: `msiexec.exe /i otelcol-contrib.msi /qn /norestart`.
+  * Target installation directory: `C:\Program Files\OpenTelemetry Collector\config.yaml`.
+  * Windows Service registration: `Set-Service -Name "otelcol" -StartupType Automatic`.
+* **Acceptance Criteria (Definition of Done):**
+  - [ ] PowerShell script runs silently without user intervention on Windows Server nodes.
+  - [ ] Windows service `otelcol` is Running and configured for Automatic startup.
+  - [ ] Sentinel backend receives live Windows memory, CPU, and disk I/O metrics.
+
+---
+
+### `SENT-403` — Deploy OpenTelemetry Collector DaemonSet to Kubernetes / OpenShift Clusters
+* **Issue Type:** Story
+* **Epic Link:** `SENT-EPIC-04`
+* **Priority:** High (P2)
+* **Component:** `Observability`
+* **Estimate:** 5 Story Points
+* **Assignee / Role:** Kubernetes Platform Engineer
+* **Description:**
+  Deploy the OpenTelemetry Collector DaemonSet into enterprise Kubernetes / OpenShift clusters supporting CloudBees Jenkins runners and ArgoCD, streaming pod resource quotas, container restart counts, and node utilization to Sentinel.
+* **Technical Implementation:**
+  * File reference: `deployments/k8s/otel_collector_daemonset.yaml`.
+  * Namespace: `sentinel-monitoring`.
+  * ServiceAccount, ClusterRole, and ClusterRoleBinding configured for cgroups and kubelet read access.
+  * OTLP HTTP exporter pointing to `https://sentinel.yourbank.internal/v1/metrics`.
+* **Acceptance Criteria (Definition of Done):**
+  - [ ] DaemonSet pods scheduled on 100% of cluster nodes.
+  - [ ] Zero CrashLoopBackOff states in `sentinel-monitoring` namespace.
+  - [ ] Sentinel backend normalizes container cgroups metrics via `otlp_metric_normalizer.js`.
+
+---
+
+### `SENT-404` — Configure Global Production Toolchain & Endpoint Toggles (`global_config.yaml`)
 * **Issue Type:** Task
 * **Epic Link:** `SENT-EPIC-04`
 * **Priority:** High (P2)
@@ -304,21 +347,112 @@ EPIC 4: TELEMETRY PIPELINE & OBSERVABILITY PROFILES ROLLOUT
 * **Estimate:** 3 Story Points
 * **Assignee / Role:** DevOps Engineer
 * **Description:**
-  Configure `packages/config/global_config.yaml` for the production environment, updating enterprise URLs, NAS mount paths, and fine-tuning `applications_enabled` and `components_enabled` toggles to match currently active production assets.
+  Configure `packages/config/global_config.yaml` for production operation, establishing single-source-of-truth DNS endpoints, authentication parameters, and master component/application toggles.
 * **Technical Implementation:**
   * File reference: `packages/config/global_config.yaml`.
   * Set `environment: "production"`.
   * Set `telemetry_provider: "opentelemetry"` (Profile 1).
-  * Configure DNS endpoints for Bitbucket, Artifactory, Jenkins, ArgoCD, SonarQube, Fortify, NexusIQ.
-  * Set `applications_enabled` flags to `false` for any tool not yet provisioned in production to prevent spurious timeout errors.
+  * Configure production URLs: `bitbucket_api`, `jenkins_master_url`, `artifactory_api`, `argocd_api`, `sonarqube_api`, `fortify_api`, `nexusiq_api`.
+  * Adjust `applications_enabled` flags to reflect provisioned enterprise assets.
 * **Acceptance Criteria (Definition of Done):**
   - [ ] `tests/schema_validation.test.js` passes all 6 validation assertions.
-  - [ ] Zero hardcoded localhost or development URLs remaining in active config.
-  - [ ] Disabled components cleanly skipped during collection cycle without error logs.
+  - [ ] Zero development or mock URLs remaining in configuration.
+  - [ ] Unmonitored or non-provisioned applications cleanly return `"Value Not Available"`.
 
 ---
 
-### `SENT-403` — Integrate Standalone Dynatrace API v2 Ingestion for Infrastructure Nodes
+### `SENT-405` — Authenticate & Activate Core Application Metric Collectors
+* **Issue Type:** Story
+* **Epic Link:** `SENT-EPIC-04`
+* **Priority:** Highest (P1)
+* **Component:** `Collectors`
+* **Estimate:** 5 Story Points
+* **Assignee / Role:** Platform SRE / Tools Lead
+* **Description:**
+  Authenticate and verify Sentinel's native Node.js application collectors for tier-1 CI/CD and repository platforms: Atlassian Bitbucket, CloudBees Jenkins, JFrog Artifactory, and ArgoCD.
+* **Technical Implementation:**
+  * File references:
+    * `apps/collector/src/metrics_collection/real/applications/bitbucket_collector.js` (Git-pack thread latency, HTTP 504 rates).
+    * `apps/collector/src/metrics_collection/real/applications/jenkins_collector.js` (Build queue depth, executor provisioning delays).
+    * `apps/collector/src/metrics_collection/real/applications/artifactory_collector.js` (OldGen JVM heap %, binary upload latency).
+    * `apps/collector/src/metrics_collection/real/applications/argocd_collector.js` (Cluster reconciliation sync latency).
+  * Verify token resolution from CyberArk CCP without plain-text secret storage.
+* **Acceptance Criteria (Definition of Done):**
+  - [ ] Bitbucket collector reports live TPS, latency, and node health.
+  - [ ] Jenkins collector reports active build executors and queue counts.
+  - [ ] Artifactory collector extracts storage pool utilization and JVM metrics.
+  - [ ] ArgoCD collector reports application sync states across target clusters.
+
+---
+
+### `SENT-406` — Authenticate & Activate Security Scanner Metric Collectors
+* **Issue Type:** Story
+* **Epic Link:** `SENT-EPIC-04`
+* **Priority:** High (P2)
+* **Component:** `Collectors`
+* **Estimate:** 5 Story Points
+* **Assignee / Role:** AppSec / DevSecOps Engineer
+* **Description:**
+  Authenticate and verify Sentinel's application collectors for security and quality governance platforms: SonarQube Enterprise, OpenText Fortify SSC, Sonatype NexusIQ, and OTKR Compliance.
+* **Technical Implementation:**
+  * File references:
+    * `apps/collector/src/metrics_collection/real/applications/sonarqube_collector.js` (Compute Engine task queue depth).
+    * `apps/collector/src/metrics_collection/real/applications/fortify_collector.js` (SSC scan buffer & IIS thread load).
+    * `apps/collector/src/metrics_collection/real/applications/nexusiq_collector.js` (Policy evaluation queue & advisory sync rate).
+    * `apps/collector/src/metrics_collection/real/applications/otkr_collector.js` (Heuristic compliance scan duration).
+* **Acceptance Criteria (Definition of Done):**
+  - [ ] SonarQube API token resolves from CyberArk and queries `/api/ce/activity`.
+  - [ ] Fortify SSC collector verifies token validity and active scan queue.
+  - [ ] NexusIQ collector evaluates policy evaluation throughput.
+  - [ ] Zero unhandled rejections if a security engine undergoes scheduled maintenance.
+
+---
+
+### `SENT-407` — Enable Infrastructure Telemetry Probes (AVI VIPs, Database TPS, NAS Mounts, eLDAP)
+* **Issue Type:** Story
+* **Epic Link:** `SENT-EPIC-04`
+* **Priority:** High (P2)
+* **Component:** `Collectors`
+* **Estimate:** 5 Story Points
+* **Assignee / Role:** Infrastructure SRE
+* **Description:**
+  Enable and verify Sentinel's infrastructure layer probes executing against enterprise network assets: AVI Ingress Balancer, PostgreSQL Database, NAS Storage NFS mounts, and Active Directory LDAP bind gateways.
+* **Technical Implementation:**
+  * File reference: `apps/collector/src/metrics_collection/real/infrastructure/infra_collector.js`.
+  * Probes:
+    * AVI Balancer: Ingress connection rates and VIP pool flip health.
+    * Database: Active PostgreSQL connections, TPS, and query latency.
+    * NAS Storage: NFS v4.1 / SMB latency, IOPS, and disk capacity.
+    * SSO / eLDAP: TCP handshake and bind latency ($< 50\text{ ms}$).
+* **Acceptance Criteria (Definition of Done):**
+  - [ ] All 5 infrastructure layers in `UnifiedHealthMatrix.jsx` render live telemetry.
+  - [ ] Database connection pool saturation probe alerts within 10s of threshold breach.
+  - [ ] Storage capacity probe accurately reflects enterprise NAS capacity.
+
+---
+
+### `SENT-408` — Setup Python Selenium Synthetic Journey Engine & Fluentd Log Forwarding
+* **Issue Type:** Task
+* **Epic Link:** `SENT-EPIC-04`
+* **Priority:** Medium (P3)
+* **Component:** `Observability`
+* **Estimate:** 3 Story Points
+* **Assignee / Role:** Automation QA / SRE
+* **Description:**
+  Configure Python 3.10+ Selenium WebDriver with Headless Chromium on the Sentinel host to execute end-to-end synthetic browser login and checkout journeys, and configure Fluentd log forwarders to stream application logs to Sentinel's NAS log directory.
+* **Technical Implementation:**
+  * Python probe: `apps/collector/src/metrics_collection/real/applications/selenium_prober.py`.
+  * Enable toggle in `global_config.yaml`: `collectors.python_metrics.enabled: true`.
+  * Configure Fluentd forwarder: `apps/collector/src/logs_collection/fluentd_collector.js`.
+  * Log destination: `d:\production_shares\nas_logs\windows_yaml_observability.log`.
+* **Acceptance Criteria (Definition of Done):**
+  - [ ] Headless Chromium executes synthetic login check against Bitbucket and Jenkins every 60s.
+  - [ ] Fluentd agent streams logs to the NAS share without buffer overflow.
+  - [ ] Browser rendering times recorded as synthetic UX latency metrics.
+
+---
+
+### `SENT-409` — Integrate Standalone Dynatrace API v2 Ingestion for Infrastructure Nodes
 * **Issue Type:** Task
 * **Epic Link:** `SENT-EPIC-04`
 * **Priority:** Medium (P3)
@@ -339,7 +473,7 @@ EPIC 4: TELEMETRY PIPELINE & OBSERVABILITY PROFILES ROLLOUT
 
 ---
 
-### `SENT-404` — Mount Enterprise NAS UNC Share & Verify Daily Rotating Log Compression
+### `SENT-410` — Mount Enterprise NAS UNC Share & Verify Daily Rotating Log Compression
 * **Issue Type:** Task
 * **Epic Link:** `SENT-EPIC-04`
 * **Priority:** High (P2)
