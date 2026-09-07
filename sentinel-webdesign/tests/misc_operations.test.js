@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { teamRotaService } = require('@sentinel/analysis');
-const dynatraceCollector = require('../apps/collector/src/metrics_collection/real/dynatrace/dynatrace_collector');
+const dynatraceCollector = require('../metrics_collection/real/dynatrace/dynatrace_collector');
 
 console.log('======================================================');
 console.log('🧪 RUNNING MISC MONTHLY EXCEL ROTA TEST SUITE');

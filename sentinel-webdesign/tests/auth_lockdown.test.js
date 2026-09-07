@@ -1,6 +1,6 @@
 const assert = require('assert');
-const ldapClient = require('../apps/api/src/auth/ldap_client');
-const session = require('../apps/api/src/auth/session');
+const ldapClient = require('../backend/auth/ldap_client');
+const session = require('../backend/auth/session');
 
 async function runAuthTests() {
   console.log('=== RUNNING AUTHENTICATION & ROLE LOCKDOWN TESTS ===');
@@ -30,7 +30,7 @@ async function runAuthTests() {
   console.log('✔ Test 4 Passed: Invalid token signature rejected');
 
   // Test 4: Strict CORS Origin Validation (Task 8)
-  const { isAllowedOrigin, createCorsOriginCallback } = require('../apps/api/src/cors_validator');
+  const { isAllowedOrigin, createCorsOriginCallback } = require('../backend/cors_validator');
   const allowedList = ['https://sentinel.yourbank.internal', 'http://localhost:5173'];
 
   // Legitimate intranet and explicitly allowed origins

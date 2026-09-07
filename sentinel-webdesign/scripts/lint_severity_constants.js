@@ -11,8 +11,8 @@ const path = require('path');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const TARGET_DIRS = [
-  path.join(ROOT_DIR, 'apps', 'web', 'src', 'components'),
-  path.join(ROOT_DIR, 'apps', 'api', 'src', 'services')
+  path.join(ROOT_DIR, 'frontend', 'src', 'components'),
+  path.join(ROOT_DIR, 'backend', 'services')
 ];
 
 // Patterns that indicate inline hardcoded severity anti-patterns
@@ -29,7 +29,7 @@ const ANTI_PATTERNS = [
 
 // Files permitted to contain definitions or stubs
 const EXCLUSIONS = [
-  path.normalize('packages/shared-constants')
+  path.normalize('shared')
 ];
 
 let violationCount = 0;

@@ -17,13 +17,17 @@
 /apps/collector/src/metrics_collection/real/dynatrace/ @sentinel-org/observability-ai-team
 /apps/collector/src/logs_collection/ @sentinel-org/observability-ai-team
 
+# User Configuration Directory (Single Source of Truth)
+/config/ @sentinel-org/platform-team
+/config/apps/ @sentinel-org/app-toolchain-team
+/config/infra/ @sentinel-org/network-infra-team
+/config/cyberark.yaml @sentinel-org/identity-security-team
+/config/global.yaml @sentinel-org/platform-team
+
 # Declarative Packages & Shared Constants
 /packages/ @sentinel-org/platform-team
 /packages/shared-constants/ @sentinel-org/core-architecture
-/packages/config/definitions/ @sentinel-org/platform-team
-/packages/config/definitions/app-* @sentinel-org/app-toolchain-team
-/packages/config/definitions/infra-* @sentinel-org/network-infra-team
-/packages/config/cyberark/ @sentinel-org/identity-security-team
+/packages/config/ @sentinel-org/platform-team
 /packages/database/ @sentinel-org/platform-team
 /packages/logger/ @sentinel-org/platform-team
 

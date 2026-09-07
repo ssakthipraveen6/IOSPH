@@ -26,16 +26,16 @@ if not exist "node_modules\" (
       )
 )
 
-if exist "apps\web\dist\index.html" (
-    echo [INFO] Pre-compiled frontend assets found in apps\web\dist. Skipping compile steps.
+if exist "frontend\dist\index.html" (
+    echo [INFO] Pre-compiled frontend assets found in frontend\dist. Skipping compile steps.
     goto :start_server
 )
 
-if not exist "apps\web\node_modules\" (
-    echo [INFO] Installing frontend dependencies in apps\web...
-    cd apps\web
+if not exist "frontend\node_modules\" (
+    echo [INFO] Installing frontend dependencies in frontend...
+    cd frontend
     call npm install
-    cd ..\..
+    cd ..
     if %errorlevel% neq 0 (
         echo [ERROR] Failed to install frontend dependencies.
         pause

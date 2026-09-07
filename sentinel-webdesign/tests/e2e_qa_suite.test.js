@@ -53,7 +53,7 @@ async function main() {
   // Test 1: Historical Telemetry Analytics Postgres Endpoint & Query Engine
   totalCount++;
   if (await runTest('DATABASE & REST API: Historical time-series telemetry data retrieval', async () => {
-    const postgresDb = require('../packages/database/postgres');
+    const postgresDb = require('../database/postgres');
     let metricsData = await postgresDb.fetchHistoricalMetricsFromPostgres('database', 'cpu_usage', 24, 'demo');
     if (!Array.isArray(metricsData) || metricsData.length === 0) {
       const res = await httpGet('/api/pbi/metrics?component=database&metricName=cpu_usage&hours=24&environment=demo');
@@ -73,7 +73,7 @@ async function main() {
   // Test 2: Snowflake Log Analytics Warehouse Endpoint & Query Engine
   totalCount++;
   if (await runTest('REST API & SNOWFLAKE DB: Log volume distributions query', async () => {
-    const snowflakeDb = require('../packages/database/snowflake');
+    const snowflakeDb = require('../database/snowflake');
     let logData = await snowflakeDb.fetchLogAnalyticsFromSnowflake();
     if (!Array.isArray(logData) || logData.length === 0) {
       const res = await httpGet('/api/pbi/logs');

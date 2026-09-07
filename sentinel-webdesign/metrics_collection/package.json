@@ -1,0 +1,12 @@
+{
+  "name": "@sentinel/collector",
+  "version": "1.0.0",
+  "description": "Project Sentinel Telemetry Collector Engine",
+  "main": "collector_coordinator.js",
+  "exports": {
+    ".": "./collector_coordinator.js",
+    "./shared/fetch_with_fallback": "./shared/fetch_with_fallback.js",
+    "./shared/*": "./shared/*.js",
+    "./*": "./*"
+  }
+}

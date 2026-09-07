@@ -1,6 +1,6 @@
 const assert = require('assert');
-const postgres = require('../packages/database/postgres');
-const db = require('../packages/database/db');
+const postgres = require('../database/postgres');
+const db = require('../database/db');
 
 async function runDatastoreTests() {
   console.log('=== RUNNING DATASTORE MIGRATION TESTS ===');

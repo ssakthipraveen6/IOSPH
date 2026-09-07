@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { normalizeOtlpPayload, OTEL_METRIC_MAP } = require('../apps/collector/src/metrics_collection/real/opentelemetry/otlp_metric_normalizer');
+const { normalizeOtlpPayload, OTEL_METRIC_MAP } = require('../metrics_collection/real/opentelemetry/otlp_metric_normalizer');
 
 async function runOtlpNormalizerTests() {
   console.log('=== RUNNING OPENTELEMETRY (OTLP) NORMALIZER TESTS ===');

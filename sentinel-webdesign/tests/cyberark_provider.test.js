@@ -1,6 +1,6 @@
 const assert = require('assert');
 const path = require('path');
-const { getCredential, resolveRegistryEntry, clearCache } = require('../packages/config/cyberark/credential_provider');
+const { getCredential, resolveRegistryEntry, clearCache } = require('../backend/config/cyberark/credential_provider');
 
 async function runTests() {
   console.log('=== RUNNING CYBERARK CREDENTIAL PROVIDER TESTS ===');

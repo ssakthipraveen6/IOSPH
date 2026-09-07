@@ -8,15 +8,13 @@ Designed for deployment on **Windows Server** behind enterprise **AVI Load Balan
 
 ## 📚 Consolidated Documentation Map
 
-The project's architectural and operational documentation is consolidated into two authoritative master documents:
+The project's architectural and operational documentation is consolidated into authoritative reference guides:
 
 | Document | File Link | Description |
 | :--- | :--- | :--- |
-| **Master Architecture & Reference** | [`ARCHITECTURE.md`](./ARCHITECTURE.md) | **Definitive Single Source of Truth**: 7-tier monorepo topology, Mermaid sequence & state diagrams, module-by-module code reference, OpenTelemetry implementation, toggles, and SLAs. |
-| **Production Integration Guide** | [`PRODUCTION_GUIDE.md`](./PRODUCTION_GUIDE.md) | **Step-by-step rollout manual**: Exact line numbers, configuration points, TimescaleDB SQL DDL, CyberArk CCP registry, deep code scan report, and deployment checklists. |
-| **Interactive Blueprint Viewer** | [`docs/ARCHITECTURE_DIAGRAMS.html`](./docs/ARCHITECTURE_DIAGRAMS.html) | Standalone dark-mode HTML viewer with interactive Mermaid.js architecture diagrams. |
-| **UI/UX Design Standards** | [`docs/design_gallery.html`](./docs/design_gallery.html) | Interactive developer dark vs. MNC glassmorphism design gallery. |
-| **Security Policy** | [`SECURITY.md`](./SECURITY.md) | Vulnerability disclosure, vault scoping, JWT sessions, and audit logging standards. |
+| **Master Architecture & Reference** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | **Definitive Single Source of Truth**: End-to-end topology, Mermaid sequence & state diagrams, module reference, OpenTelemetry pipeline, and SLAs. |
+| **Production Integration Guide** | [`docs/PRODUCTION_GUIDE.md`](./docs/PRODUCTION_GUIDE.md) | **Rollout & Operations Manual**: Windows Server / IIS hosting, TimescaleDB SQL DDL, CyberArk CCP registry, and operational checklists. |
+| **Security Policy & Compliance** | [`docs/SECURITY.md`](./docs/SECURITY.md) | CyberArk vault scoping, RBAC governance, vulnerability disclosure SLA, and audit standards. |
 
 ---
 

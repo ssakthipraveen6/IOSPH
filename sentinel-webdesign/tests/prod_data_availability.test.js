@@ -1,7 +1,7 @@
 const assert = require('assert');
-const config = require('../packages/config/config');
-const appCollector = require('../apps/collector/src/metrics_collection/real/applications/app_collector');
-const db = require('../packages/database/db');
+const config = require('../backend/config/config');
+const appCollector = require('../metrics_collection/real/applications/app_collector');
+const db = require('../database/db');
 
 console.log('======================================================');
 console.log('🧪 RUNNING PRODUCTION DATA NOT AVAILABLE TEST SUITE');

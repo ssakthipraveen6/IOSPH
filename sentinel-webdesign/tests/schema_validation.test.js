@@ -1,6 +1,6 @@
 const assert = require('assert');
-const yamlConfig = require('../packages/config/yaml_config');
-const config = require('../packages/config/config');
+const yamlConfig = require('../backend/config/yaml_config');
+const config = require('../backend/config/config');
 
 function runSchemaTests() {
   console.log('=== RUNNING MULTI-LAYER SCHEMA & VALIDATION TESTS ===');
@@ -63,6 +63,18 @@ function runSchemaTests() {
   assert(allInfra.avi, 'AVI must be loaded from definitions');
   assert(allInfra.windows, 'Windows must be loaded from definitions');
   console.log('✔ Test 6 Passed: Unified definitions (Option A) loaded with metrics, logs, and credentials');
+
+  // Test 7: Unified Root Config Directory Loading (Option 2)
+  assert(yamlConfig.ROOT_CONFIG_DIR, 'ROOT_CONFIG_DIR must be exported');
+  assert(yamlConfig.ROOT_APPS_DIR, 'ROOT_APPS_DIR must be exported');
+  assert(yamlConfig.ROOT_INFRA_DIR, 'ROOT_INFRA_DIR must be exported');
+  const fs = require('fs');
+  assert(fs.existsSync(yamlConfig.ROOT_CONFIG_DIR), 'Root config directory must exist');
+  assert(fs.existsSync(yamlConfig.ROOT_APPS_DIR), 'Root config/apps directory must exist');
+  assert(fs.existsSync(yamlConfig.ROOT_INFRA_DIR), 'Root config/infra directory must exist');
+  assert(allApps.jenkins, 'Jenkins must be loaded from root config/apps');
+  assert(allInfra.k8s, 'K8s must be loaded from root config/infra');
+  console.log('✔ Test 7 Passed: Unified root config directory (Option 2) verified with full app/infra targets');
 
   console.log('=== ALL SCHEMA VALIDATION TESTS PASSED ===\n');
 }

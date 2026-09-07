@@ -1,5 +1,5 @@
 const assert = require('assert');
-const providerSelector = require('../apps/collector/src/metrics_collection/telemetry_provider_selector');
+const providerSelector = require('../metrics_collection/telemetry_provider_selector');
 
 async function runSelectorTests() {
   console.log('=== RUNNING TELEMETRY PRODUCTION PROFILE TESTS ===');

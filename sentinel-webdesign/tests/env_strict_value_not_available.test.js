@@ -1,9 +1,9 @@
 const assert = require('assert');
-const config = require('../packages/config/config');
-const db = require('../packages/database/db');
-const postgres = require('../packages/database/postgres');
-const snowflake = require('../packages/database/snowflake');
-const appCollector = require('../apps/collector/src/metrics_collection/real/applications/app_collector');
+const config = require('../backend/config/config');
+const db = require('../database/db');
+const postgres = require('../database/postgres');
+const snowflake = require('../database/snowflake');
+const appCollector = require('../metrics_collection/real/applications/app_collector');
 
 console.log('======================================================');
 console.log('🧪 RUNNING STRICT ENVIRONMENT VALUE AVAILABILITY TEST');

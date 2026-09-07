@@ -1,8 +1,8 @@
 const { performance } = require('perf_hooks');
 const assert = require('assert');
-const config = require('../packages/config/config');
-const credentialProvider = require('../packages/config/cyberark/credential_provider');
-const { runWithConcurrencyLimit } = require('../apps/collector/src/metrics_collection/concurrency_limiter');
+const config = require('../backend/config/config');
+const credentialProvider = require('../backend/config/cyberark/credential_provider');
+const { runWithConcurrencyLimit } = require('../metrics_collection/concurrency_limiter');
 
 async function runLoadTest200() {
   console.log('=== RUNNING SCALE LOAD TEST (200 VIRTUAL HOSTS) ===\n');
