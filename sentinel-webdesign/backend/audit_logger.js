@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const postgres = require('../database/postgres');
 
 // Append-only audit log for all mutating API operations
 // [DS-02] Satisfies SOX/PCI-DSS requirements for change audit trail with user attribution (T0.16)
@@ -46,6 +47,17 @@ function auditLog(req, action, detail = {}) {
 
   // [T0.16] Forward to stdout as system of record for enterprise SIEM ingestion
   console.info(`[AUDIT] ${entry.timestamp} | ${action} | user=${entry.user} | role=${entry.role} | ip=${entry.ip}`);
+
+  // [T0.16] Mirror into the append-only audit_event table. The file write above is the
+  // durable local WAL; this makes the trail queryable. Never throws into the request path.
+  postgres.query(
+    `INSERT INTO audit_event (ts, actor, actor_role, action, target, detail, ip, user_agent, http_path, http_method)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [entry.timestamp, entry.user, entry.role, entry.action, detail && detail.target ? String(detail.target) : null,
+     JSON.stringify(detail || {}), entry.ip, entry.userAgent, entry.path, entry.method]
+  ).catch(err => {
+    console.warn('[AUDIT] audit_event insert failed (file WAL retains the entry):', err.message);
+  });
 }
 
 /**
@@ -54,6 +66,24 @@ function auditLog(req, action, detail = {}) {
  * @param {number} limit  Maximum number of entries to return
  * @returns {object[]}
  */
+async function getAuditLogFromDb(limit = 200) {
+  const res = await postgres.query(
+    `SELECT ts, actor, actor_role, action, detail, ip, user_agent, http_path, http_method
+       FROM audit_event ORDER BY ts DESC LIMIT $1`, [limit]);
+  if (!res) return null;
+  return res.rows.map(r => ({
+    timestamp: r.ts instanceof Date ? r.ts.toISOString() : r.ts,
+    action: r.action,
+    user: r.actor,
+    role: r.actor_role,
+    ip: r.ip,
+    userAgent: r.user_agent,
+    path: r.http_path,
+    method: r.http_method,
+    detail: r.detail || {}
+  }));
+}
+
 function getAuditLog(limit = 200) {
   try {
     if (!fs.existsSync(AUDIT_LOG_PATH)) return [];
@@ -88,4 +118,4 @@ function getAuditLog(limit = 200) {
   }
 }
 
-module.exports = { auditLog, getAuditLog };
+module.exports = { auditLog, getAuditLog, getAuditLogFromDb };
