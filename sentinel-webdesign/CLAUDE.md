@@ -12,6 +12,8 @@ Project Sentinel is an observability and autonomous-recovery portal: Node.js/Exp
 
 A production-readiness review found this codebase to be roughly a 15–20% prototype against its stated requirement. **Before changing anything, read [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md)** (the specification, 10 phases, 73 tasks) and **[`docs/PROGRESS.md`](docs/PROGRESS.md)** (current state).
 
+Orientation: **[`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md)** describes every folder and file. **[`docs/PRODUCTION_IMPLEMENTATION_PLAN.md`](docs/PRODUCTION_IMPLEMENTATION_PLAN.md)** covers deployment and the per-application onboarding backlog.
+
 Key things that file establishes and this one does not repeat:
 
 - Large parts of the “real” collectors **fabricate data** — 46 `Math.random()` calls across 25 collectors, and the whole infrastructure tier returns hardcoded constants. Correct URLs alone will not produce real values.

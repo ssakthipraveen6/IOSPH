@@ -1,0 +1,208 @@
+# Production Implementation Plan
+
+How to get Project Sentinel from a local clone to a production service, in two stages.
+
+**Stage 1** puts the shell in production on demo data — days of work, low risk, real value.
+**Stage 2** onboards the real estate one application at a time — the Jira backlog.
+
+Companion documents: [`CODEBASE_MAP.md`](./CODEBASE_MAP.md) for what each file does, [`REMEDIATION_PLAN.md`](./REMEDIATION_PLAN.md) for the engineering specification, [`PROGRESS.md`](./PROGRESS.md) for current state.
+
+---
+
+## 0. Run it locally first
+
+A fresh clone needs no manual setup:
+
+```bash
+git clone <repo> && cd sentinel-webdesign
+npm install          # installs workspaces and creates the @sentinel/* symlinks
+npm run launch       # bootstrap (generates .env), build, start
+```
+
+Open `http://localhost:3001`. Dev mode with hot reload is `npm run dev` → `http://localhost:5173`.
+
+It runs with **no database**. Metrics, logs and events stay in memory, identity uses a local dev store, and history does not survive a restart. To attach one:
+
+```bash
+docker compose -f tools/validation/docker-compose.validation.yml up -d
+npm run migrate
+```
+
+**Checklist**
+
+- [ ] `npm install` completes, `node_modules/@sentinel/` contains 9 symlinks
+- [ ] `npm run launch` serves `http://localhost:3001`
+- [ ] `npm test` green
+- [ ] `npm run preflight` runs (all targets unreachable is the correct result with placeholder config)
+- [ ] `npm run dev` serves `http://localhost:5173` with hot reload
+
+---
+
+# Stage 1 — Ship the shell on demo data
+
+## What this is, and is not
+
+**Is:** a working UI on synthesized data, deployed on real infrastructure, behind real authentication. It proves the hosting path — IIS, AVI, TLS, LDAP, RefWeb routing — which is the part you cannot test locally and the part that will surprise you.
+
+**Is not:** a monitoring tool. It must not appear in any incident runbook, bridge-call procedure, or CMDB entry as a monitoring service.
+
+**The failure to design against:** an engineer opens Sentinel at 03:00, sees green tiles, and stands down — on demo data. Everything below exists to make that impossible.
+
+## Why the risk profile is genuinely lower
+
+A demo-only deployment holds **no production credentials** (no CyberArk binding), runs **no collectors** (never reaches your estate), and stores **no real telemetry** (so backup, DR and retention are not go-live gates). Most Tier-1 objections apply to a system carrying real data. They do not apply to a shell.
+
+## S1.1 — Pre-deployment gates
+
+- [ ] `config/global.yaml` → `environment: "demo"`
+- [ ] `applications_enabled:` → **all false**
+- [ ] `components_enabled:` → **all false**
+- [ ] `collectors.dynatrace.enabled: false`, `collectors.python_metrics.enabled: false`
+- [ ] `config/cyberark.yaml` → **no production safes mapped**
+- [ ] `ALLOWED_ORIGIN` set to the real corporate URL
+- [ ] `frontend/src/maintenanceConfig.js` → `showGlobalBanner: true`, text reading **"DEMONSTRATION DATA — NOT LIVE TELEMETRY"**
+- [ ] `SENTINEL_JWT_SECRET` set as a **machine environment variable**, not in `.env`
+- [ ] Branch pushed to the remote
+
+> The bootstrap script refuses to generate a JWT secret when `NODE_ENV=production`. That is deliberate — a generated secret would invalidate every session on restart and hide a deployment error.
+
+## S1.2 — Host setup (Windows Server)
+
+- [ ] Node 24.x installed and on `PATH`
+- [ ] IIS with **HttpPlatformHandler** installed
+- [ ] Application pool created, identity assigned
+- [ ] Repository deployed to the target path
+- [ ] `npm ci && npm run build`
+- [ ] `web.config` in place; set `stdoutLogEnabled="true"` so the audit stream reaches SIEM
+- [ ] `install_service.ps1` run, service starts on boot
+- [ ] Log directory writable; rotation confirmed
+
+## S1.3 — Network and identity
+
+- [ ] TLS certificate issued for the corporate URL, expiry recorded
+- [ ] AVI virtual service configured; health monitor on `/healthz` expecting 200
+- [ ] WebSocket upgrade passes through AVI and IIS (verify `/ws` returns 101)
+- [ ] `sso_ldap_config.ldap_url` set to the real `ldaps://` URL — **not** the OAuth endpoint
+- [ ] Service account for the LDAP bind created and vaulted
+- [ ] Group→role mapping confirmed in `config/infra/sso-eldap.yaml`
+- [ ] Firewall: browsers → AVI → host on 443 only
+
+## S1.4 — Post-deployment verification
+
+Run against the deployed URL, not localhost:
+
+- [ ] `/healthz` returns 200
+- [ ] SPA loads; browser console clean
+- [ ] Login succeeds with a **real directory account**
+- [ ] Login **fails** with a bad password (this is the auth-bypass regression test)
+- [ ] Each role sees the right things; a Viewer cannot approve a recovery
+- [ ] Demo banner visible on every view
+- [ ] Every tab renders without error
+- [ ] Switching to PROD shows **DATA_UNAVAILABLE**, not fabricated values
+- [ ] Two browser sessions hold different environments simultaneously
+- [ ] Service survives a host reboot
+
+## S1.5 — Organisational guardrails
+
+- [ ] Named application owner and technical owner recorded
+- [ ] Announcement states explicitly: **demonstration only, not a monitoring source**
+- [ ] **Not** added to any incident runbook or escalation procedure
+- [ ] CMDB entry, if any, classified **Pilot** — not Tier-1
+- [ ] Review date set for the Stage 2 decision
+
+---
+
+# Stage 2 — Onboard the estate
+
+Each application is one epic. Do **Jenkins first**: it is the most complex topology you have (5 Operations Centers, 10 controllers, 250 agents, 4 build clusters). If the model survives Jenkins, the other twelve are variations. If it does not, you want to learn that on epic one.
+
+## The per-application template
+
+**Epic: Onboard `<tool>`**
+
+| # | Task | Done when |
+|---|---|---|
+| 1 | Record real endpoints in `config/apps/<tool>.yaml` | `npm run preflight` reaches the host |
+| 2 | Request a **read-only** service account | Account exists, scoped, documented |
+| 3 | Vault the credential; map it in `config/cyberark.yaml` | `credential_provider` resolves it |
+| 4 | Set the `auth:` block (bearer / basic / mTLS / cookie) | Preflight reports **REACHABLE**, not AUTH_FAILED |
+| 5 | Declare topology — nodes, agent pools with `expected_count`, regions | `/api/v2/entities` returns the fleet |
+| 6 | Rewrite the collector to parse the real response | No value comes from `metrics_baseline` |
+| 7 | Add the tool's log patterns | Fingerprints generated |
+| 8 | Set `jenkins_remediation_job`, scoped to named jobs only | Runbook resolves |
+| 9 | Enable `applications_enabled.<tool>: true` | Tiles show real values |
+| 10 | Verify prod shows real data and demo still shows demo | Both correct |
+
+**Suggested order:** Jenkins → Artifactory → Bitbucket → SonarQube → TeamCity → Nexus IQ → Fortify → ArgoCD → Argo Workflows → GitHub → Aquasec → OTKR → Performance Center.
+
+Infrastructure layers (AVI, k8s, NFS/Trident, Windows, Linux, SSO) are their own epic and should land **early** — the correlation engine blames infrastructure, and it cannot do that without real infrastructure data.
+
+## Parallel epics
+
+**Agent rollout.** Fluent Bit and OTel collectors via your existing config-management channel (SCCM / Ansible Tower). Sentinel renders configs; it never pushes them. Include agent heartbeat — a silent shipper looks exactly like a healthy application.
+
+**View consolidation.** 17 tabs today, 8 after merging. `rca` and `timeline` render the identical component. Candidates: blast-radius + timeline + RcaDashboard → one Root Cause workspace; matrix → health; entities → fleet; pbi → metrics; ailogs → logs; misc → admin.
+
+**Code quality.** Resolve the 4 `lint:constants` violations (2 genuine, 2 false positives from the rule's case-insensitive flag). Correct the stale claims in `ARCHITECTURE.md` and `PRODUCTION_GUIDE.md`.
+
+## The trigger that changes everything
+
+**The moment the first real application is onboarded, Sentinel stops being a demo.** People begin to trust it, and every Tier-1 obligation activates. Start these when epic one begins, not when it ends — they have long lead times.
+
+### Track B — assurance
+- [ ] Independent penetration test **booked** (weeks of queue time)
+- [ ] SAST in CI — you already own Fortify
+- [ ] DAST against the running instance
+- [ ] SCA / `npm audit` as a build gate
+- [ ] Threat model and security architecture sign-off
+- [ ] Secrets scan across the repo **and its history**
+- [ ] Open-source licence review
+
+### Track C — operational acceptance
+- [ ] Backup and **tested restore**; RPO/RTO agreed
+- [ ] DR posture — what happens to Sentinel *during* a DR event
+- [ ] Capacity model: disk growth/day at 2,000 hosts, IOPS, pool sizing
+- [ ] Failure-mode testing and a graceful-degradation matrix
+- [ ] **CI/CD pipeline for Sentinel itself** — none exists today
+- [ ] Branch protection; no direct commits to `main`
+- [ ] SBOM, artifact signing, release tagging, documented rollback
+- [ ] dev → SIT → UAT → prod promotion path
+- [ ] Runbook and operations manual
+- [ ] L1/L2/L3 support model and an on-call rota **for Sentinel itself**
+- [ ] CMDB reclassification to Tier-1, SLA/OLA
+- [ ] NOC operator training
+- [ ] Data classification and DPIA
+- [ ] Retention schedule mapped to policy
+- [ ] RBAC matrix signed off; SoD analysis on four-eyes
+- [ ] Self-observability exported **elsewhere**
+- [ ] **External dead-man's switch** — a monitoring platform that fails silently is worse than none
+
+### Autonomous remediation — graduated, not granted
+1. Default off; manual trigger only
+2. Each runbook individually pre-approved as a SOX standard change
+3. Stays manual until ~20 clean executions under four-eyes
+4. Autonomy enabled **per runbook**, never globally
+5. Every execution raises a CHG record
+6. A kill switch that halts all autonomous execution without a deploy
+
+---
+
+## Honest timeline
+
+| Stage | Effort |
+|---|---|
+| Stage 1 (demo shell in production) | **Days** |
+| First application end to end | **1–2 weeks** — mostly waiting on accounts and access |
+| Remaining twelve | Weeks each, parallelisable |
+| Track B | Weeks of queue time — book now |
+| Track C | **Usually sets the go-live date** |
+
+Track C is your critical path to Tier-1, not code.
+
+---
+
+## Rollback
+
+**Stage 1:** stop the service, remove the AVI pool member. No data to unwind.
+
+**Stage 2, per application:** set `applications_enabled.<tool>: false` and restart. The collector stops, tiles return to DATA_UNAVAILABLE, nothing else is affected. This is why per-application onboarding is the right shape — each epic is independently reversible.
