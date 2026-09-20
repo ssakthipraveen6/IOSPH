@@ -37,3 +37,6 @@ database/sentinel_users.json
 
 # Per-environment registry config (may contain an auth token)
 .npmrc
+
+# Repo-dump tooling output
+repomix-output.xml
