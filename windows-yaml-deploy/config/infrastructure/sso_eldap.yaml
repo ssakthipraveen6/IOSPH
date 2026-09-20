@@ -1,6 +1,0 @@
-id: "sso_eldap"
-display_name: "Enterprise eLDAP / SSO Gateway"
-category: "identity"
-poll_interval_seconds: 60
-credential_purpose: "bind"
-endpoint: "https://sso-auth-prod.internal.corp/oauth2/token"

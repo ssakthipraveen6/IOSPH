@@ -1,6 +1,0 @@
-id: "unix"
-display_name: "Linux / Unix Compute Nodes"
-category: "compute"
-poll_interval_seconds: 30
-credential_purpose: "ssh"
-api: "https://linux-compute-prod.internal.corp/api/v1/metrics"
