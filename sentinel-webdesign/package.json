@@ -18,7 +18,7 @@
   "scripts": {
     "setup": "node scripts/setup_symlinks.js",
     "postinstall": "node scripts/setup_symlinks.js",
-    "predev": "node scripts/setup_symlinks.js",
+    "predev": "node scripts/setup_symlinks.js && node scripts/bootstrap.js",
     "migrate": "node database/migrate.js up",
     "migrate:down": "node database/migrate.js down",
     "start": "node backend/server.js",
@@ -32,7 +32,10 @@
     "lint:random": "node scripts/lint_no_random.js",
     "lint": "npm run lint:constants && npm run lint:random && cd frontend && npm run lint",
     "preflight": "node scripts/preflight_check.js",
-    "audit:check": "npm audit --audit-level=high"
+    "audit:check": "npm audit --audit-level=high",
+    "bootstrap": "node scripts/bootstrap.js",
+    "prestart": "node scripts/bootstrap.js",
+    "launch": "npm run bootstrap && npm run build && npm start"
   },
   "dependencies": {
     "compression": "^1.8.1",

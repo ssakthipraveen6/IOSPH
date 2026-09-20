@@ -224,7 +224,7 @@ async function authenticate(username, password) {
       return { success: false, error: 'Authentication service unavailable. Contact your administrator.' };
     }
 
-    const ldapUrl = ldapConfig.url || (infraLayers.sso_eldap && infraLayers.sso_eldap.endpoint) || 'ldaps://ldap.enterprise.corp:636';
+    const ldapUrl = ldapConfig.ldap_url || ldapConfig.url || (infraLayers.sso_eldap && infraLayers.sso_eldap.endpoint) || 'ldaps://ldap.enterprise.corp:636';
     const bindDn = ldapConfig.bind_dn || 'cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp';
     const searchBase = ldapConfig.search_base || 'dc=enterprise,dc=corp';
 

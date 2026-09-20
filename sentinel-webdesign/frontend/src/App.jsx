@@ -511,7 +511,7 @@ export default function App() {
             </div>
 
             {/* Connective Architecture Layer: Global Entity Search / Resolver */}
-            <GlobalEntitySearch onSelectEntity={handleOpenEntityPanel} />
+            <GlobalEntitySearch onSelectEntity={handleOpenEntityPanel} environment={environment} />
           </div>
 
           {/* Header Right Controls: Theme Toggle + Who Has Logged In + 3-Way Env + 4 Timezone Clocks */}

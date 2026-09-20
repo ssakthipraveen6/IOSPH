@@ -92,6 +92,10 @@ function resolveEnvironment(req) {
   if (candidate && ['prod', 'staging', 'demo'].includes(candidate.toLowerCase())) {
     return candidate.toLowerCase();
   }
+  if (candidate) {
+    // Unknown token supplied explicitly: normalise (and warn) rather than trust it.
+    return config.normalizeEnvironment(candidate, 'request');
+  }
   return config.ENVIRONMENT || 'staging';
 }
 

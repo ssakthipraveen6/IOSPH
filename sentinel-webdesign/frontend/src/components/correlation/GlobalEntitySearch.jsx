@@ -2,7 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MASTER_ENTITY_CATALOG } from '../../data/correlationData';
 import { SEVERITY, normalizeSeverity } from '@sentinel/shared-constants';
 
-export default function GlobalEntitySearch({ onSelectEntity }) {
+export default function GlobalEntitySearch({ onSelectEntity, environment = 'staging' }) {
+  // [ENV] The master catalog is demo fixture data. Searching it in prod/staging would
+  // surface entities that do not exist in the real estate (violates the never-fabricate rule).
+  const isProdOrStg = environment === 'prod' || environment === 'staging' || environment === 'stg';
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
@@ -13,7 +16,7 @@ export default function GlobalEntitySearch({ onSelectEntity }) {
     }
   }, [isOpen]);
 
-  const results = MASTER_ENTITY_CATALOG.filter(e => {
+  const results = isProdOrStg ? [] : MASTER_ENTITY_CATALOG.filter(e => {
     if (!query.trim()) return true;
     const q = query.toLowerCase();
     return (

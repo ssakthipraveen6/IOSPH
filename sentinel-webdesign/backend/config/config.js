@@ -63,8 +63,37 @@ Object.keys(appsConfig).forEach(appId => {
   };
 });
 
-const environment = process.env.ENVIRONMENT || globalConfig.environment || 'staging';
-const isProd = environment.toLowerCase() === 'production';
+// [ENV-TOKEN] The rest of the system speaks exactly three tokens: prod | staging | demo.
+// global.yaml historically carried "production", which silently failed every
+// `=== 'prod'` comparison -- including the LDAP production guard, which then fell
+// through to the staging test-user table and accepted any password. Normalise once,
+// here, so no downstream comparison has to guess.
+const ENV_ALIASES = {
+  prod: 'prod', production: 'prod', prd: 'prod',
+  staging: 'staging', stg: 'staging', stage: 'staging', 'non-prod': 'staging',
+  demo: 'demo'
+};
+
+function normalizeEnvironment(raw, source) {
+  if (!raw) return 'staging';
+  const key = String(raw).trim().toLowerCase();
+  const resolved = ENV_ALIASES[key];
+  if (!resolved) {
+    console.warn(
+      `[CONFIG] Unrecognised environment "${raw}" from ${source}. ` +
+      `Expected one of: prod, staging, demo. Falling back to "staging".`
+    );
+    return 'staging';
+  }
+  return resolved;
+}
+
+const rawEnvironment = process.env.ENVIRONMENT || globalConfig.environment || 'staging';
+const environment = normalizeEnvironment(
+  rawEnvironment,
+  process.env.ENVIRONMENT ? 'ENVIRONMENT env var' : 'config/global.yaml'
+);
+const isProd = environment === 'prod';
 
 const prodUrls = {
   ...(globalConfig.prod_urls || {}),
@@ -80,6 +109,7 @@ const stgUrls = {
 const telemetryProvider = process.env.TELEMETRY_PROVIDER || globalConfig.telemetry_provider || 'hybrid';
 
 module.exports = {
+  normalizeEnvironment,
   ENVIRONMENT: environment,
   IS_PROD: isProd,
   USE_SIMULATED_COLLECTORS: useSimulated,
