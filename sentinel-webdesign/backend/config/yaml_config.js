@@ -25,10 +25,34 @@ let cachedGlobal = null;
 let cachedApps = null;
 let cachedInfra = null;
 
+// [YAML-SRC] Maps every resolvable config id (including aliases) to the file it
+// actually came from, so lookups never have to guess a filename from an id.
+let cachedSourceFiles = null;
+
+function getSourceFileMap() {
+  if (!cachedSourceFiles) {
+    cachedSourceFiles = {};
+    loadAllApplications();
+    loadAllInfrastructureLayers();
+  }
+  return cachedSourceFiles;
+}
+
+function recordSourceFile(parsed, filePath) {
+  if (!cachedSourceFiles) cachedSourceFiles = {};
+  cachedSourceFiles[parsed.id] = filePath;
+  if (Array.isArray(parsed.aliases)) {
+    for (const alias of parsed.aliases) {
+      if (!cachedSourceFiles[alias]) cachedSourceFiles[alias] = filePath;
+    }
+  }
+}
+
 function clearConfigCache() {
   cachedGlobal = null;
   cachedApps = null;
   cachedInfra = null;
+  cachedSourceFiles = null;
 }
 
 function loadGlobalConfig(forceReload = false) {
@@ -60,6 +84,7 @@ function loadAllApplications(forceReload = false) {
           const parsed = yaml.load(content);
           if (parsed && parsed.id && (!filterFn || filterFn(parsed, file))) {
             apps[parsed.id] = { ...apps[parsed.id], ...parsed };
+            recordSourceFile(parsed, filePath);
           }
         } catch (e) {
           throw new Error(`[YAML CONFIG] Fatal error parsing application config ${file}: ${e.message}`);
@@ -124,6 +149,7 @@ function loadAllInfrastructureLayers(forceReload = false) {
           const parsed = yaml.load(content);
           if (parsed && parsed.id && (!filterFn || filterFn(parsed, file))) {
             layers[parsed.id] = { ...layers[parsed.id], ...parsed };
+            recordSourceFile(parsed, filePath);
           }
         } catch (e) {
           throw new Error(`[YAML CONFIG] Fatal error parsing infra layer ${file}: ${e.message}`);
@@ -256,6 +282,15 @@ function getRawYaml(appId) {
   }
   const safeAppId = sanitizeAppId(appId);
 
+  // 0. Resolve through the recorded source-file map. This is the only lookup that
+  //    survives id/filename divergence (underscores vs hyphens) and alias ids that
+  //    have no file of their own.
+  const srcMap = getSourceFileMap();
+  const knownPath = srcMap[safeAppId];
+  if (knownPath && fs.existsSync(knownPath)) {
+    return fs.readFileSync(knownPath, 'utf8');
+  }
+
   // 1. Check root config/apps/
   if (fs.existsSync(ROOT_APPS_DIR)) {
     const appFile = path.join(ROOT_APPS_DIR, `${safeAppId}.yaml`);
@@ -343,6 +378,7 @@ function updateRawYaml(appId, rawContent) {
 
 module.exports = {
   sanitizeAppId,
+  getSourceFileMap,
   loadGlobalConfig,
   loadAllApplications,
   getApplication,
