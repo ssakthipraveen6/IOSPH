@@ -17,9 +17,14 @@ nas_logs/
 
 # Dependencies & build outputs
 node_modules/
-frontend/dist/
+# frontend/dist is COMMITTED so production hosts can run `npm ci --omit=dev`
+# and never need the build toolchain. Guarded against staleness by:
+#   npm run verify:dist
+# The generic dist rule below is root-anchored (/dist/) so it does not swallow
+# frontend/dist -- git cannot re-include a path inside an excluded directory,
+# so a "!frontend/dist" negation would not work here.
 apps/web/dist/
-dist/
+/dist/
 *.zip
 .tempmediaStorage/
 
@@ -29,3 +34,6 @@ tools/validation/screenshots/
 
 # [T0.19] Dev-only identity fallback — never the system of record, never committed
 database/sentinel_users.json
+
+# Per-environment registry config (may contain an auth token)
+.npmrc

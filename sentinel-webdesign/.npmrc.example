@@ -1,0 +1,25 @@
+# Copy to .npmrc and set your real Artifactory host.
+#
+#   cp .npmrc.example .npmrc      (Linux/macOS)
+#   copy .npmrc.example .npmrc    (Windows)
+#
+# .npmrc is gitignored so each environment can point at its own remote, and so
+# an auth token never reaches the repository.
+#
+# Why this file exists: the target hosts cannot reach registry.npmjs.org.
+# Routing installs through the internal Artifactory npm remote keeps every
+# package flowing through Nexus IQ, which is where OSS vulnerability and
+# licence policy is enforced. Committing node_modules would bypass that.
+
+registry=https://artifactory.internal.corp/api/npm/npm-remote/
+
+# Auth, if the remote requires it. Keep the token in the environment, never here.
+# //artifactory.internal.corp/api/npm/npm-remote/:_authToken=${NPM_TOKEN}
+
+# Corporate TLS interception: point npm at the internal CA bundle rather than
+# disabling strict-ssl. Never set strict-ssl=false.
+# cafile=C:\\ProgramData\\corp-ca\\corporate-root-ca.pem
+
+# Reproducible installs: fail rather than silently reaching for a newer version.
+audit=false
+fund=false

@@ -11,13 +11,36 @@ Companion documents: [`CODEBASE_MAP.md`](./CODEBASE_MAP.md) for what each file d
 
 ## 0. Run it locally first
 
-A fresh clone needs no manual setup:
+### Developer machine (has a registry, wants hot reload)
 
 ```bash
 git clone <repo> && cd sentinel-webdesign
 npm install          # installs workspaces and creates the @sentinel/* symlinks
 npm run launch       # bootstrap (generates .env), build, start
 ```
+
+### Production / restricted host (no public npm)
+
+Target hosts cannot reach `registry.npmjs.org`, so installs route through the
+internal Artifactory npm remote. That also keeps every package flowing through
+Nexus IQ, which is where OSS vulnerability and licence policy is enforced --
+committing `node_modules` would bypass it.
+
+```bash
+cp .npmrc.example .npmrc     # then set your real Artifactory host
+npm ci --omit=dev            # 13 packages, all pure JS, ~11 MB
+npm run serve                # bootstrap, verify dist, start -- no build step
+```
+
+`frontend/dist` is **committed**, so the host never needs Vite or any dev
+dependency. The trade-off is staleness: someone edits `frontend/src`, forgets to
+rebuild, and ships an old bundle. `npm run build` records a fingerprint of the
+sources next to the bundle and `npm run verify:dist` fails if they have diverged.
+`npm run serve` runs that check before starting, and it is CRLF-safe so a
+Windows checkout does not read as a change.
+
+**Rebuild and commit `frontend/dist` whenever you change frontend code.**
+Add `npm run verify:dist` to CI.
 
 Open `http://localhost:3001`. Dev mode with hot reload is `npm run dev` → `http://localhost:5173`.
 
@@ -31,6 +54,10 @@ npm run migrate
 **Checklist**
 
 - [ ] `npm install` completes, `node_modules/@sentinel/` contains 9 symlinks
+- [ ] `.npmrc` points at the internal Artifactory remote (production hosts)
+- [ ] `npm ci --omit=dev` succeeds without reaching public npm
+- [ ] `npm audit --omit=dev` reports 0 vulnerabilities
+- [ ] `npm run verify:dist` passes (committed bundle matches source)
 - [ ] `npm run launch` serves `http://localhost:3001`
 - [ ] `npm test` green
 - [ ] `npm run preflight` runs (all targets unreachable is the correct result with placeholder config)
@@ -72,7 +99,9 @@ A demo-only deployment holds **no production credentials** (no CyberArk binding)
 - [ ] IIS with **HttpPlatformHandler** installed
 - [ ] Application pool created, identity assigned
 - [ ] Repository deployed to the target path
-- [ ] `npm ci && npm run build`
+- [ ] `cp .npmrc.example .npmrc` and set the Artifactory host
+- [ ] `npm ci --omit=dev` (no build toolchain needed — `frontend/dist` is committed)
+- [ ] `npm run verify:dist` passes
 - [ ] `web.config` in place; set `stdoutLogEnabled="true"` so the audit stream reaches SIEM
 - [ ] `install_service.ps1` run, service starts on boot
 - [ ] Log directory writable; rotation confirmed
