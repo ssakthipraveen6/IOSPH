@@ -40,3 +40,7 @@ database/sentinel_users.json
 
 # Repo-dump tooling output
 repomix-output.xml
+
+# Design exploration artifacts - not application assets
+frontend/public/mockups/
+frontend/dist/mockups/

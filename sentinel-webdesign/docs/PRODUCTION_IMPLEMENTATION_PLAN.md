@@ -86,10 +86,26 @@ A demo-only deployment holds **no production credentials** (no CyberArk binding)
 - [ ] `components_enabled:` → **all false**
 - [ ] `collectors.dynatrace.enabled: false`, `collectors.python_metrics.enabled: false`
 - [ ] `config/cyberark.yaml` → **no production safes mapped**
+- [ ] `prod_urls.db_jdbc: ""` and `stg_urls.db_jdbc: ""` — **blank, not just disabled**
 - [ ] `ALLOWED_ORIGIN` set to the real corporate URL
 - [ ] `frontend/src/maintenanceConfig.js` → `showGlobalBanner: true`, text reading **"DEMONSTRATION DATA — NOT LIVE TELEMETRY"**
 - [ ] `SENTINEL_JWT_SECRET` set as a **machine environment variable**, not in `.env`
 - [ ] Branch pushed to the remote
+
+### Why blanking URLs beats disabling features
+
+The `applications_enabled` and `components_enabled` toggles gate **collectors**. They do not gate **infrastructure clients** — the database pool, CyberArk, Snowflake. Those are constructed from their URL alone.
+
+Measured on a 25-second boot with `environment: demo` and every toggle set to false:
+
+| Config | Outbound attempts | Host reached |
+|---|---|---|
+| Toggles off, `db_jdbc` still set | **15** | `db-stg-primary.internal.corp` |
+| Toggles off, `db_jdbc: ""` | **0** | none |
+
+The pool is built straight from `db_jdbc` with nothing consulting a toggle, and the log and event stores attempt a write on every tick. A "demo-only" host would sit hammering the staging database — visible in DB audit logs, and quite possibly tripping a security alert from a host nobody expected to see connecting. Note it reaches *staging* while set to demo, because `ACTIVE_URLS` routes everything that is not `prod` to the staging URL set.
+
+**The rule: if an endpoint is not configured, nothing can reach it.** Blank the URL rather than disabling the feature that uses it. It is also more durable — someone re-enables a toggle months later and nothing happens, because there is no endpoint to hit.
 
 > The bootstrap script refuses to generate a JWT secret when `NODE_ENV=production`. That is deliberate — a generated secret would invalidate every session on restart and hide a deployment error.
 
@@ -159,8 +175,15 @@ Each application is one epic. Do **Jenkins first**: it is the most complex topol
 | 6 | Rewrite the collector to parse the real response | No value comes from `metrics_baseline` |
 | 7 | Add the tool's log patterns | Fingerprints generated |
 | 8 | Set `jenkins_remediation_job`, scoped to named jobs only | Runbook resolves |
-| 9 | Enable `applications_enabled.<tool>: true` | Tiles show real values |
+| 9 | Restore `db_jdbc` and enable `applications_enabled.<tool>: true` | Tiles show real values |
 | 10 | Verify prod shows real data and demo still shows demo | Both correct |
+
+> **Collection covers both environments automatically.** The coordinator always
+> iterates `['staging', 'prod']` on its timer, setting `global.collectorEnvironment`
+> per pass so each resolves its own URL set. Enabling a tool's toggle starts
+> collection for that tool in **both** environments — there is no separate switch,
+> and the UI environment selector has no effect on it. Verified: with toggles on,
+> 28 components collected for prod and 27 for staging in a single 22-second run.
 
 **Suggested order:** Jenkins → Artifactory → Bitbucket → SonarQube → TeamCity → Nexus IQ → Fortify → ArgoCD → Argo Workflows → GitHub → Aquasec → OTKR → Performance Center.
 

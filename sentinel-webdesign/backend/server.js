@@ -1492,8 +1492,8 @@ app.get('/api/pbi/logs', async (req, res) => {
 // These routes were previously registered twice — once at lines ~350-366 using rcaEngine,
 // and again here using rcaService/ticketService. The second registration silently overrode
 // the first in Express. Both are now consolidated into the earlier rcaEngine-based handlers.
-// The extensions/rca_analytics.js and extensions/ticket_analytics.js modules are retained
-// for future standalone use but are NOT re-registered here.
+// The former extensions/rca_analytics.js and extensions/ticket_analytics.js modules
+// were unreferenced dead code and have been deleted.
 
 // [TASK 2] Upgrade HTTP Server to WebSockets with JWT Bearer Token Validation
 server.on('upgrade', (request, socket, head) => {
