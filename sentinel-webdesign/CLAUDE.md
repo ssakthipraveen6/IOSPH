@@ -4,84 +4,120 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Project Sentinel is an observability and autonomous-recovery portal: Node.js/Express backend + React 19/Vite SPA. It ingests telemetry (OpenTelemetry OTLP push, per-app scrapers, Selenium synthetic probers), runs regex-based log anomaly detection, and triggers Jenkins remediation runbooks under four-eyes (2-approver) governance. Target hosting is Windows Server behind AVI + IIS (`web.config`, `install_service.ps1`, `start.bat`). Node version is pinned in `.nvmrc` (24.x). Long-form references: `docs/ARCHITECTURE.md`, `docs/PRODUCTION_GUIDE.md`, `docs/SECURITY.md`, `config/README.md`, `deployments/README.md`.
+Project Sentinel is an observability and autonomous-recovery portal: Node.js/Express backend + React 19/Vite SPA. It ingests telemetry (OpenTelemetry OTLP push, per-app collectors, Selenium synthetic probers), detects log anomalies, correlates them against an entity graph to find shared-infrastructure root causes, and triggers Jenkins remediation runbooks under four-eyes governance. Target hosting is two Windows Servers behind AVI + IIS. Node is pinned in `.nvmrc` (24.x).
 
-**The README and `docs/` still describe an older layout (`apps/api`, `apps/web`, `apps/collector`, `packages/*`). The real layout is flat: `backend/`, `frontend/`, `metrics_collection/`, etc. Trust the code, not those paths.**
+**The README, `docs/ARCHITECTURE.md` and `docs/PRODUCTION_GUIDE.md` still describe an older `apps/`/`packages/` layout and assert controls that no longer match the code. Trust the code and the documents below, not those three.**
 
-## Remediation in progress
+## Orientation
 
-A production-readiness review found this codebase to be roughly a 15–20% prototype against its stated requirement. **Before changing anything, read [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md)** (the specification, 10 phases, 73 tasks) and **[`docs/PROGRESS.md`](docs/PROGRESS.md)** (current state).
+| Document | Purpose |
+|---|---|
+| [`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md) | Every folder and file, with its purpose |
+| [`docs/TASKS.md`](docs/TASKS.md) | All outstanding work, easy wins first |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Windows Server, IIS, AVI, service setup |
+| [`docs/PRODUCTION_IMPLEMENTATION_PLAN.md`](docs/PRODUCTION_IMPLEMENTATION_PLAN.md) | Rollout, plus the exact file:line list for a prod or staging edit |
+| [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) | The engineering specification, 10 phases, 73 tasks |
+| [`docs/PROGRESS.md`](docs/PROGRESS.md) | Per-task state, audited against the code |
+| [`config/README.md`](config/README.md) | How to add, change or remove an application |
 
-Orientation: **[`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md)** describes every folder and file. **[`docs/PRODUCTION_IMPLEMENTATION_PLAN.md`](docs/PRODUCTION_IMPLEMENTATION_PLAN.md)** covers deployment and the per-application onboarding backlog.
+## Current state
 
-Key things that file establishes and this one does not repeat:
+Phases 0 through 5 of the remediation plan have landed. Notably, and contrary to what the older docs say:
 
-- Large parts of the “real” collectors **fabricate data** — 46 `Math.random()` calls across 25 collectors, and the whole infrastructure tier returns hardcoded constants. Correct URLs alone will not produce real values.
-- `requireAuth` grants **anonymous mutating requests Super Admin**, so RBAC is currently decorative.
-- Environment selection is a **single server-wide global**, so one user switching to PROD flips every other user and mis-tags all inbound OTLP.
-- `postgres.js` never writes the `environment` column and never filters on it, so historical metrics have **no environment segregation** despite three test suites named for it.
+- Real collectors **no longer fabricate data** — zero `Math.random()`, enforced by `npm run lint:random`.
+- Anonymous mutating requests are **rejected with 401**, not granted Super Admin.
+- Environment selection is **per-session**, carried in the JWT claim. One user switching to PROD does not affect anyone else, and OTLP ingest is tagged from agent attributes rather than UI state.
+- `postgres.js` writes and filters the `environment` column.
+- `bitbucket_pr_service.js` was **deleted**. Do not recreate it — it formed a credential-exfiltration chain (plan §4.1, T0.13).
 
-Findings are derived from reading the code, not running it. See §22 of the plan for review coverage.
-
----
+Still open: `lint:constants` reports 4 violations (2 genuine, 2 false positives). See `docs/TASKS.md`.
 
 ## Commands
 
-Run from the repo root (npm workspaces). There is no build step for the backend.
+Run from the repo root (npm workspaces). The backend has no build step.
 
-- Install: `npm run install-all` (root + frontend + symlinks). Plain `npm install` also runs `scripts/setup_symlinks.js` via `postinstall`.
-- Dev (backend + Vite HMR): `npm run dev`; individually `npm run dev-backend` / `npm run dev-frontend`. Vite runs on :5173 and proxies `/api`, `/v1`, `/ws` to :3001.
-- Production: `npm run build` (writes `frontend/dist`, which Express serves statically), then `npm start` (port `PORT`, default 3001). On Windows `start.bat` does install + build + start.
-- Tests: `npm test` runs 11 `tests/*.test.js` files sequentially with plain `node` and `assert`; there is no runner or watch mode. **Single test:** `node tests/otlp_normalizer.test.js`. Not in `npm test`: `tests/load_test_200.js`, `tests/test_live_otlp.js`, and `scripts/verify_all_endpoints.js` (the last one needs a running server on :3001).
-- Lint: `npm run lint` = `lint:constants` (`scripts/lint_severity_constants.js`) + `oxlint` in `frontend/`. Root `.eslintrc.json` and `.prettierrc` exist, but no script invokes them.
-- `npm run audit:check` = `npm audit --audit-level=high`.
-- Required env: `SENTINEL_JWT_SECRET` (>=32 chars). `backend/auth/session.js` calls `process.exit(1)` at require time without it, which also kills any test that imports the auth module. It auto-reads a repo-root `.env` if the var is unset. Other env: `USE_SIMULATED_COLLECTORS`, `ENVIRONMENT`, `TELEMETRY_PROVIDER` / `TELEMETRY_PROFILE`, `ALLOWED_ORIGIN(S)`, `PGUSER` / `PGPASSWORD`, `NODE_ENV`; see `.env.example`.
+**Getting started**
+- `npm install` — installs workspaces and creates the `@sentinel/*` symlinks via `postinstall`
+- `npm run launch` — bootstrap, build, start. Works on a fresh clone with no manual setup
+- `npm run serve` — bootstrap, verify the committed bundle, start. **Production path — no build step**
+- `npm run dev` — backend + Vite HMR on :5173, proxying `/api` `/v1` `/ws` to :3001
+
+**Verify**
+- `npm test` — **24** suites, plain `node` + `assert`, sequential. Single: `node tests/otlp_normalizer.test.js`
+- `npm run config:check` — validates every manifest, prints enabled/endpoint per app. Exits 1 on error
+- `npm run verify:dist` — fails if `frontend/dist` is stale relative to `frontend/src`
+- `npm run preflight` — walks every configured endpoint: reachable / auth-OK / unreachable
+- `npm run lint` — `lint:constants` + `lint:random` + frontend `oxlint`
+- `npm run audit:check`
+
+**Database** — `npm run migrate` / `npm run migrate:down`. The app runs degraded without one.
+
+**Environment** — `SENTINEL_JWT_SECRET` (≥32 chars) is required; `backend/auth/session.js` exits at require time without it. `scripts/bootstrap.js` generates one for development and **refuses to in production**. Read from `config/.env` or the repo root. Others: `NODE_ENV`, `PORT`, `ALLOWED_ORIGIN`, `SENTINEL_ROLE`, `USE_SIMULATED_COLLECTORS`.
 
 ## Architecture
 
-### Module wiring (read this first)
+### Module wiring — read this first
 
-Code imports sibling packages as `@sentinel/*`: `analysis`→`ai_analysis`, `api`→`backend`, `collector`→`metrics_collection`, `config`→`backend/config`, `database`, `logger`, `remediation`, `shared-constants`→`shared`. These resolve through symlinks that `scripts/setup_symlinks.js` creates in `node_modules/@sentinel`. If a `require('@sentinel/...')` fails, run `npm run setup`. `backend/server.js` mixes styles: it requires most modules by relative path (`../database/db`) while the modules themselves use `@sentinel/*`. Both resolve to the same files. `backend/services/ai_analysis/*.js` are one-line re-export shims; edit the top-level `ai_analysis/` implementation.
+Modules import siblings as `@sentinel/*`: `analysis`→`ai_analysis`, `api`→`backend`, `collector`→`metrics_collection`, `config`→`backend/config`, plus `database`, `logger`, `remediation`, `inventory`, `correlation`, `shared-constants`→`shared`. These resolve through symlinks created by `scripts/setup_symlinks.js`. If a require fails, run `npm run setup`. **Register any new workspace package there.**
+
+`backend/services/ai_analysis/*.js` and `backend/services/remediation/*.js` are one-line re-export shims — edit the top-level implementation.
 
 ### Configuration is YAML-first
 
-`config/global.yaml` (environment, `prod_urls` / `stg_urls`, `collectors`, `components_enabled`, `applications_enabled`, SSO/LDAP), `config/telemetry.yaml` (profiles), `config/cyberark.yaml`, plus one YAML per monitored tool in `config/apps/` and `config/infra/`. Loaded and cached by `backend/config/yaml_config.js`. Cache resets happen only through its save functions, so edits on disk need a restart or an API save. `backend/config/config.js` flattens YAML into `ACTIVE_URLS`, which is a **getter** that switches between prod and staging URLs based on `global.runtimeEnvironment`. Never cache its result at module load. Each app YAML needs an `id`, and `yaml_config.validateConfig()` requires an endpoint. Secrets come from CyberArk via `backend/config/cyberark/credential_provider.js` (cache, then CyberArk subprocess, then `${APPID}_${PURPOSE}` env var), not from `.env`.
+Everything user-editable lives under `config/`. Adding an application is **one file**: copy `config/apps/_TEMPLATE.yaml`, fill five required fields, run `npm run config:check`, restart.
 
-### Environments and "real vs simulated" (two independent axes)
+- `global.yaml` — environment, `prod_urls`/`stg_urls`, SSO, master toggles
+- `apps/*.yaml` — one per application, each carrying its own `enabled:` flag
+- `infra/*.yaml` — shared infrastructure layers
+- `ui.yaml` — banner text, served live via `GET /api/ui-config`; **no rebuild needed**
+- `cyberark.yaml`, `telemetry.yaml`, `correlation.yaml`, `dynatrace_metric_aliases.yaml`, `custom_checks.yaml`
+- `.env` — gitignored, created by bootstrap
 
-- **Runtime environment** `prod` | `staging` | `demo`: switched live with `POST /api/environment`, held in `runtimeEnvironment` in `server.js` and mirrored on `global.runtimeEnvironment`. Every metric, alert and recovery row in `database/db.js` carries an `env` tag and is filtered by it. `demo` never reads stored data: `db.js` synthesizes metrics, alerts and recovery logs, and the coordinator collects `demo` only while `setDemoActive(true)`. The coordinator always collects `staging` and `prod` in the background.
-- **Collector mode** `real` | `simulation`: chosen once at startup from `USE_SIMULATED_COLLECTORS` (env overrides YAML). `metrics_collection/`, `logs_collection/`, and `remediation/` each have parallel `real/` and `simulation/` trees with matching filenames, loaded with a dynamic `require(`./${mode}/...`)`. Keep both trees' exports in sync when changing either.
-- Rule enforced by tests (`data_availability_segregation`, `env_strict_value_not_available`, `prod_data_availability`): for `prod` and `staging`, missing or unreachable data must surface as `null` / `'Data Not Available'` / `SEVERITY.DATA_UNAVAILABLE`, never as fabricated values. Only `demo` may synthesize.
+Files prefixed `_` are ignored by the loader.
+
+**Enabled precedence**, most specific first: `applications_enabled.<id>` in `global.yaml` (operator override) → the manifest's own `enabled:` → `true`.
+
+`config.js` owns `normalizeEnvironment()` — `production`/`prd`→`prod`, `stg`/`stage`→`staging`, unknown→warn and fall back. The rest of the system speaks only `prod|staging|demo`. This normalisation is what closed the production auth bypass; don't reintroduce raw string comparisons.
+
+`ACTIVE_URLS` is a **getter** resolved at call time. Never cache it at module load.
+
+### Environments
+
+- **Runtime environment** `prod|staging|demo` — **per session**, from the JWT claim or `?environment=`, resolved by `resolveEnvironment()` in `server.js`. There is no server-wide global. The coordinator always collects `staging` and `prod` in the background regardless of UI state, setting `global.collectorEnvironment` per pass so each resolves its own URL set.
+- **Collector mode** `real|simulation` — chosen once at startup from `USE_SIMULATED_COLLECTORS`. `metrics_collection/`, `logs_collection/` and `remediation/` each have parallel trees with matching filenames. **Edit both or startup breaks in one mode.**
+- **Never fabricate in prod or staging.** Missing data surfaces as `null` / `DATA_UNAVAILABLE`. Only `demo` synthesizes. Enforced by `lint:random` and four test suites.
+- **`AUTH_FAILED` is distinct from `DATA_UNAVAILABLE`** — a rotated token must not look like an outage.
 
 ### Data flow
 
-1. **Poll path:** `metrics_collection/collector_coordinator.js` runs three tiers on `setInterval` (10s apps + logs, 30s and 120s infra). `telemetry_provider_selector.js` maps the active telemetry profile (1 = OTel push + probers, the default; 2 = Dynatrace; 3 = Prometheus node_exporter) to the collector keys allowed to run, combined with the `components_enabled` toggles. `real/applications/app_collector.js` auto-discovers apps from YAML and requires `<appId>_collector.js` (or `<appId>.js`) from its own directory; that module exports `collect(simulations, base)`. A missing module or a failed fetch yields DATA_UNAVAILABLE. HTTP goes through `metrics_collection/shared/fetch_with_fallback.js` (3.5s timeout, never throws).
-2. **Push path:** OTLP agents `POST /v1/metrics` (also `/api/metrics/otlp`) → `real/opentelemetry/otlp_metric_normalizer.js` (maps OTel names to Sentinel keys, scales 0-1 utilization to percent, bytes to MB, lowercases `application.id` / `host.name` into `component`) → `db.addMetricBatch`.
-3. **Storage:** `database/db.js` is an in-memory write-behind cache (metrics capped at 200 in memory **globally**, not per environment — a chatty staging env evicts prod rows), flushed to `.runtime/sentinel_db.json` (async `saveDB`, sync flush on SIGTERM). Every metric write is also sent to Postgres/TimescaleDB (`database/postgres.js`, wrapped in `executeWithRetry` with degradation flags surfaced through `getPersistenceStatus`) and a rolling archive (`sqlite_metrics.js`). `snowflake.js` and `postgres.js` `fetchHistorical*` serve the `/api/pbi/*` analytics endpoints. Users and audit logs live in `database/postgres_users.js` (backed by `sentinel_users.json`).
-4. **Push to UI:** `server.js` exposes `global.broadcastStateChange` / `global.broadcastLog`, which the coordinator, recovery and analyzers call. WebSocket `/ws` sends `init`, `state`, `metrics_tick` (every 5s) and `log` frames; a 30s ping heartbeat keeps proxy connections alive. Health score/status is computed in `backend/services/health/healthCalculator.js` using weights from `shared/`.
-5. **Detect and heal:** `ai_analysis/real_analyzer.js` regex-matches log lines → `db.addAlert` → recovery callback. `remediation/recovery.js` `triggerRecovery` runs immediately if `settings.autonomousMode` (or a manual trigger), else parks the run as `Awaiting-Approval`. `approveRecovery` needs 2 distinct usernames before `executeRecoveryWorkflow` calls `remediation/<mode>/jenkins/jenkins_trigger.js`. Only one recovery per component runs at a time (`activeRecoveries`). Workflows come from the `bespokeWorkflows` table or an app YAML's `jenkins_remediation_job`.
+1. **Poll** — `collector_coordinator.js` runs three tiers (10s apps+logs, 30s/120s infra), sharded by `SENTINEL_ROLE`, with per-target circuit breakers. `app_collector.js` auto-discovers apps from YAML and loads `<appId>_collector.js` **by dynamically constructed path** — static analysis will report these as unreferenced; they are not.
+2. **Push** — OTLP agents `POST /v1/metrics` → `otlp_metric_normalizer.js` → `db.addMetricBatch`.
+3. **Store** — `db.js` holds a bounded write-ahead queue draining in batches to TimescaleDB, with a cardinality guard. `.runtime/sentinel_db.json` keeps settings and control state only, **not metrics**.
+4. **Broadcast** — WebSocket `/ws` sends `init`, `state`, `metrics_tick` (5s), `log`. Clients subscribe with a scope; the server holds no global environment.
+5. **Detect and heal** — `real_analyzer.js` → `db.addAlert` → `recovery.js`. Runs immediately if `autonomousMode` or manual, else parks as `Awaiting-Approval` needing **two distinct approvers**.
+6. **Correlate** — `@sentinel/correlation` walks the entity graph, scoring by fan-out, temporal precedence, graph distance and change proximity.
 
-### Backend server
+### Backend
 
-`backend/server.js` (~1050 lines) is the single Express + `ws` entry point holding all routes, middleware, health calculation, and startup (it calls `collector.start()` on listen). Middleware order matters: compression → helmet → CORS (`cors_validator.js` — **not** exact-origin: it suffix-matches `.corp` / `.internal`, so `https://evil.corp` passes; see plan T0.12) → `express.json` (5mb) → rate limiters (general 2000/min, OTLP 1000/min, login 50/15min) → `requireAuth` → routes → static `frontend/dist` → SPA fallback (unknown `/api` and `/v1` paths return JSON 404). RBAC uses `requireRole(...)` with roles `Super Admin`, `SRE Lead`, `NOC Operator`, `Security Auditor`, `Viewer`, `Operator`; `Super Admin` bypasses all checks. Auth is eLDAP behind `backend/auth/ldap_client.js`, with hand-rolled HS256 JWTs in `session.js`. Config edits *appear* to go GitOps-style via `POST /api/yaml/raw` → `bitbucket_pr_service.js`, but that module has **no `require` statements** (`yamlConfig`, `writeNasLog`, `repoSlug` are all undefined) so it throws `ReferenceError` on first call, and it never contacts Bitbucket — it fabricates a random PR id. **Do not “fix” the imports**: that arms a credential-exfiltration chain (plan §4.1, T0.13). Mutations are recorded through `audit_logger.js`.
+`backend/server.js` is the single Express + `ws` entry point. Middleware order: compression → helmet → CORS (**exact-match allowlist** in `cors_validator.js`) → body parser → rate limiters → `requireAuth` → routes → static → SPA fallback.
+
+`trust proxy` at **line 51** takes an explicit proxy set — **add your AVI SNAT addresses** or all users share one rate-limit bucket.
+
+Auth is eLDAP via `ldapjs` in `ldap_client.js` (reads `ldap_url`, not `url`), with `jose` JWTs in `session.js`. The session token is an **httpOnly cookie**, not `localStorage`. Audit entries go to a durable file, the append-only `audit_event` table, and stdout for SIEM.
 
 ### Frontend
 
-`frontend/src/App.jsx` (~950 lines) is the single stateful shell. It holds tab state (`health`, `metrics`, `command`, `misc`, `matrix`, `pbi`, `ailogs`), fetches the initial state over REST, then follows WebSocket frames. Components are grouped by domain under `frontend/src/components/{admin,analytics,correlation,health,shared,sre}` (each with a README). The JWT is read from `localStorage['sentinel_auth_token']`. The SPA uses only relative URLs and bundles no secrets.
+`App.jsx` is the stateful shell: tab routing, REST bootstrap, WebSocket subscription, environment switcher. `main.jsx` hydrates `config/ui.yaml` before first render. Components sit under `components/{admin,analytics,correlation,fleet,health,logs,ops,shared,sre}`.
 
-### Other top-level directories
-
-`deployments/` (Ansible, PowerShell, k8s DaemonSets, OTel agent configs, Jenkinsfile for fleet rollout), `scripts/` (`cyberark_fetch.py`, symlink setup, lint, endpoint smoke test), `logger/` (rotating `writeNasLog`, writes to the NAS mount or falls back to `.runtime/nas_logs`), `metrics_collection/real/python_checks/` (Selenium prober driven from Node via `runner.js`; needs Python + `requirements.txt`).
+`frontend/dist` is **committed** so production hosts need no build toolchain. `npm run build` records a source fingerprint; `verify:dist` fails if they diverge. **Rebuild and commit `dist` whenever you change frontend code.**
 
 ## Conventions and gotchas
 
-- Severity/status/color/weight values come only from `@sentinel/shared-constants` (`shared/`): `SEVERITY`, `SEVERITY_COLORS`, `SEVERITY_WEIGHTS`, `normalizeSeverity()`. `npm run lint:constants` fails on inline `severity === 'Critical'` comparisons or inline color maps in `frontend/src/components` and `backend/services`. (The rule does not scan `ai_analysis/` or `remediation/`, which import the enum instead.)
-- Component ids are shared strings across YAML `id`, collector filenames, `db.js` demo profiles, health components and recovery workflows (e.g. `jenkins_k8s`, `avi_load_balancer`, `nas_performance`). Renaming one requires touching all of them.
-- Global hooks are used instead of imports to avoid circular deps: `global.broadcastStateChange`, `global.broadcastLog`, `global.runtimeEnvironment`, `global.runSelfHealingOrchestrator`, `global.runPredictiveAnalysis`.
-- `NODE_ENV=production` plus `ENVIRONMENT=prod` makes `ldap_client.authenticate` reject every login (real LDAP bind is not implemented); other modes use a staging test-user table, so login works with any non-denied password.
-- **Signature mismatches worth knowing before touching the heal path** (verified in code, not yet fixed):
-  - `recovery.triggerRecovery(component, reason, isManualTrigger, env)`, but the coordinator calls `triggerRecovery(comp, reason, env)`. The env string lands in `isManualTrigger`, is truthy, and skips the four-eyes approval queue.
-  - `real_analyzer.js` calls `db.addAlert(component, severity, message, env)`, but the signature is `(component, severity, message, status, env)`, so the env string becomes `status` and the alert gets the wrong env tag.
-  - `runSelfHealingOrchestrator(infraMetrics, env)` only accepts `currentMetrics`.
-  - The OTLP route calls both `db.addMetricBatch` and per-row `db.addMetric`, double-writing every metric to Postgres.
-- `requireAuth` in `server.js` does not reject anonymous mutating `/api/*` requests; it assigns them a `Super Admin` identity ("local console operator fallback"). RBAC is therefore only meaningful once that fallback is removed. `/api/servicenow/active-incidents` returns hardcoded sample incidents plus alerts mapped to incidents.
+- Severity values come only from `@sentinel/shared-constants`. `lint:constants` enforces it.
+- `shared/index.js` is **CommonJS**, which is why `vite.config.js` must pre-bundle it via `optimizeDeps` — otherwise the dev server blanks with "does not provide an export named 'SEVERITY'".
+- Component ids are shared strings across YAML `id`, collector filenames, health components and recovery workflows. Renaming one means touching all.
+- Cross-module calls use globals to avoid circular deps: `global.broadcastStateChange`, `global.broadcastLog`, `global.collectorEnvironment`, `global.runSelfHealingOrchestrator`, `global.runPredictiveAnalysis`.
+- **Toggles gate collectors, not infrastructure clients.** The database pool, CyberArk and Snowflake are built from their URL alone. To make a deployment inert, **blank the URL** rather than disabling the feature — measured: toggles off with `db_jdbc` set still produced 15 outbound attempts in 25 seconds; blanked, zero.
+- `postgres.query()` returns `null` when no pool is configured but **throws** when a configured host is unreachable. Handle both — conflating them previously took the whole process down.
+- `tools/validation/run_phase1b_checks.js` starts its own server; run it with port 3001 free.
+- Validation harness checks need the **same** `SENTINEL_JWT_SECRET` as the running server, or a rejected token looks like a broken role check.

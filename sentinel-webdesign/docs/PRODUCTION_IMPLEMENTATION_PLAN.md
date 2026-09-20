@@ -88,7 +88,7 @@ A demo-only deployment holds **no production credentials** (no CyberArk binding)
 - [ ] `config/cyberark.yaml` → **no production safes mapped**
 - [ ] `prod_urls.db_jdbc: ""` and `stg_urls.db_jdbc: ""` — **blank, not just disabled**
 - [ ] `ALLOWED_ORIGIN` set to the real corporate URL
-- [ ] `frontend/src/maintenanceConfig.js` → `showGlobalBanner: true`, text reading **"DEMONSTRATION DATA — NOT LIVE TELEMETRY"**
+- [ ] `config/ui.yaml` → `showGlobalBanner: true`, `globalNote` reading **"DEMONSTRATION DATA — NOT LIVE TELEMETRY"** (applies on refresh, no rebuild)
 - [ ] `SENTINEL_JWT_SECRET` set as a **machine environment variable**, not in `.env`
 - [ ] Branch pushed to the remote
 
@@ -258,3 +258,130 @@ Track C is your critical path to Tier-1, not code.
 **Stage 1:** stop the service, remove the AVI pool member. No data to unwind.
 
 **Stage 2, per application:** set `applications_enabled.<tool>: false` and restart. The collector stops, tiles return to DATA_UNAVAILABLE, nothing else is affected. This is why per-application onboarding is the right shape — each epic is independently reversible.
+
+---
+
+# Exact edits — every file and line to change
+
+Line numbers are against the tree at the time of writing. Run `npm run config:check`
+after any edit; it validates and prints what each application will do.
+
+## `config/global.yaml` — the primary file
+
+### Environment and profile
+
+| Line | Setting | Demo shell | Production |
+|---|---|---|---|
+| **14** | `environment:` | `"demo"` | `"prod"` |
+| **18** | `telemetry_provider:` | leave | `"opentelemetry"` (Profile 1) |
+
+> `environment` accepts `prod`, `staging` or `demo`. `production`, `prd`, `stg` and
+> `stage` are normalised in `backend/config/config.js`; anything else falls back to
+> `staging` with a warning. The rest of the system speaks only the three canonical
+> tokens — this normalisation is what closed the production authentication bypass.
+
+### `prod_urls:` — block starts line 21
+
+| Line | Key | What to set |
+|---|---|---|
+| **22** | `app_url` | Your Sentinel domain URL |
+| **23** | `avi_virtual_service_url` | Your AVI VIP |
+| **24** | `bitbucket_api` | Bitbucket REST base |
+| **25** | `artifactory_api` | Artifactory API base |
+| **26** | `argocd_api` | ArgoCD API base |
+| **27** | `argoworkflows_api` | Argo Workflows API base |
+| **28** | `jenkins_master_url` | Jenkins / CJOC job root |
+| **29** | `teamcity_api` | TeamCity `/app/rest` |
+| **30** | `sonarqube_api` | SonarQube API base |
+| **31** | `nexusiq_api` | Nexus IQ API base |
+| **32** | `fortify_api` | Fortify SSC API base |
+| **33** | `avi_api` | AVI telemetry API |
+| **34** | `sso_api` | SSO / OAuth token endpoint |
+| **35** | `nas_mount` | UNC or local path for log archives |
+| **36** | `windows_api` | Windows fleet metrics endpoint |
+| **37** | `unix_api` | Linux fleet metrics endpoint |
+| **38** | `db_jdbc` | **`""` for the demo shell.** TimescaleDB JDBC URL for production |
+| **39** | `k8s_api` | Kubernetes API server |
+| **40** | `s3_endpoint` | S3 endpoint for log archival |
+| **41** | `github_api` | GitHub Enterprise API |
+| **42** | `bitbucket_external_api` | External Bitbucket |
+| **43** | `otkr_api` | OTKR |
+| **44** | `performance_center_api` | Performance Center |
+| **45+** | `network_latency_hosts` | Hosts to ping for latency |
+
+### `sso_ldap_config:` — block starts line 52
+
+| Line | Key | Note |
+|---|---|---|
+| **55** | `ldap_url` | **Must be `ldaps://host:636`.** Not the OAuth URL — `ldap_client.js` reads this key, and pointing it at an HTTPS endpoint fails the bind with an unhelpful protocol error |
+| **56** | `base_dn` | User search base |
+| **57** | `group_base_dn` | Group search base |
+| **58** | `bind_dn` | Service account DN; its password comes from CyberArk, never this file |
+| **59** | `sso_issuer` | OIDC issuer, if used |
+
+Role mapping lives in `config/infra/sso-eldap.yaml` under `role_mappings`.
+
+### `stg_urls:` — block starts line 67
+
+Same keys as `prod_urls`. Notable lines: **68** `app_url`, **69** `avi_virtual_service_url`, **71** `db_jdbc` (**blank for the demo shell**), **72** `nas_mount`.
+
+> Anything that is not `prod` resolves to `stg_urls` — including `demo`. Demo has no
+> URL set of its own, which is why blanking `stg_urls.db_jdbc` matters for a demo
+> deployment.
+
+### Toggles
+
+| Line | Block | Demo shell | Production |
+|---|---|---|---|
+| **107** | `collectors:` | `dynatrace.enabled: false`, `python_metrics.enabled: false` | per requirement |
+| **122** | `components_enabled:` | **all false** | enable provisioned layers only |
+| **139** | `applications_enabled:` | **all false** | enable onboarded apps only |
+
+`applications_enabled` is an **operator override**. Omit an app and its own manifest
+`enabled:` decides — which is why adding an application needs only one file.
+
+## Other config files
+
+| File | What to change |
+|---|---|
+| `config/telemetry.yaml:11` | `selected_profile:` — `1` OTel, `2` Dynatrace, `3` Prometheus |
+| `config/cyberark.yaml:4+` | Map each app to its Safe and Object names. **Leave empty for the demo shell** |
+| `config/ui.yaml:13` | `globalNote` — the banner. Applies on browser refresh, no rebuild |
+| `config/ui.yaml:12` | `showGlobalBanner` |
+| `config/.env` | `PORT`, `ALLOWED_ORIGIN`, `NODE_ENV` |
+| `config/apps/<tool>.yaml` | Per-application endpoints, auth, topology |
+| `config/infra/sso-eldap.yaml` | LDAP group → role mapping |
+
+## Source files that need a production edit
+
+Almost nothing — configuration is YAML-first. These are the exceptions:
+
+| File | Line | Change |
+|---|---|---|
+| `backend/server.js` | **51** | `trust proxy` — add your **AVI SNAT addresses**. Without this every request appears to come from one IP and the shared rate limiter throttles all users together |
+| `web.config` | 15 | `stdoutLogEnabled` — keep `"true"`, this is the audit stream SIEM reads |
+| `web.config` | 20 | `PORT` — leave as `%HTTP_PLATFORM_PORT%` under IIS |
+| `web.config` | 21 | `NODE_ENV=production` — **required**, it enables the real LDAP bind |
+
+**Do not edit `frontend/src/maintenanceConfig.js`.** It holds defaults only; live
+values come from `config/ui.yaml`. Editing the source would require a rebuild.
+
+## Environment variables — not in any file
+
+| Variable | Where | Note |
+|---|---|---|
+| `SENTINEL_JWT_SECRET` | Machine environment variable | **Identical on both servers**, or sessions break on failover. Never in `.env` in production |
+| `NODE_ENV` | `web.config:21` | Must be `production` |
+| `PORT` | `config/.env` or `web.config` | |
+| `ALLOWED_ORIGIN` | `config/.env` | Your domain URL |
+
+## Verify
+
+```bash
+npm run config:check     # validates; prints enabled/endpoint per application
+npm run verify:dist      # committed bundle matches source
+npm run preflight        # reachable / auth-OK / unreachable per target
+```
+
+`preflight` is the one that proves the config-only promise: paste real values, run
+it, and you get green or a precise per-target reason.
