@@ -648,12 +648,12 @@ app.post('/api/auth/sso/login', async (req, res) => {
   }
 
   const usersDb = require('../database/postgres_users');
-  await usersDb.addSsoLog({
+  try { await usersDb.addSsoLog({
     user: authResult.user.username,
     email: authResult.user.email,
     role: authResult.user.role,
     status: 'SUCCESS'
-  });
+  }); } catch (e) { console.warn('[SSO] login event not recorded:', e.message); }
   auditLog(req, 'SSO_LOGIN', { user: authResult.user.username, role: authResult.user.role });
 
   const token = session.generateToken(authResult.user);
@@ -693,36 +693,51 @@ app.post('/api/auth/sso/login', async (req, res) => {
 const usersDb = require('../database/postgres_users');
 
 app.get('/api/admin/users', requireRole('Super Admin'), async (req, res) => {
-  res.json(await usersDb.getUsers());
+  try { res.json(await usersDb.getUsers()); }
+  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/users', requireRole('Super Admin'), async (req, res) => {
-  const user = await usersDb.addUser(req.body);
-  await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Created User', details: `Added user ${user.name} (${user.role})` });
-  res.json(user);
+  try {
+    const user = await usersDb.addUser(req.body);
+    await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Created User', details: `Added user ${user.name} (${user.role})` });
+    res.json(user);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.message });
+  }
 });
 
 app.put('/api/admin/users/:id', requireRole('Super Admin'), async (req, res) => {
-  const user = await usersDb.updateUser(req.params.id, req.body);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Updated User', details: `Modified user ${user.name} (${user.role})` });
-  res.json(user);
+  try {
+    const user = await usersDb.updateUser(req.params.id, req.body);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Updated User', details: `Modified user ${user.name} (${user.role})` });
+    res.json(user);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.message });
+  }
 });
 
 app.delete('/api/admin/users/:id', requireRole('Super Admin'), async (req, res) => {
-  const success = await usersDb.deleteUser(req.params.id);
-  await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Deleted User', details: `Removed user ID ${req.params.id}` });
-  res.json({ success });
+  try {
+    const success = await usersDb.deleteUser(req.params.id);
+    await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Deleted User', details: `Removed user ID ${req.params.id}` });
+    res.json({ success });
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ error: e.message });
+  }
 });
 
 app.get('/api/admin/audit-logs', requireRole(['Super Admin', 'Security Auditor']), async (req, res) => {
   const limit = req.query.limit ? parseInt(req.query.limit) : 100;
-  res.json(await usersDb.getAuditLogs(limit));
+  try { res.json(await usersDb.getAuditLogs(limit)); }
+  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
 });
 
 app.get('/api/admin/sso-logs', requireRole(['Super Admin', 'Security Auditor']), async (req, res) => {
   const limit = req.query.limit ? parseInt(req.query.limit) : 100;
-  res.json(await usersDb.getSsoLogs(limit));
+  try { res.json(await usersDb.getSsoLogs(limit)); }
+  catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
 });
 
 app.get('/api/yaml/all', (req, res) => {

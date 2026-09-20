@@ -42,18 +42,50 @@ function saveFallback() {
 loadFallback();
 
 let warnedNoPool = false;
+let warnedUnreachable = false;
+
+class IdentityStoreUnavailable extends Error {
+  constructor(cause) {
+    super('Identity store unavailable: ' + cause);
+    this.name = 'IdentityStoreUnavailable';
+    this.statusCode = 503;
+  }
+}
+
+/**
+ * Runs a query against the identity store.
+ * Returns null when the store cannot answer — never throws into the request path,
+ * because an unhandled rejection in an Express handler takes the whole process down.
+ * postgres.query() returns null when no pool is configured, but THROWS when a pool
+ * exists and the host is unreachable; both must degrade the same way.
+ */
 async function db(sql, params) {
-  const res = await postgres.query(sql, params);
-  if (res === null) {
-    if (IS_PROD) {
-      throw new Error('[USERS_DB] No database pool available. Identity store is unavailable.');
+  let res = null;
+  try {
+    res = await postgres.query(sql, params);
+  } catch (err) {
+    if (!warnedUnreachable) {
+      console.warn('[USERS_DB] Identity store unreachable (' + err.message + '). Degrading.');
+      warnedUnreachable = true;
     }
-    if (!warnedNoPool) {
-      console.warn('[USERS_DB] No database pool — using dev-only JSON fallback for identity.');
-      warnedNoPool = true;
-    }
+    return null;
+  }
+  if (res === null && !warnedNoPool) {
+    console.warn('[USERS_DB] No database pool configured.'
+      + (IS_PROD ? ' Identity store is UNAVAILABLE in production.'
+                 : ' Using dev-only JSON fallback for identity.'));
+    warnedNoPool = true;
   }
   return res;
+}
+
+// In production the dev JSON file is never served as truth: reads return empty and
+// writes fail loudly, rather than presenting seed data as real identity records.
+function readFallback(list) {
+  return IS_PROD ? [] : list;
+}
+function assertWritable() {
+  if (IS_PROD) throw new IdentityStoreUnavailable('no reachable database');
 }
 
 function rowToUser(r) {
@@ -81,7 +113,7 @@ function permissionsFor(role, explicit) {
 const userStore = {
   async getUsers() {
     const res = await db('SELECT * FROM app_user ORDER BY created_at ASC');
-    if (!res) return fallbackState.users;
+    if (!res) return readFallback(fallbackState.users);
     return res.rows.map(rowToUser);
   },
 
@@ -104,6 +136,7 @@ const userStore = {
       [user.id, user.name, user.email, user.role, user.status, user.dept, user.mfa, JSON.stringify(permissions)]
     );
     if (!res) {
+      assertWritable();
       fallbackState.users.push(user);
       saveFallback();
       return user;
@@ -129,6 +162,7 @@ const userStore = {
        updates.permissions ? JSON.stringify(updates.permissions) : null]
     );
     if (!res) {
+      assertWritable();
       const u = fallbackState.users.find(x => String(x.id) === String(id));
       if (!u) return null;
       Object.assign(u, updates);
@@ -141,6 +175,7 @@ const userStore = {
   async deleteUser(id) {
     const res = await db('DELETE FROM app_user WHERE id = $1', [String(id)]);
     if (!res) {
+      assertWritable();
       const before = fallbackState.users.length;
       fallbackState.users = fallbackState.users.filter(x => String(x.id) !== String(id));
       saveFallback();
@@ -153,7 +188,7 @@ const userStore = {
   async getAuditLogs(limit = 100) {
     const res = await db(
       'SELECT ts, actor, action, detail, ip FROM audit_event ORDER BY ts DESC LIMIT $1', [limit]);
-    if (!res) return fallbackState.auditLogs.slice(-limit).reverse();
+    if (!res) return readFallback(fallbackState.auditLogs.slice(-limit).reverse());
     return res.rows.map(r => ({
       timestamp: r.ts instanceof Date ? r.ts.toISOString() : r.ts,
       user: r.actor,
@@ -171,6 +206,7 @@ const userStore = {
        JSON.stringify({ details: entry.details || '' }), entry.ip || null]
     );
     if (!res) {
+      assertWritable();
       fallbackState.auditLogs.push({ ...entry, timestamp: new Date().toISOString() });
       saveFallback();
     }
@@ -181,7 +217,7 @@ const userStore = {
     const res = await db(
       `SELECT ts, username, email, role, provider, ldap_dn, ip, status
          FROM sso_login_event ORDER BY ts DESC LIMIT $1`, [limit]);
-    if (!res) return fallbackState.ssoLogs.slice(-limit).reverse();
+    if (!res) return readFallback(fallbackState.ssoLogs.slice(-limit).reverse());
     return res.rows.map(r => ({
       timestamp: r.ts instanceof Date ? r.ts.toISOString() : r.ts,
       user: r.username,
@@ -203,6 +239,7 @@ const userStore = {
        entry.ip || null, entry.status || 'SUCCESS']
     );
     if (!res) {
+      assertWritable();
       fallbackState.ssoLogs.push({ ...entry, timestamp: new Date().toISOString() });
       saveFallback();
     }
@@ -211,3 +248,4 @@ const userStore = {
 };
 
 module.exports = userStore;
+module.exports.IdentityStoreUnavailable = IdentityStoreUnavailable;
