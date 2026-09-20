@@ -1,27 +1,53 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/config.js.
-// Update the actual production/staging endpoints at:
-// - config/config.js: PROD_URLS.otkr_api
-// - config/config.js: STG_URLS.otkr_api
-// Purpose: OTKR internal security scan tool REST API endpoint.
-// =========================================================================
-
 const config = require('@sentinel/config');
+const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * otkr_collector.js (T2b.2 REMEDIATED)
+ * 
+ * OTKR Security Scanner Telemetry Collector.
+ * Metrics parsed from /status endpoint or null.
+ * Real latency measured via fetch timer. Zero Math.random().
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    const targetConfig = config.PROD_URLS || config.STG_URLS;
+  collect: async (simulations, base = {}) => {
+    const targetConfig = config.ACTIVE_URLS || {};
     const url = targetConfig.otkr_api;
-    console.log(`[REAL COLLECTOR] Querying OTKR security scanner from: ${url}`);
+    const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
 
-    try {
-      // const res = await fetch(`${url}/status`);
-    } catch (_) {}
+    if (!url) {
+      if (isProd) throw new Error('OTKR URL not configured for PROD');
+      return { scanQueue: null, findings: null, responseTime: null };
+    }
+
+    const result = await fetchJsonWithFallback(
+      `${url}/status`,
+      { headers: { Accept: 'application/json' }, appId: 'otkr' },
+      3500
+    );
+
+    if (result.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        scanQueue: null,
+        findings: null,
+        responseTime: null
+      };
+    }
+
+    if (!result.success) {
+      return {
+        scanQueue: null,
+        findings: null,
+        responseTime: null
+      };
+    }
 
     return {
-      scanQueue: Math.max(0, base.scanQueue + Math.floor((Math.random() - 0.5) * 2)),
-      findings: Math.max(0, base.findings + Math.floor((Math.random() - 0.5) * 3)),
-      responseTime: base.responseTime + Math.floor((Math.random() - 0.5) * 10)
+      scanQueue: typeof result.data?.scanQueue === 'number' ? result.data.scanQueue : null,
+      findings: typeof result.data?.findings === 'number' ? result.data.findings : null,
+      responseTime: result.latencyMs || null
     };
   }
 };

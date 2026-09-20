@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: sentinel-timescaledb-val
+    environment:
+      POSTGRES_DB: sentinel_telemetry
+      POSTGRES_USER: pg_telemetry_writer
+      POSTGRES_PASSWORD: STG_PG_SECURE_PASSWORD_VAL
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pg_telemetry_writer -d sentinel_telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro

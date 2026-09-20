@@ -12,7 +12,8 @@ const SEVERITY = Object.freeze({
   PREDICTIVE_WARNING: 'Predictive-Warning',
   HEALTHY: 'Healthy',
   INFO: 'Info',
-  DATA_UNAVAILABLE: 'DATA_UNAVAILABLE'
+  DATA_UNAVAILABLE: 'DATA_UNAVAILABLE',
+  AUTH_FAILED: 'AUTH_FAILED'
 });
 
 const SEVERITY_COLORS = Object.freeze({
@@ -21,7 +22,8 @@ const SEVERITY_COLORS = Object.freeze({
   [SEVERITY.PREDICTIVE_WARNING]: '#f59e0b',
   [SEVERITY.HEALTHY]: '#10b981',
   [SEVERITY.INFO]: '#3b82f6',
-  [SEVERITY.DATA_UNAVAILABLE]: '#94a3b8'
+  [SEVERITY.DATA_UNAVAILABLE]: '#94a3b8',
+  [SEVERITY.AUTH_FAILED]: '#f97316'
 });
 
 const SEVERITY_WEIGHTS = Object.freeze({
@@ -30,7 +32,8 @@ const SEVERITY_WEIGHTS = Object.freeze({
   [SEVERITY.PREDICTIVE_WARNING]: 3,
   [SEVERITY.HEALTHY]: 0,
   [SEVERITY.INFO]: 0,
-  [SEVERITY.DATA_UNAVAILABLE]: 0
+  [SEVERITY.DATA_UNAVAILABLE]: 0,
+  [SEVERITY.AUTH_FAILED]: 10
 });
 
 const INCIDENT_PRIORITY = Object.freeze({
@@ -53,6 +56,7 @@ function normalizeSeverity(raw) {
   if (s === 'predictive-warning' || s === 'predictive_warning') return SEVERITY.PREDICTIVE_WARNING;
   if (s === 'healthy' || s === 'ok' || s === 'optimal') return SEVERITY.HEALTHY;
   if (s === 'data_unavailable' || s === 'no_data' || s === 'data not available') return SEVERITY.DATA_UNAVAILABLE;
+  if (s === 'auth_failed' || s === 'authentication failed' || s === 'auth failed') return SEVERITY.AUTH_FAILED;
   return SEVERITY.INFO;
 }
 

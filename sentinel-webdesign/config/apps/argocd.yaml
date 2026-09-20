@@ -7,12 +7,21 @@ display_name: "ArgoCD GitOps Operator"
 category: "gitops"
 tier: "Tier-1 Mission Critical"
 log_tag: "[ARGOCD]"
+aliases:
+  - "argocd_k8s"
 
 endpoints:
   prod:
     api: "https://argocd-prod.internal.corp/api/v1"
   stg:
     api: "https://argocd-stg.internal.corp/api/v1"
+
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
 
 layers:
   api_token:

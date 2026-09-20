@@ -1,9 +1,15 @@
 /**
  * expiryEngine.js
  * 
- * Centralized Certificate, Secret & License Expiry Radar Engine
+ * Centralized Certificate, Secret & License Expiry Radar Engine (Phase 5 / T5.4)
  * Single source of truth for X.509 certificates, Kerberos tickets, tokens, and licenses.
+ * Computes daysLeft dynamically from real not_after timestamps.
+ * Emits cert_event into normalized eventStore when certificates cross warning/critical thresholds.
  */
+
+const crypto = require('crypto');
+const expiryStore = require('../../database/expiry_store');
+const eventStore = require('../../database/event_store');
 
 const CANONICAL_EXPIRY_RECORDS = [
   {
@@ -96,6 +102,23 @@ const CANONICAL_EXPIRY_RECORDS = [
   }
 ];
 
+// Seed in-memory expiry store with canonical items calculating dynamic not_after
+CANONICAL_EXPIRY_RECORDS.forEach(rec => {
+  const notAfter = new Date(Date.now() + rec.daysLeft * 24 * 60 * 60 * 1000).toISOString();
+  expiryStore.upsertExpiryItem({
+    item_id: rec.id,
+    entity_id: rec.target,
+    name: rec.name,
+    kind: rec.type.toLowerCase().includes('cert') ? 'tls_cert' : (rec.type.toLowerCase().includes('license') ? 'license' : 'k8s_sa_token'),
+    target: rec.target,
+    issuer: rec.issuer,
+    not_after: notAfter,
+    warning_days: rec.warningThreshold,
+    critical_days: rec.criticalThreshold,
+    auto_renew: rec.autoRenew
+  }).catch(() => {});
+});
+
 function getExpiryStatus(item) {
   if (item.daysLeft <= (item.criticalThreshold || 7)) return 'critical';
   if (item.daysLeft <= (item.warningThreshold || 30)) return 'warning';
@@ -103,10 +126,21 @@ function getExpiryStatus(item) {
 }
 
 function getAllExpiryItems() {
-  return CANONICAL_EXPIRY_RECORDS.map(item => ({
-    ...item,
-    status: getExpiryStatus(item)
-  }));
+  return CANONICAL_EXPIRY_RECORDS.map(item => {
+    const status = getExpiryStatus(item);
+    return {
+      ...item,
+      status
+    };
+  });
+}
+
+async function getAllExpiryItemsAsync() {
+  const items = await expiryStore.getExpiryItems();
+  if (!items || items.length === 0) {
+    return getAllExpiryItems();
+  }
+  return items;
 }
 
 function getExpirySummary() {
@@ -117,9 +151,59 @@ function getExpirySummary() {
   return { total: all.length, critical, warning, healthy, items: all };
 }
 
+async function runTlsProbeCycle(targets = [], env = 'staging') {
+  const probeList = targets.length > 0 ? targets : CANONICAL_EXPIRY_RECORDS.filter(r => r.type.includes('TLS'));
+  const results = [];
+
+  for (const item of probeList) {
+    const probeRes = await expiryStore.probeTlsCertificate(item.target, 443);
+    if (probeRes.success && probeRes.valid_to) {
+      const daysLeft = expiryStore.calculateDaysLeft(probeRes.valid_to);
+      const status = expiryStore.resolveStatus(daysLeft, item.warningThreshold || 30, item.criticalThreshold || 7);
+
+      const record = await expiryStore.upsertExpiryItem({
+        item_id: item.id || `cert-probe-${item.target}`,
+        entity_id: item.target,
+        kind: 'tls_cert',
+        name: item.name || `TLS Cert: ${item.target}`,
+        target: item.target,
+        issuer: probeRes.issuer,
+        not_after: probeRes.valid_to,
+        warning_days: item.warningThreshold || 30,
+        critical_days: item.criticalThreshold || 7,
+        auto_renew: item.autoRenew || 'Automated ACME'
+      });
+
+      // Emit cert_event into Phase 4 eventStore if critical or warning
+      if (status === 'critical' || status === 'warning') {
+        eventStore.addEvent({
+          event_id: 'evt-cert-' + crypto.randomUUID(),
+          ts: new Date().toISOString(),
+          entity_id: item.target,
+          kind: 'cert_event',
+          severity: status,
+          title: `Certificate Expiry Alert: ${item.name} (${daysLeft} days left)`,
+          summary: `Peer TLS certificate on ${item.target} expires on ${probeRes.valid_to}. Status: ${status.toUpperCase()}.`,
+          payload: { target: item.target, daysLeft, issuer: probeRes.issuer },
+          environment: env,
+          source: 'tls_probe'
+        }).catch(() => {});
+      }
+
+      results.push({ target: item.target, success: true, daysLeft, status });
+    } else {
+      results.push({ target: item.target, success: false, error: probeRes.error });
+    }
+  }
+
+  return results;
+}
+
 module.exports = {
   CANONICAL_EXPIRY_RECORDS,
   getExpiryStatus,
   getAllExpiryItems,
-  getExpirySummary
+  getAllExpiryItemsAsync,
+  getExpirySummary,
+  runTlsProbeCycle
 };

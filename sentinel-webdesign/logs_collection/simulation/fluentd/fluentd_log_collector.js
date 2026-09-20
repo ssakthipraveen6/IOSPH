@@ -33,7 +33,9 @@ const errorLogs = {
   ]
 };
 
-function collectFluentdLogs(simulations, db, writeNasLog) {
+function collectFluentdLogs(simulations = {}, db = null, writeNasLog = null, targetEnv = null) {
+  const currentEnv = (targetEnv || global.runtimeEnvironment || 'staging').toLowerCase();
+  const logStore = require('../../../database/log_store');
   const linesGenerated = [];
   
   for (let i = 0; i < 2; i++) {
@@ -41,7 +43,7 @@ function collectFluentdLogs(simulations, db, writeNasLog) {
     linesGenerated.push(normalLogs[idx]);
   }
   
-  Object.keys(simulations).forEach(comp => {
+  Object.keys(simulations || {}).forEach(comp => {
     const sim = simulations[comp];
     if (sim && errorLogs[comp]) {
       const errPool = errorLogs[comp];
@@ -50,9 +52,21 @@ function collectFluentdLogs(simulations, db, writeNasLog) {
     }
   });
   
-  linesGenerated.forEach(line => {
-    writeNasLog('INFO', 'LOG_AGENT', line);
-  });
+  if (linesGenerated.length > 0) {
+    if (typeof writeNasLog === 'function') {
+      linesGenerated.forEach(line => {
+        writeNasLog('INFO', 'LOG_AGENT', line);
+      });
+    }
+    try {
+      logStore.appendLogs(linesGenerated.map(line => ({
+        message: line,
+        environment: currentEnv,
+        app_id: 'simulation',
+        entity_id: 'host:simulation'
+      })));
+    } catch (_) {}
+  }
   
   return linesGenerated;
 }
@@ -60,3 +74,4 @@ function collectFluentdLogs(simulations, db, writeNasLog) {
 module.exports = {
   collectFluentdLogs
 };
+

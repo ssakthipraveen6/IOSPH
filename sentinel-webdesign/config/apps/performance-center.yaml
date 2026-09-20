@@ -14,6 +14,13 @@ endpoints:
   stg:
     api: "https://perfcenter-stg.internal.corp/api/v2"
 
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
 layers:
   db:
     jdbc: "jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db"

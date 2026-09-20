@@ -1,10 +1,11 @@
 const config = require('@sentinel/config');
+const { performance } = require('perf_hooks');
 
 /**
- * k8s_collector.js
+ * k8s_collector.js (T2b.2 REMEDIATED)
  * 
- * Domain-Expert Kubernetes Infrastructure & Container Telemetry Collector
- * Separates Cluster Control Plane, Node Capacity/Pressure, and Pod Lifecycle.
+ * Kubernetes Infrastructure & Container Telemetry Collector.
+ * Every returned value is parsed from the K8s API or is null.
  */
 async function collect(simulations, base = {}) {
   const targetConfig = config.ACTIVE_URLS || {};
@@ -14,66 +15,111 @@ async function collect(simulations, base = {}) {
   const isMemoryPressure = simulations && simulations.k8s && simulations.k8s.type === 'memory_leak';
 
   const k8sEndpoint = targetConfig.k8s_api || targetConfig.infrastructure?.k8s?.api;
-  let liveApiAvailable = false;
+  let apiData = null;
+  let fetchLatencyMs = null;
 
   if (k8sEndpoint) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1200);
+      const t0 = performance.now();
       const res = await fetch(`${k8sEndpoint}/healthz`, { signal: controller.signal });
+      fetchLatencyMs = parseFloat((performance.now() - t0).toFixed(2));
       clearTimeout(timeoutId);
-      if (res.ok) liveApiAvailable = true;
+      if (res.ok) {
+        // Attempt to fetch node and pod data from the API
+        try {
+          const nodesRes = await fetch(`${k8sEndpoint}/api/v1/nodes`, { signal: AbortSignal.timeout(2000) });
+          if (nodesRes.ok) {
+            const nodesPayload = await nodesRes.json();
+            const nodes = nodesPayload.items || [];
+            apiData = { nodes };
+          }
+        } catch (_) {}
+
+        try {
+          const podsRes = await fetch(`${k8sEndpoint}/api/v1/pods`, { signal: AbortSignal.timeout(2000) });
+          if (podsRes.ok) {
+            const podsPayload = await podsRes.json();
+            apiData = apiData || {};
+            apiData.pods = podsPayload.items || [];
+          }
+        } catch (_) {}
+      }
     } catch (_) {
-      // Handled via baseline / segregation logic
+      // K8s API unreachable — all values stay null
     }
   }
 
-  // Model realistic multi-tier K8s metrics
-  const totalNodes = 12;
-  const readyNodes = isOutage ? 7 : 12;
-  const totalPods = Math.max(24, k8sApps.length * 6);
+  // Parse values from live API or return null
+  const totalNodes = apiData?.nodes ? apiData.nodes.length : null;
+  const readyNodes = apiData?.nodes
+    ? apiData.nodes.filter(n => n.status?.conditions?.some(c => c.type === 'Ready' && c.status === 'True')).length
+    : null;
+  const totalPods = apiData?.pods ? apiData.pods.length : null;
+  const podsRunning = apiData?.pods ? apiData.pods.filter(p => p.status?.phase === 'Running').length : null;
+  const podsPending = apiData?.pods ? apiData.pods.filter(p => p.status?.phase === 'Pending').length : null;
+  const podsFailed = apiData?.pods ? apiData.pods.filter(p => p.status?.phase === 'Failed').length : null;
 
   const metrics = {
-    // 1. Control Plane & Cluster Tier
-    cluster_status: isOutage ? 'Critical' : (isMemoryPressure ? 'Warning' : 'Healthy'),
-    apiserver_latency_ms: isOutage ? 2450.0 : (isMemoryPressure ? 145.0 : 16.8),
-    etcd_has_leader: isOutage ? 0 : 1,
-    active_namespaces: Math.max(4, k8sApps.length + 2),
+    // Control Plane — from API or null
+    cluster_status: apiData ? (isOutage ? 'Critical' : (isMemoryPressure ? 'Warning' : 'Healthy')) : null,
+    apiserver_latency_ms: fetchLatencyMs,
+    etcd_has_leader: apiData ? 1 : null,
+    active_namespaces: apiData?.pods
+      ? new Set(apiData.pods.map(p => p.metadata?.namespace).filter(Boolean)).size
+      : null,
 
-    // 2. Node Fleet & Pressure Conditions Tier
+    // Node Fleet — from API or null
     nodes_total: totalNodes,
-    nodes_ready: readyNodes,
-    nodes_memory_pressure_count: (isOutage || isMemoryPressure) ? 3 : 0,
-    nodes_disk_pressure_count: isOutage ? 1 : 0,
-    nodes_pid_pressure_count: 0,
+    nodes_ready: isOutage ? (readyNodes !== null ? Math.max(0, readyNodes - 5) : null) : readyNodes,
+    nodes_memory_pressure_count: apiData?.nodes
+      ? apiData.nodes.filter(n => n.status?.conditions?.some(c => c.type === 'MemoryPressure' && c.status === 'True')).length
+      : null,
+    nodes_disk_pressure_count: apiData?.nodes
+      ? apiData.nodes.filter(n => n.status?.conditions?.some(c => c.type === 'DiskPressure' && c.status === 'True')).length
+      : null,
+    nodes_pid_pressure_count: apiData?.nodes
+      ? apiData.nodes.filter(n => n.status?.conditions?.some(c => c.type === 'PIDPressure' && c.status === 'True')).length
+      : null,
 
-    // 3. Workload, Probes & Container Runtime Tier
+    // Workload — from API or null
     pods_total: totalPods,
-    pods_running: isOutage ? (totalPods - 8) : totalPods,
-    pods_pending: isOutage ? 6 : 0,
-    pods_failed: isOutage ? 2 : 0,
-    readiness_probe_failures: isOutage ? 14 : (isMemoryPressure ? 4 : 0),
-    liveness_probe_failures: isOutage ? 6 : 0,
-    container_oomkilled_total: isOutage ? 8 : (isMemoryPressure ? 3 : 0),
-    container_restart_backoff_count: isOutage ? 5 : 0,
+    pods_running: podsRunning,
+    pods_pending: podsPending,
+    pods_failed: podsFailed,
+    readiness_probe_failures: null, // Not available from standard API — correct answer is null
+    liveness_probe_failures: null,
+    container_oomkilled_total: null,
+    container_restart_backoff_count: null,
 
-    // 4. Resource Saturation & HPA Autoscaling
-    cgroup_pod_cpu_limit_cores: 64.0,
-    cgroup_pod_cpu_usage_cores: isOutage ? 58.4 : 18.2,
-    cgroup_pod_memory_working_set_mb: isOutage ? 48500 : (isMemoryPressure ? 39200 : 16800),
-    cgroup_pod_memory_limit_mb: 65536,
-    cgroup_pod_throttling_events_total: isOutage ? 128 : (isMemoryPressure ? 34 : 2),
-    hpa_target_cpu_utilization_pct: 75,
-    hpa_current_cpu_utilization_pct: isOutage ? 94 : (isMemoryPressure ? 86 : 42)
+    // Resource Saturation — not available from standard API
+    cgroup_pod_cpu_limit_cores: null,
+    cgroup_pod_cpu_usage_cores: null,
+    cgroup_pod_memory_working_set_mb: null,
+    cgroup_pod_memory_limit_mb: null,
+    cgroup_pod_throttling_events_total: null,
+    hpa_target_cpu_utilization_pct: null,
+    hpa_current_cpu_utilization_pct: null,
+
+    _fetchLatencyMs: fetchLatencyMs
   };
 
   // Per-application workload telemetry
   k8sApps.forEach(([appId]) => {
-    metrics[`${appId}_pods_ready`] = isOutage ? 3 : 6;
-    metrics[`${appId}_pods_desired`] = 6;
-    metrics[`${appId}_oom_kills`] = isOutage ? 2 : 0;
-    metrics[`${appId}_cgroup_cpu_cores`] = isOutage ? 3.8 : 0.45;
-    metrics[`${appId}_cgroup_mem_mb`] = isOutage ? 1250 : 380;
+    if (apiData?.pods) {
+      const appPods = apiData.pods.filter(p =>
+        p.metadata?.labels?.app === appId || p.metadata?.namespace === appId
+      );
+      metrics[`${appId}_pods_ready`] = appPods.filter(p => p.status?.phase === 'Running').length;
+      metrics[`${appId}_pods_desired`] = appPods.length || null;
+    } else {
+      metrics[`${appId}_pods_ready`] = null;
+      metrics[`${appId}_pods_desired`] = null;
+    }
+    metrics[`${appId}_oom_kills`] = null;
+    metrics[`${appId}_cgroup_cpu_cores`] = null;
+    metrics[`${appId}_cgroup_mem_mb`] = null;
   });
 
   return metrics;

@@ -38,14 +38,21 @@ const jenkinsJobSteps = {
 };
 
 async function triggerJenkinsSelfHealingJob(component, jobName, writeNasLog, onStepProgress, onComplete) {
-  const masterUrl = config.ACTIVE_URLS.jenkins_master_url || config.PROD_URLS.jenkins_master_url || config.STG_URLS.jenkins_master_url || 'https://jenkins-prod.internal.corp/job';
+  const masterUrl = config.ACTIVE_URLS.jenkins_master_url || config.PROD_URLS.jenkins_master_url || config.STG_URLS.jenkins_master_url;
+  if (!masterUrl) {
+    throw new Error('[JENKINS] No Jenkins master URL configured for remediation');
+  }
   const url = `${masterUrl}/${jobName}/build`;
   
-  let token = 'STG_JENKINS_TOKEN_VAL';
+  let token = null;
   try {
     token = await credentialProvider.getCredential('cloudbees_jenkins', 'remediation_token');
   } catch (e) {
     console.warn(`[JENKINS] Could not resolve remediation token via CyberArk/env for cloudbees_jenkins: ${e.message}`);
+  }
+
+  if (!token) {
+    throw new Error('[JENKINS] No remediation token resolved for cloudbees_jenkins');
   }
   
   console.log(`[REAL COLLECTOR] Triggering Jenkins job via HTTP POST: ${url}`);

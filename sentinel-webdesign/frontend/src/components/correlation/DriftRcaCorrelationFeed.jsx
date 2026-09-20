@@ -32,7 +32,6 @@ export default function DriftRcaCorrelationFeed({ onSelectEntity, onNavigateToTi
       
       {/* Panel Header & Headline Stat */}
       <div style={{
-        background: 'var(--bg-panel)',
         border: '1px solid rgba(245, 158, 11, 0.35)',
         borderRadius: '12px',
         padding: '1.25rem',

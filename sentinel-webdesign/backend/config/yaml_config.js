@@ -62,7 +62,7 @@ function loadAllApplications(forceReload = false) {
             apps[parsed.id] = { ...apps[parsed.id], ...parsed };
           }
         } catch (e) {
-          console.error(`[YAML CONFIG] Error parsing ${file}:`, e.message);
+          throw new Error(`[YAML CONFIG] Fatal error parsing application config ${file}: ${e.message}`);
         }
       }
     });
@@ -81,8 +81,32 @@ function loadAllApplications(forceReload = false) {
     return parsed.kind !== 'infrastructure';
   });
 
+  // 4. Populate aliases for backward compatibility (T1.5)
+  for (const app of Object.values(apps)) {
+    if (Array.isArray(app.aliases)) {
+      for (const alias of app.aliases) {
+        if (!apps[alias]) {
+          apps[alias] = app;
+        }
+      }
+    }
+  }
+
   cachedApps = apps;
   return apps;
+}
+
+function getApplication(appId) {
+  if (!appId) return null;
+  const apps = loadAllApplications();
+  if (apps[appId]) return apps[appId];
+  // Check aliases (T1.5)
+  for (const app of Object.values(apps)) {
+    if (Array.isArray(app.aliases) && app.aliases.includes(appId)) {
+      return app;
+    }
+  }
+  return null;
 }
 
 function loadAllInfrastructureLayers(forceReload = false) {
@@ -102,7 +126,7 @@ function loadAllInfrastructureLayers(forceReload = false) {
             layers[parsed.id] = { ...layers[parsed.id], ...parsed };
           }
         } catch (e) {
-          console.error(`[YAML CONFIG] Error parsing infra layer ${file}:`, e.message);
+          throw new Error(`[YAML CONFIG] Fatal error parsing infra layer ${file}: ${e.message}`);
         }
       }
     });
@@ -321,6 +345,7 @@ module.exports = {
   sanitizeAppId,
   loadGlobalConfig,
   loadAllApplications,
+  getApplication,
   loadApplicationConfigs: loadAllApplications,
   loadAllInfrastructureLayers,
   validateConfig,

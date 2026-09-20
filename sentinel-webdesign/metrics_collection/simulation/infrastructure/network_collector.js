@@ -1,4 +1,5 @@
 module.exports = {
+  clearHostCache: () => {},
   collect: (simulations, base) => {
     const sim = simulations['network_latency'];
     if (sim && sim.type === 'outage') {

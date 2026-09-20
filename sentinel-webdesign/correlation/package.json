@@ -1,0 +1,9 @@
+{
+  "name": "@sentinel/correlation",
+  "version": "1.0.0",
+  "description": "Sentinel Graph Fan-Out and Root Cause Analysis Correlation Engine",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/correlation_engine.test.js"
+  }
+}

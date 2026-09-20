@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const postgres = require('./postgres');
-const sqliteMetrics = require('./sqlite_metrics');
+const eventStore = require('./event_store');
 
 let writeNasLog;
 try {
@@ -70,10 +71,66 @@ let db = {
   metrics: [],      // array of { timestamp, component, metricName, value, env }
   alerts: [],       // array of { id, timestamp, component, severity, message, status, resolvedAt, env }
   recovery: [],     // array of { id, timestamp, component, action, triggerReason, status, steps, duration, env }
+  revokedTokens: [],// array of { jti, revokedAt, reason }
   settings: {
     autonomousMode: false
   }
 };
+
+// [T2.2] Bounded In-Memory Write-Ahead Queue & Flusher for High Ingestion Throughput
+const QUEUE_CAPACITY = 50000;
+const BATCH_FLUSH_SIZE = 5000;
+const FLUSH_INTERVAL_MS = 1000;
+const BACKPRESSURE_THRESHOLD = 40000; // 80% of capacity
+const MAX_ACTIVE_SERIES = 200000;
+
+const writeQueue = [];
+let sentinelIngestDroppedTotal = 0;
+let cardinalityDroppedTotal = 0;
+const activeSeries = new Set();
+const flushLatencies = [];
+let isFlushing = false;
+let totalRowsIngested = 0;
+let totalRowsFlushed = 0;
+let rowsPerSec = 0;
+let recentIngestCount = 0;
+
+// Rate tracker
+setInterval(() => {
+  rowsPerSec = recentIngestCount;
+  recentIngestCount = 0;
+}, 1000).unref();
+
+async function flushQueue() {
+  if (isFlushing || writeQueue.length === 0) return;
+  isFlushing = true;
+  try {
+    const batchSize = Math.min(writeQueue.length, BATCH_FLUSH_SIZE);
+    const batch = writeQueue.splice(0, batchSize);
+    if (batch.length === 0) return;
+
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    await executeWithRetry(() => postgres.saveMetricBatchToPostgres(batch, writeNasLog), `flushMetricBatch(${batch.length})`);
+    const elapsed = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
+
+    flushLatencies.push(elapsed);
+    if (flushLatencies.length > 100) flushLatencies.shift();
+    totalRowsFlushed += batch.length;
+  } catch (err) {
+    if (writeNasLog) {
+      writeNasLog('ERROR', 'DATABASE_POSTGRES', `Write queue flush error: ${err.message}`);
+    }
+  } finally {
+    isFlushing = false;
+    if (writeQueue.length >= BATCH_FLUSH_SIZE) {
+      setImmediate(flushQueue);
+    }
+  }
+}
+
+// Background flusher interval
+const flushIntervalTimer = setInterval(flushQueue, FLUSH_INTERVAL_MS);
+flushIntervalTimer.unref();
 
 let isSaving = false;
 let saveScheduled = false;
@@ -82,11 +139,16 @@ function loadDB() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, 'utf8');
-      db = JSON.parse(data);
+      if (data && data.trim()) {
+        db = JSON.parse(data);
+      } else {
+        saveDBSync();
+      }
       
-      db.metrics = (db.metrics || []).slice(-200);
-      db.alerts = (db.alerts || []).slice(-50);
-      db.recovery = (db.recovery || []).slice(-50);
+      db.metrics = (db.metrics || []).slice(-20000);
+      db.alerts = (db.alerts || []).slice(-500);
+      db.recovery = (db.recovery || []).slice(-500);
+      db.revokedTokens = db.revokedTokens || [];
       db.settings = db.settings || { autonomousMode: false };
       
       console.log(`[DB] Local write-behind cache loaded. Metrics count: ${db.metrics.length}, Alerts: ${db.alerts.length}`);
@@ -95,6 +157,7 @@ function loadDB() {
     }
   } catch (error) {
     console.error('[DB] Failed to load local cache file:', error.message);
+    saveDBSync();
   }
 }
 
@@ -347,34 +410,52 @@ const dbManager = {
     return filtered.slice(-limit);
   },
 
-  addMetric(component, metricName, value, env = null) {
+  addMetric(component, metricName, value, env = null, entity_id = null) {
     const targetEnv = env || global.runtimeEnvironment || 'staging';
+    const resolvedEntityId = entity_id || `app:${component}`;
+
+    // [T2.3] Cardinality Guard: Cap distinct entity_id x metric_name series
+    const seriesKey = `${resolvedEntityId}::${metricName}`;
+    if (!activeSeries.has(seriesKey)) {
+      if (activeSeries.size >= MAX_ACTIVE_SERIES) {
+        cardinalityDroppedTotal++;
+        return null;
+      }
+      activeSeries.add(seriesKey);
+    }
+
+    // [T2.2] Backpressure: Drop lowest-priority metrics when queue hits 80% capacity
+    if (writeQueue.length >= BACKPRESSURE_THRESHOLD) {
+      sentinelIngestDroppedTotal++;
+      return null;
+    }
+
     const entry = {
       timestamp: new Date().toISOString(),
       component,
+      entity_id: resolvedEntityId,
       metricName,
       value: typeof value === 'number' ? parseFloat(value.toFixed(2)) : value,
       env: targetEnv
     };
     
+    // In-memory ring buffer for low latency dashboard lookups
     db.metrics.push(entry);
-    
-    // Prune in-memory cache to keep db file lightweight (max 200 items)
-    if (db.metrics.length > 200) {
-      db.metrics = db.metrics.slice(-200);
+    if (db.metrics.length > 20000) {
+      db.metrics = db.metrics.slice(-20000);
     }
 
-    // Primary write path: TimescaleDB / Postgres async insert with bounded retry & degradation tracking
-    executeWithRetry(() => postgres.saveMetricToPostgres(entry, writeNasLog), `saveMetric(${component}:${metricName})`);
+    // Enqueue to write-ahead queue
+    writeQueue.push(entry);
+    recentIngestCount++;
+    totalRowsIngested++;
 
-    // Secondary rolling archive update for local persistence fallback
-    if (sqliteMetrics && typeof sqliteMetrics.archiveMetrics === 'function') {
-      try {
-        sqliteMetrics.archiveMetrics({ [component]: { [metricName]: entry.value } });
-      } catch (_) {}
+    // Flush immediately if batch threshold reached
+    if (writeQueue.length >= BATCH_FLUSH_SIZE) {
+      setImmediate(flushQueue);
     }
 
-    saveDB();
+    // Notice: saveDB() is deleted from the metric path entirely (T2.2)
     return entry;
   },
 
@@ -382,26 +463,76 @@ const dbManager = {
     if (!Array.isArray(metricsArray) || metricsArray.length === 0) return;
     const targetEnv = env || global.runtimeEnvironment || 'staging';
 
-    metricsArray.forEach(m => {
+    for (let i = 0; i < metricsArray.length; i++) {
+      const m = metricsArray[i];
+      const comp = m.component || 'system';
+      const metricName = m.metricName || m.name;
+      const resolvedEntityId = m.entity_id || m.entityId || `app:${comp}`;
+
+      // [T2.3] Cardinality Guard
+      const seriesKey = `${resolvedEntityId}::${metricName}`;
+      if (!activeSeries.has(seriesKey)) {
+        if (activeSeries.size >= MAX_ACTIVE_SERIES) {
+          cardinalityDroppedTotal++;
+          continue;
+        }
+        activeSeries.add(seriesKey);
+      }
+
+      // [T2.2] Backpressure
+      if (writeQueue.length >= BACKPRESSURE_THRESHOLD) {
+        sentinelIngestDroppedTotal++;
+        continue;
+      }
+
       const entry = {
         timestamp: m.timestamp || new Date().toISOString(),
-        component: m.component,
-        metricName: m.metricName || m.name,
+        component: comp,
+        entity_id: resolvedEntityId,
+        metricName,
         value: typeof m.value === 'number' ? parseFloat(m.value.toFixed(2)) : m.value,
         env: m.env || targetEnv
       };
-      db.metrics.push(entry);
-    });
 
-    // Prune in-memory cache to keep db file lightweight (max 200 items)
-    if (db.metrics.length > 200) {
-      db.metrics = db.metrics.slice(-200);
+      db.metrics.push(entry);
+      writeQueue.push(entry);
+      recentIngestCount++;
+      totalRowsIngested++;
     }
 
-    // Primary write path: TimescaleDB / Postgres multi-row batch insert with bounded retry
-    executeWithRetry(() => postgres.saveMetricBatchToPostgres(metricsArray, writeNasLog), `saveMetricBatch(${metricsArray.length})`);
+    if (db.metrics.length > 20000) {
+      db.metrics = db.metrics.slice(-20000);
+    }
 
-    saveDB();
+    if (writeQueue.length >= BATCH_FLUSH_SIZE) {
+      setImmediate(flushQueue);
+    }
+
+    // Notice: saveDB() is deleted from the metric path entirely (T2.2)
+  },
+
+  getIngestStats() {
+    const sorted = [...flushLatencies].sort((a, b) => a - b);
+    const p50 = sorted.length ? sorted[Math.floor(sorted.length * 0.5)] : 0;
+    const p95 = sorted.length ? sorted[Math.floor(sorted.length * 0.95)] : 0;
+    return {
+      queueDepth: writeQueue.length,
+      queueCapacity: QUEUE_CAPACITY,
+      rowsPerSec,
+      totalIngested: totalRowsIngested,
+      totalFlushed: totalRowsFlushed,
+      droppedTotal: sentinelIngestDroppedTotal,
+      cardinality: {
+        activeSeriesCount: activeSeries.size,
+        maxSeries: MAX_ACTIVE_SERIES,
+        droppedTotal: cardinalityDroppedTotal
+      },
+      flushLatency: {
+        p50Ms: Math.round(p50 * 100) / 100,
+        p95Ms: Math.round(p95 * 100) / 100
+      },
+      persistence: { ...persistenceState }
+    };
   },
 
   clearMetrics(env = null) {
@@ -438,14 +569,22 @@ const dbManager = {
   },
 
   addAlert(component, severity, message, status = 'Active', env = null) {
-    const targetEnv = env || global.runtimeEnvironment || 'staging';
+    let targetStatus = status || 'Active';
+    let targetEnv = env;
+    if (['prod', 'staging', 'demo'].includes(status) && env === null) {
+      targetEnv = status;
+      targetStatus = 'Active';
+    } else {
+      targetEnv = env || global.runtimeEnvironment || 'staging';
+    }
+    const alertId = 'ALT-' + crypto.randomUUID().substring(0, 8).toUpperCase();
     const alert = {
-      id: 'ALT-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
+      id: alertId,
       timestamp: new Date().toISOString(),
       component,
       severity,
       message,
-      status,
+      status: targetStatus,
       resolvedAt: null,
       env: targetEnv
     };
@@ -457,6 +596,35 @@ const dbManager = {
     }
     
     saveDB();
+
+    // Emit event to eventStore and trigger correlation engine for anomalies
+    const resolvedEntityId = component.startsWith('app:') || component.startsWith('host:') || component.startsWith('storage:')
+      ? component
+      : `app:${component}`;
+    const sevNormalized = severity.toLowerCase() === 'critical' ? 'critical' : (severity.toLowerCase().includes('warn') ? 'warning' : 'info');
+    
+    const event = {
+      event_id: 'evt-alt-' + crypto.randomUUID(),
+      ts: alert.timestamp,
+      entity_id: resolvedEntityId,
+      kind: 'metric_anomaly',
+      severity: sevNormalized,
+      title: `Alert: ${component} (${severity})`,
+      summary: message,
+      payload: { alert_id: alert.id, status: targetStatus, rawSeverity: severity },
+      environment: targetEnv,
+      source: 'alerts'
+    };
+
+    eventStore.addEvent(event).then(stored => {
+      if (stored && (stored.severity === 'critical' || stored.severity === 'warning')) {
+        try {
+          const correlation = require('@sentinel/correlation');
+          correlation.correlateSymptom(stored).catch(() => {});
+        } catch (_) {}
+      }
+    }).catch(() => {});
+
     return alert;
   },
 
@@ -506,8 +674,9 @@ const dbManager = {
 
   addRecoveryRun(component, action, triggerReason, env = null) {
     const targetEnv = env || global.runtimeEnvironment || 'staging';
+    const runId = 'REC-' + crypto.randomUUID().substring(0, 8).toUpperCase();
     const run = {
-      id: 'REC-' + Math.random().toString(36).substring(2, 9).toUpperCase(),
+      id: runId,
       timestamp: new Date().toISOString(),
       component,
       action,
@@ -520,6 +689,23 @@ const dbManager = {
     };
     db.recovery.push(run);
     saveDB();
+
+    const resolvedEntityId = component.startsWith('app:') || component.startsWith('host:') || component.startsWith('storage:')
+      ? component
+      : `app:${component}`;
+    eventStore.addEvent({
+      event_id: 'evt-rec-' + crypto.randomUUID(),
+      ts: run.timestamp,
+      entity_id: resolvedEntityId,
+      kind: 'incident',
+      severity: 'info',
+      title: `Recovery Triggered: ${component} - ${action}`,
+      summary: triggerReason,
+      payload: { recovery_id: run.id, action, status: run.status },
+      environment: targetEnv,
+      source: 'recovery'
+    }).catch(() => {});
+
     return run;
   },
 
@@ -547,6 +733,26 @@ const dbManager = {
   // Operational health status of database persistence
   getPersistenceStatus() {
     return { ...persistenceState };
+  },
+
+  // Token revocation management (T0.7)
+  revokeToken(jti, reason = 'Logout / Session Termination') {
+    if (!jti) return false;
+    if (!db.revokedTokens) db.revokedTokens = [];
+    if (!db.revokedTokens.some(t => t.jti === jti)) {
+      db.revokedTokens.push({
+        jti,
+        revokedAt: new Date().toISOString(),
+        reason
+      });
+      saveDB();
+    }
+    return true;
+  },
+
+  isTokenRevoked(jti) {
+    if (!jti || !db.revokedTokens) return false;
+    return db.revokedTokens.some(t => t.jti === jti);
   },
 
   // Export synchronous flush for graceful shutdown

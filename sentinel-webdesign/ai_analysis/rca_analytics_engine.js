@@ -1,4 +1,5 @@
 const db = require('@sentinel/database');
+const eventStore = require('../database/event_store');
 const { SEVERITY, normalizeSeverity } = require('@sentinel/shared-constants');
 
 /**
@@ -124,7 +125,7 @@ const APP_RCA_PROFILES = {
   }
 };
 
-function generateRcaFlows(selectedApp = 'jenkins', env = null) {
+async function generateRcaFlows(selectedApp = 'jenkins', env = null) {
   const targetEnv = env || global.runtimeEnvironment || 'staging';
   const alerts = db.getAlerts(targetEnv) || [];
   const profile = APP_RCA_PROFILES[selectedApp] || APP_RCA_PROFILES.jenkins;
@@ -267,8 +268,18 @@ function generateRcaFlows(selectedApp = 'jenkins', env = null) {
       { time: "20:00", expected: 260 + appSeed, nasIops: 295 + appSeed, note: null }
     ];
   } else {
-    // PROD & STAGING: Not collecting yet, return empty
-    timeline = [];
+    // PROD & STAGING: read real events from eventStore (empty if none exist)
+    try {
+      const realEvents = await eventStore.getEvents({ environment: targetEnv, limit: 15 });
+      timeline = (realEvents || []).map(e => ({
+        time: new Date(e.ts).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+        expected: 0,
+        nasIops: 0,
+        note: `[${(e.severity || 'info').toUpperCase()}] ${e.title} (${e.entity_id || 'system'})`
+      }));
+    } catch (_) {
+      timeline = [];
+    }
   }
 
   // App-specific correlation insights
@@ -284,8 +295,28 @@ function generateRcaFlows(selectedApp = 'jenkins', env = null) {
       }
     ];
   } else {
-    // PROD & STAGING: Not collecting yet, return empty
-    correlations = [];
+    // PROD & STAGING: read strictly from real rca_hypothesis in eventStore (empty if none exist)
+    try {
+      const hypotheses = await eventStore.getHypotheses({ environment: targetEnv });
+      correlations = (hypotheses || []).map(h => {
+        const primaryClaim = Array.isArray(h.rationale) && h.rationale.length > 0
+          ? (h.rationale[h.rationale.length - 1].observation || h.rationale[0].claim || JSON.stringify(h.rationale[0]))
+          : `Suspect infrastructure degradation on ${h.suspect_entity_id}`;
+        return {
+          id: h.hypothesis_id,
+          title: `RCA: ${h.suspect_entity_id} (${Math.round(h.confidence * 100)}% Confidence)`,
+          confidence: Math.round(h.confidence * 1000) / 10,
+          rootCause: primaryClaim,
+          recommendation: `Inspect and isolate ${h.suspect_entity_id}. Blast radius impacts ${h.blast_radius} nodes.`,
+          blastRadius: h.blast_radius,
+          suspectEntityId: h.suspect_entity_id,
+          status: h.status,
+          rationale: h.rationale
+        };
+      });
+    } catch (_) {
+      correlations = [];
+    }
   }
 
   return {

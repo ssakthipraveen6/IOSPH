@@ -29,25 +29,19 @@ export default function AiLogPerformance({ onSimulate, environment = 'staging' }
   const remediations = (currentEnv === 'prod' || currentEnv === 'staging') ? [] : (remediationsByEnv[currentEnv] || []);
 
   const [aiStats, setAiStats] = useState({
-    scanThroughput: 840,
-    accuracy: 99.8,
-    latency: 1.2,
+    scanThroughput: currentEnv === 'demo' ? 840 : null,
+    accuracy: currentEnv === 'demo' ? 99.8 : null,
+    latency: currentEnv === 'demo' ? 1.2 : null,
     queueSize: 0
   });
 
   useEffect(() => {
-    const generateStats = () => {
-      setAiStats({
-        scanThroughput: currentEnv === 'prod' ? 1250 : 800 + Math.floor(Math.random() * 80),
-        accuracy: 99.9,
-        latency: parseFloat((1.0 + Math.random() * 0.2).toFixed(2)),
-        queueSize: 0
-      });
-    };
-
-    generateStats();
-    const interval = setInterval(generateStats, 5000);
-    return () => clearInterval(interval);
+    setAiStats({
+      scanThroughput: currentEnv === 'demo' ? 840 : null,
+      accuracy: currentEnv === 'demo' ? 99.8 : null,
+      latency: currentEnv === 'demo' ? 1.2 : null,
+      queueSize: 0
+    });
   }, [currentEnv]);
 
   return (

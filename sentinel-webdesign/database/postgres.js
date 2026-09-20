@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 const config = require('@sentinel/config');
-const sqliteMetrics = require('./sqlite_metrics');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 
 // Parse JDBC connection URL
@@ -33,7 +32,7 @@ async function getPool() {
         try {
           password = await credentialProvider.getCredential('database', 'db');
         } catch (e) {
-          password = 'STG_PG_SECURE_PASSWORD_VAL';
+          password = null;
         }
       }
       pool = new Pool({
@@ -52,23 +51,7 @@ async function getPool() {
 }
 
 async function saveMetricToPostgres(metric, writeNasLog) {
-  const activePool = await getPool();
-  if (!activePool) {
-    const err = new Error('PostgreSQL connection pool not initialized or unavailable');
-    if (writeNasLog) {
-      writeNasLog('WARN', 'DATABASE_POSTGRES', `Cannot save metric to PostgreSQL: ${err.message}`);
-    }
-    throw err;
-  }
-  try {
-    const query = 'INSERT INTO metrics(timestamp, component, metric_name, value) VALUES($1, $2, $3, $4)';
-    await activePool.query(query, [new Date(), metric.component, metric.name || metric.metricName, metric.value]);
-  } catch (e) {
-    if (writeNasLog) {
-      writeNasLog('WARN', 'DATABASE_POSTGRES', `Failed to write telemetry metric to PostgreSQL: ${e.message}`);
-    }
-    throw e;
-  }
+  return saveMetricBatchToPostgres([metric], writeNasLog);
 }
 
 async function saveMetricBatchToPostgres(metrics, writeNasLog) {
@@ -87,13 +70,37 @@ async function saveMetricBatchToPostgres(metrics, writeNasLog) {
     let paramIdx = 1;
 
     metrics.forEach(m => {
-      valueTuples.push(`($${paramIdx}, $${paramIdx+1}, $${paramIdx+2}, $${paramIdx+3})`);
-      queryParams.push(new Date(m.timestamp || Date.now()), m.component, m.metricName || m.name, m.value);
-      paramIdx += 4;
+      const metricEnv = m.env || global.runtimeEnvironment || 'staging';
+      const entityId = m.entity_id || m.entityId || `app:${m.component}`;
+      const metricName = m.metric_name || m.metricName || m.name;
+      const ts = new Date(m.timestamp || m.ts || Date.now());
+      const labels = m.labels ? JSON.stringify(m.labels) : null;
+
+      valueTuples.push(`($${paramIdx}, $${paramIdx+1}, $${paramIdx+2}, $${paramIdx+3}, $${paramIdx+4}, $${paramIdx+5}, $${paramIdx+6})`);
+      queryParams.push(ts, entityId, m.component || 'system', metricName, m.value, metricEnv, labels);
+      paramIdx += 7;
     });
 
-    const query = `INSERT INTO metrics(timestamp, component, metric_name, value) VALUES ${valueTuples.join(', ')}`;
-    await activePool.query(query, queryParams);
+    const query = `INSERT INTO metric (ts, entity_id, component, metric_name, value, environment, labels) VALUES ${valueTuples.join(', ')}`;
+    try {
+      await activePool.query(query, queryParams);
+    } catch (metricTableErr) {
+      // Fallback to legacy metrics table if migration 002 hasn't been executed
+      if (metricTableErr.message && (metricTableErr.message.includes('relation "metric" does not exist') || metricTableErr.code === '42P01')) {
+        const legacyTuples = [];
+        const legacyParams = [];
+        let lIdx = 1;
+        metrics.forEach(m => {
+          const metricEnv = m.env || global.runtimeEnvironment || 'staging';
+          legacyTuples.push(`($${lIdx}, $${lIdx+1}, $${lIdx+2}, $${lIdx+3}, $${lIdx+4})`);
+          legacyParams.push(new Date(m.timestamp || m.ts || Date.now()), m.component || 'system', m.metricName || m.name, m.value, metricEnv);
+          lIdx += 5;
+        });
+        await activePool.query(`INSERT INTO metrics (timestamp, component, metric_name, value, environment) VALUES ${legacyTuples.join(', ')}`, legacyParams);
+      } else {
+        throw metricTableErr;
+      }
+    }
   } catch (e) {
     if (writeNasLog) {
       writeNasLog('WARN', 'DATABASE_POSTGRES', `Failed batch insert of ${metrics.length} metrics to PostgreSQL: ${e.message}`);
@@ -107,24 +114,48 @@ async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLi
   const activePool = await getPool();
   if (activePool) {
     try {
-      const query = `
-        SELECT timestamp, value 
-        FROM metrics 
-        WHERE component = $1 AND metric_name = $2 
-          AND timestamp >= NOW() - ($3 || ' hours')::interval
-        ORDER BY timestamp ASC
+      // T2.2: serve from metric_1m rollup if hoursLimit > 6, raw metric otherwise
+      if (hoursLimit > 6) {
+        try {
+          const rollupQuery = `
+            SELECT bucket AS timestamp, avg_value AS value, environment 
+            FROM metric_1m 
+            WHERE (component = $1 OR entity_id = $1) AND metric_name = $2 AND environment = $3
+              AND bucket >= NOW() - ($4 || ' hours')::interval
+            ORDER BY bucket ASC
+          `;
+          const res = await activePool.query(rollupQuery, [component, metricName, targetEnv, hoursLimit]);
+          if (res.rows && res.rows.length > 0) return res.rows;
+        } catch (_) {
+          // Continuous aggregate / view not present yet, fall through to raw table
+        }
+      }
+
+      const rawQuery = `
+        SELECT ts AS timestamp, value, environment 
+        FROM metric 
+        WHERE (component = $1 OR entity_id = $1) AND metric_name = $2 AND environment = $3
+          AND ts >= NOW() - ($4 || ' hours')::interval
+        ORDER BY ts ASC
       `;
-      const res = await activePool.query(query, [component, metricName, hoursLimit]);
+      const res = await activePool.query(rawQuery, [component, metricName, targetEnv, hoursLimit]);
       if (res.rows && res.rows.length > 0) return res.rows;
     } catch (e) {
-      console.warn(`[DATABASE] Failed to read from PostgreSQL: ${e.message}. Using cache fallback.`);
+      // Try legacy metrics table fallback
+      try {
+        const legacyQuery = `
+          SELECT timestamp, value, environment 
+          FROM metrics 
+          WHERE component = $1 AND metric_name = $2 AND environment = $3
+            AND timestamp >= NOW() - ($4 || ' hours')::interval
+          ORDER BY timestamp ASC
+        `;
+        const res = await activePool.query(legacyQuery, [component, metricName, targetEnv, hoursLimit]);
+        if (res.rows && res.rows.length > 0) return res.rows;
+      } catch (legacyErr) {
+        console.warn(`[DATABASE] Failed to read from PostgreSQL: ${legacyErr.message}. Using cache fallback.`);
+      }
     }
-  }
-
-  // Fallback to SQLite records if available
-  const actualRecords = sqliteMetrics.queryHistoricalMetrics(component, metricName, hoursLimit);
-  if (actualRecords && actualRecords.length > 0) {
-    return actualRecords;
   }
 
   // In PROD or STAGING mode without recorded telemetry: return empty dataset
@@ -159,8 +190,15 @@ async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLi
   return dataset;
 }
 
+async function query(text, params) {
+  const p = await getPool();
+  if (!p) return null;
+  return p.query(text, params);
+}
+
 module.exports = {
   getPool,
+  query,
   saveMetricToPostgres,
   saveMetricBatchToPostgres,
   fetchHistoricalMetricsFromPostgres

@@ -7,12 +7,30 @@ display_name: "Micro Focus Fortify SSC"
 category: "security_scanner"
 tier: "Tier-2 Operational"
 log_tag: "[FORTIFY]"
+regions: ["emea"]
 
 endpoints:
   prod:
     api: "https://fortify-prod.internal.corp/ssc/api/v1"
   stg:
     api: "https://fortify-stg.internal.corp/ssc/api/v1"
+
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
+topology:
+  servers:
+    ssc_master: "fortify-ssc-1.internal.corp"
+  agent_pools:
+    - { id: "fortify-sensors", os: "linux", expected_count: 20, discovery: "fortify_api" }
+
+lifecycle:
+  refweb_url: { url: "https://fortify.internal.corp", expiry: "2027-08-31" }
+  license: { type: "Fortify SSC Enterprise", expiry: "2027-05-15" }
 
 layers:
   api_token:

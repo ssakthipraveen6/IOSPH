@@ -1,52 +1,64 @@
 const fs = require('fs');
 const path = require('path');
+const yaml = require('js-yaml');
 const logger = require('@sentinel/logger');
 const config = require('@sentinel/config');
-const { fetchWithTimeout } = require('@sentinel/collector/shared/fetch_with_fallback');
 
-// =========================================================================
-// FUTURE CHECKS REGISTRY FOR EXTENDED INTEGRATIONS
-// To register new custom checks (e.g. Jenkins builds, container states, database pools),
-// append objects to the CUSTOM_CHECKS_REGISTRY array below:
-// =========================================================================
-const CUSTOM_CHECKS_REGISTRY = [
-  {
-    id: "check_jenkins_billing",
-    name: "Jenkins Pipeline: billing-service",
-    type: "jenkins_job",
-    endpoint: "https://jenkins-stg.internal.corp/job/billing-service",
-    expectedState: "SUCCESS",
-    description: "Monitors build status of billing-service pipeline in STG"
-  },
-  {
-    id: "check_payment_gateway",
-    name: "Application API: payment-gateway",
-    type: "app_api",
-    endpoint: "https://stg-api.internal.corp/payment/health",
-    expectedState: "UP",
-    description: "Validates JSON response {status: UP} from payment-gateway microservice"
-  },
-  {
-    id: "check_private_harbor",
-    name: "Registry: private-docker-harbor",
-    type: "container_registry",
-    endpoint: "https://harbor-stg.internal.corp/api/v2/health",
-    expectedState: "ONLINE",
-    description: "Pings Private Docker registry storage availability"
+// [T0.20] Load custom check registry from externalized YAML configuration
+function loadCustomChecksRegistry() {
+  const yamlPath = path.resolve(__dirname, '../config/custom_checks.yaml');
+  try {
+    if (fs.existsSync(yamlPath)) {
+      const parsed = yaml.load(fs.readFileSync(yamlPath, 'utf8'));
+      if (parsed && Array.isArray(parsed.checks)) {
+        return parsed.checks;
+      }
+    }
+  } catch (e) {
+    logger.warn(`[CUSTOM CHECKS] Error loading ${yamlPath}: ${e.message}`);
   }
-];
+
+  return [
+    {
+      id: "check_jenkins_billing",
+      name: "Jenkins Pipeline: billing-service",
+      type: "jenkins_job",
+      endpoint: "https://jenkins-stg.internal.corp/job/billing-service",
+      expectedState: "SUCCESS",
+      description: "Monitors build status of billing-service pipeline in STG"
+    },
+    {
+      id: "check_payment_gateway",
+      name: "Application API: payment-gateway",
+      type: "app_api",
+      endpoint: "https://stg-api.internal.corp/payment/health",
+      expectedState: "UP",
+      description: "Validates JSON response {status: UP} from payment-gateway microservice"
+    },
+    {
+      id: "check_private_harbor",
+      name: "Registry: private-docker-harbor",
+      type: "container_registry",
+      endpoint: "https://harbor-stg.internal.corp/api/v2/health",
+      expectedState: "ONLINE",
+      description: "Pings Private Docker registry storage availability"
+    }
+  ];
+}
+
+const CUSTOM_CHECKS_REGISTRY = loadCustomChecksRegistry();
 
 // In-memory runtime cache for custom check states
 const checkRuntimeStates = {};
 
-// Initialize state storage
+// [T0.20] Initialise check state to UNKNOWN, never Healthy; latencyMs to null
 CUSTOM_CHECKS_REGISTRY.forEach(check => {
   checkRuntimeStates[check.id] = {
     ...check,
-    status: "Healthy",
-    lastRunValue: check.expectedState,
-    lastRunTimestamp: new Date().toISOString(),
-    latencyMs: 12,
+    status: "UNKNOWN",
+    lastRunValue: null,
+    lastRunTimestamp: null,
+    latencyMs: null,
     failureCount: 0
   };
 });
@@ -63,25 +75,25 @@ function runCustomChecks(simulations = {}) {
     const currentState = checkRuntimeStates[check.id];
     let isFailing = false;
     let actualValue = check.expectedState;
-    let latency = 5 + Math.floor(Math.random() * 20);
+    let latency = 12;
 
     if (config.USE_SIMULATED_COLLECTORS) {
-      // Simulated failure hooks:
       if (check.type === "jenkins_job" && simulations.jenkins_k8s) {
         isFailing = true;
         actualValue = "FAILURE";
         latency = 1500;
       } else if (check.type === "app_api" && simulations.database) {
         isFailing = true;
-        actualValue = "DOWN (DB Connection Connection Pool Saturation)";
+        actualValue = "DOWN (DB Connection Pool Saturation)";
         latency = 3000;
       }
     } else {
-      // Real mode execution
-      if (global.runtimeEnvironment === 'prod') {
-        currentState.status = "Healthy";
-        currentState.lastRunValue = "LIVE (Verified)";
-        currentState.latencyMs = 8;
+      // In real/production mode without live integration probe configured,
+      // state remains UNKNOWN / DATA_UNAVAILABLE rather than fabricating Healthy
+      if (global.runtimeEnvironment === 'prod' || !config.USE_SIMULATED_COLLECTORS) {
+        currentState.status = "UNKNOWN";
+        currentState.lastRunValue = "DATA_UNAVAILABLE";
+        currentState.latencyMs = null;
         currentState.lastRunTimestamp = new Date().toISOString();
         results.push({ ...currentState });
         return;
@@ -93,7 +105,7 @@ function runCustomChecks(simulations = {}) {
         latency = 1500;
       } else if (check.type === "app_api" && simulations.database) {
         isFailing = true;
-        actualValue = "DOWN (DB Connection Connection Pool Saturation)";
+        actualValue = "DOWN (DB Connection Pool Saturation)";
         latency = 3000;
       }
     }
@@ -109,7 +121,6 @@ function runCustomChecks(simulations = {}) {
         logger.warn(`[CUSTOM CHECK] ${check.name} failed! Expected ${check.expectedState}, got ${actualValue}. Latency: ${latency}ms.`);
       }
     } else {
-      // Resolve/Normal state
       currentState.status = "Healthy";
       currentState.lastRunValue = check.expectedState;
       currentState.latencyMs = latency;

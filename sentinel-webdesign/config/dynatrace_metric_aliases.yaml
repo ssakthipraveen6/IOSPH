@@ -1,0 +1,57 @@
+# ==============================================================================
+# Dynatrace Metric Aliases & Resolution Strategy (T5.2)
+# Maps canonical Sentinel metrics to ordered candidate selector lists.
+# Protects against upstream Dynatrace metric key drift and version renames.
+# ==============================================================================
+
+version: 1
+aliases:
+  host_cpu_avg_pct:
+    description: "Host average CPU utilization percentage"
+    candidates:
+      - "builtin:host.cpu.usage"
+      - "builtin:host.cpu.utilization"
+      - "builtin:host.cpu.idle"
+      - "ext:host.cpu.load_percent"
+  
+  host_mem_avg_pct:
+    description: "Host memory usage percentage"
+    candidates:
+      - "builtin:host.mem.usage"
+      - "builtin:host.mem.used.pct"
+      - "builtin:host.mem.available.pct"
+      - "ext:host.mem.utilization"
+
+  jvm_heap_used_mb:
+    description: "Java Virtual Machine Heap used in Megabytes"
+    candidates:
+      - "builtin:jvm.memory.heap.used"
+      - "builtin:tech.jvm.memory.heap.used"
+      - "ext:jvm.heap.bytes"
+
+  process_cpu_pct:
+    description: "Process-level CPU utilization percentage"
+    candidates:
+      - "builtin:process.cpu.usage"
+      - "builtin:tech.process.cpu.usage"
+
+  service_response_time:
+    description: "Service response latency in milliseconds"
+    candidates:
+      - "builtin:service.response.time"
+      - "builtin:service.client.response.time"
+      - "builtin:service.server.response.time"
+
+  service_failure_rate:
+    description: "Service failure and 5xx error rate"
+    candidates:
+      - "builtin:service.errors.total.rate"
+      - "builtin:service.failure_rate"
+      - "builtin:service.error.rate"
+
+  disk_iops:
+    description: "Host and volume storage IOPS"
+    candidates:
+      - "builtin:host.disk.ops"
+      - "builtin:host.disk.iops"
+      - "builtin:host.disk.queue"

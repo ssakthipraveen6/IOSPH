@@ -2,6 +2,14 @@ const config = require('@sentinel/config');
 const { runWithConcurrencyLimit } = require('../../concurrency_limiter');
 const net = require('net');
 
+/**
+ * network_collector.js (T2b.2 REMEDIATED)
+ * 
+ * Real network latency and packet loss collector via active TCP handshakes.
+ * Measures real latency, real packet loss percentage, and real latency standard deviation (jitter).
+ * No hardcoded constants reach returned values.
+ */
+
 let cachedHostList = null;
 
 function getHostList() {
@@ -17,17 +25,32 @@ function getHostList() {
     }
   }
   cachedHostList = Array.from(hostsSet);
-  if (cachedHostList.length === 0) {
-    cachedHostList.push('127.0.0.1');
-  }
   return cachedHostList;
 }
 
 module.exports = {
   clearHostCache: () => { cachedHostList = null; },
   collect: async (simulations, base = {}) => {
+    const isOutage = simulations && simulations.network_latency && simulations.network_latency.type === 'outage';
+    if (isOutage) {
+      return {
+        packetLoss: 100.0,
+        latency_ms: null,
+        jitter: null
+      };
+    }
+
     const hosts = getHostList();
-    const latencies = [];
+    if (!hosts || hosts.length === 0) {
+      return {
+        packetLoss: null,
+        latency_ms: null,
+        jitter: null
+      };
+    }
+
+    const successfulLatencies = [];
+    let failedProbes = 0;
 
     const tasks = hosts.map(host => async () => {
       const start = Date.now();
@@ -38,23 +61,41 @@ module.exports = {
             resolve();
           });
           socket.setTimeout(1000);
-          socket.on('timeout', () => { socket.destroy(); reject(); });
-          socket.on('error', () => { socket.destroy(); resolve(); });
+          socket.on('timeout', () => { socket.destroy(); reject(new Error('timeout')); });
+          socket.on('error', (err) => { socket.destroy(); reject(err); });
         });
-        latencies.push(Date.now() - start);
+        successfulLatencies.push(Date.now() - start);
       } catch (_) {
-        latencies.push(1000);
+        failedProbes++;
       }
     });
 
     await runWithConcurrencyLimit(tasks, 50);
 
-    const averageLatency = latencies.length > 0 ? (latencies.reduce((a, b) => a + b, 0) / latencies.length) : (base.latency_ms || 1.25);
+    const totalProbes = hosts.length;
+    const packetLossPct = totalProbes > 0 ? parseFloat(((failedProbes / totalProbes) * 100).toFixed(2)) : null;
+
+    if (successfulLatencies.length === 0) {
+      return {
+        packetLoss: packetLossPct,
+        latency_ms: null,
+        jitter: null
+      };
+    }
+
+    const avgLatency = successfulLatencies.reduce((a, b) => a + b, 0) / successfulLatencies.length;
+
+    // Calculate real jitter as standard deviation of measured latencies
+    let jitter = 0;
+    if (successfulLatencies.length > 1) {
+      const variance = successfulLatencies.reduce((acc, val) => acc + Math.pow(val - avgLatency, 2), 0) / successfulLatencies.length;
+      jitter = Math.sqrt(variance);
+    }
 
     return {
-      packetLoss: averageLatency > 500 ? 5.0 : (base.packetLoss || 0.0),
-      latency_ms: parseFloat(averageLatency.toFixed(2)),
-      jitter: base.jitter || 0.15
+      packetLoss: packetLossPct,
+      latency_ms: parseFloat(avgLatency.toFixed(2)),
+      jitter: parseFloat(jitter.toFixed(2))
     };
   }
 };

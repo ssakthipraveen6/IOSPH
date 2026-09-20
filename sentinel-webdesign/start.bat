@@ -26,12 +26,15 @@ if not exist "node_modules\" (
       )
 )
 
+:: Validate and link workspace symlinks (@sentinel/*)
+call node scripts\setup_symlinks.js
+
 if exist "frontend\dist\index.html" (
     echo [INFO] Pre-compiled frontend assets found in frontend\dist. Skipping compile steps.
     goto :start_server
 )
 
-if not exist "frontend\node_modules\" (
+if not exist "frontend\node_modules\.bin\vite.cmd" (
     echo [INFO] Installing frontend dependencies in frontend...
     cd frontend
     call npm install

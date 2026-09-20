@@ -1,52 +1,60 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/global_config.yaml.
-// Update the actual production/staging endpoints at:
-// - config/global_config.yaml: prod_urls.argoworkflows_api
-// - config/global_config.yaml: stg_urls.argoworkflows_api
-// Purpose: Argo Workflows batch engine query endpoint prefix.
-// =========================================================================
-
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * argoworkflows_collector.js (T2b.2 REMEDIATED)
+ * 
+ * Argo Workflows Engine Telemetry Collector.
+ * Metrics parsed from /workflows/default or null.
+ * Response time measured from real fetch latency. Zero Math.random().
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    // [FIX-8] Use ACTIVE_URLS (dynamic getter) — was incorrectly using PROD_URLS always
-    const url = config.ACTIVE_URLS.argoworkflows_api;
+  collect: async (simulations, base = {}) => {
+    const url = config.ACTIVE_URLS?.argoworkflows_api;
     const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
-
-    console.log(`[REAL COLLECTOR] Querying ArgoWorkflows from: ${url}`);
 
     if (!url) {
       if (isProd) throw new Error('Argo Workflows URL not configured for PROD');
       return {
-        activeWorkflows: base.activeWorkflows + Math.floor((Math.random() - 0.5) * 2),
-        failedWorkflows: Math.max(0, base.failedWorkflows),
-        responseTime: base.responseTime + Math.floor((Math.random() - 0.5) * 4)
+        activeWorkflows: null,
+        failedWorkflows: null,
+        responseTime: null
       };
     }
 
-    // [FIX-8] Enable real fetch (was commented out)
     const result = await fetchJsonWithFallback(
       `${url}/workflows/default`,
-      { headers: { Accept: 'application/json' } },
+      { headers: { Accept: 'application/json' }, appId: 'argoworkflows' },
       3500
     );
 
-    const workflows = result.success ? (result.data?.items || []) : null;
-    const activeWorkflows = workflows
-      ? workflows.filter(w => w.metadata?.labels?.['workflows.argoproj.io/phase'] === 'Running').length
-      : (isProd ? null : base.activeWorkflows + Math.floor((Math.random() - 0.5) * 2));
-    const failedWorkflows = workflows
-      ? workflows.filter(w => w.metadata?.labels?.['workflows.argoproj.io/phase'] === 'Failed').length
-      : (isProd ? null : Math.max(0, base.failedWorkflows));
+    if (result.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        activeWorkflows: null,
+        failedWorkflows: null,
+        responseTime: null
+      };
+    }
+
+    if (!result.success) {
+      return {
+        activeWorkflows: null,
+        failedWorkflows: null,
+        responseTime: null
+      };
+    }
+
+    const workflows = Array.isArray(result.data?.items) ? result.data.items : [];
+    const activeWorkflows = workflows.filter(w => w.metadata?.labels?.['workflows.argoproj.io/phase'] === 'Running').length;
+    const failedWorkflows = workflows.filter(w => w.metadata?.labels?.['workflows.argoproj.io/phase'] === 'Failed').length;
 
     return {
       activeWorkflows,
       failedWorkflows,
-      responseTime: result.success
-        ? base.responseTime + Math.floor((Math.random() - 0.5) * 4)
-        : (isProd ? null : base.responseTime + Math.floor((Math.random() - 0.5) * 4))
+      responseTime: result.latencyMs || null
     };
   }
 };

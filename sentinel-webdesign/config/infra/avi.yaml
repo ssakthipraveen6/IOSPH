@@ -9,6 +9,15 @@ poll_interval_seconds: 30
 credential_purpose: "api"
 endpoint: "https://avi-prod.internal.corp/api/v1/telemetry"
 
+auth:
+  scheme: "cookie_session"
+  credential_purpose: "api"
+  cert_purpose: null
+  username_purpose: null
+  session:
+    login_path: "/login"
+    csrf_header: "X-CSRFToken"
+
 metrics:
   provider: "native"
   scrape_interval: "30s"

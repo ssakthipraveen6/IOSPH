@@ -2,11 +2,12 @@ const config = require('@sentinel/config');
 const { runWithConcurrencyLimit } = require('../../concurrency_limiter');
 
 /**
- * node_exporter_collector.js
+ * node_exporter_collector.js (T2b.2 REMEDIATED)
  * 
- * Domain-Expert Prometheus Node Exporter Telemetry Parser
- * Extracts CPU mode breakdowns (iowait/steal), load averages, open file descriptors,
- * directory inode saturation, and TCP socket states.
+ * Prometheus Node Exporter Telemetry Parser.
+ * Extracts real CPU mode breakdowns, load averages, memory availability,
+ * and filesystem inode usage from active node_exporter targets.
+ * All metrics parsed from Prometheus text format or null. Zero hardcoded constants.
  */
 
 function parsePrometheusText(body) {
@@ -45,15 +46,15 @@ module.exports = {
 
     const result = {
       active_node_exporters: 0,
-      avg_cpu_idle: 82.5,
-      avg_cpu_iowait: 1.2,
-      avg_cpu_steal: 0.1,
-      avg_memory_available_pct: 64.2,
-      avg_load_1m: 2.14,
-      avg_load_5m: 1.88,
-      avg_file_descriptors_used_pct: 12.4,
-      avg_inode_used_pct: 38.6,
-      total_tcp_sockets_timewait: 420
+      avg_cpu_idle: null,
+      avg_cpu_iowait: null,
+      avg_cpu_steal: null,
+      avg_memory_available_pct: null,
+      avg_load_1m: null,
+      avg_load_5m: null,
+      avg_file_descriptors_used_pct: null,
+      avg_inode_used_pct: null,
+      total_tcp_sockets_timewait: null
     };
 
     const scrapeTargets = [];
@@ -74,7 +75,6 @@ module.exports = {
     }
 
     let totalMemAvailablePct = 0;
-    let totalIowait = 0;
     let totalLoad1m = 0;
     let totalInodePct = 0;
     let successfulScrapes = 0;
@@ -123,9 +123,7 @@ module.exports = {
 
           successfulScrapes++;
         }
-      } catch (_) {
-        // Fallback gracefully on timeout
-      }
+      } catch (_) {}
     });
 
     await runWithConcurrencyLimit(tasks, 50);

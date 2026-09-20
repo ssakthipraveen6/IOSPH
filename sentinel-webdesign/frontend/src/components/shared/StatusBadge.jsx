@@ -16,6 +16,8 @@ export function StatusDot({ status = 'healthy', pulse = false, size = 8, style =
     glow = 'rgba(245, 158, 11, 0.5)';
   } else if (norm === SEVERITY.DATA_UNAVAILABLE) {
     glow = 'transparent';
+  } else if (norm === SEVERITY.AUTH_FAILED) {
+    glow = 'rgba(249, 115, 22, 0.5)';
   }
 
   return (
@@ -67,6 +69,11 @@ export default function StatusBadge({ status = 'healthy', label = null, size = '
     text = '#94a3b8';
     border = 'rgba(148, 163, 184, 0.25)';
     defaultLabel = 'NO DATA';
+  } else if (norm === SEVERITY.AUTH_FAILED) {
+    bg = 'rgba(249, 115, 22, 0.15)';
+    text = '#f97316';
+    border = 'rgba(249, 115, 22, 0.35)';
+    defaultLabel = 'AUTH FAILED';
   }
 
   const isSmall = size === 'sm';

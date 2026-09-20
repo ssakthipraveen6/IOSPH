@@ -1,3 +1,4 @@
+const ldap = require('ldapjs');
 const yamlConfig = require('@sentinel/config/yaml_config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 const config = require('@sentinel/config');
@@ -59,6 +60,120 @@ function resolveRoleFromGroups(memberOfGroups = []) {
 }
 
 /**
+ * Performs real LDAP bind and group lookup using ldapjs (T0.6).
+ * @param {object} opts Connection and bind options
+ * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
+ */
+async function performLdapBind(opts) {
+  const {
+    url,
+    bindDn,
+    bindPassword,
+    searchBase,
+    username,
+    password,
+    timeout = 5000
+  } = opts;
+
+  return new Promise((resolve) => {
+    let client;
+    try {
+      client = ldap.createClient({
+        url,
+        timeout,
+        connectTimeout: timeout
+      });
+    } catch (e) {
+      return resolve({ success: false, error: `LDAP client error: ${e.message}` });
+    }
+
+    client.on('error', (err) => {
+      console.warn(`[LDAP] Connection error to ${url}: ${err.message}`);
+    });
+
+    // 1. Bind with service account to locate user
+    client.bind(bindDn, bindPassword, (bindErr) => {
+      if (bindErr) {
+        client.unbind(() => {});
+        return resolve({ success: false, error: `LDAP service bind failed: ${bindErr.message}` });
+      }
+
+      // 2. Search for user by sAMAccountName, userPrincipalName, or mail
+      const searchFilter = `(|(sAMAccountName=${username})(userPrincipalName=${username})(mail=${username}))`;
+      const searchOptions = {
+        scope: 'sub',
+        filter: searchFilter,
+        attributes: ['dn', 'mail', 'memberOf', 'displayName', 'sAMAccountName']
+      };
+
+      client.search(searchBase, searchOptions, (searchErr, res) => {
+        if (searchErr) {
+          client.unbind(() => {});
+          return resolve({ success: false, error: `LDAP search failed: ${searchErr.message}` });
+        }
+
+        let userEntry = null;
+
+        res.on('searchEntry', (entry) => {
+          userEntry = entry.object;
+        });
+
+        res.on('error', (err) => {
+          client.unbind(() => {});
+          return resolve({ success: false, error: `LDAP search stream error: ${err.message}` });
+        });
+
+        res.on('end', (result) => {
+          client.unbind(() => {});
+
+          if (!userEntry || !userEntry.dn) {
+            return resolve({ success: false, error: 'User not found in directory.' });
+          }
+
+          // 3. Bind as the user with their password to verify credentials
+          let userClient;
+          try {
+            userClient = ldap.createClient({ url, timeout, connectTimeout: timeout });
+          } catch (e) {
+            return resolve({ success: false, error: `User LDAP client creation failed: ${e.message}` });
+          }
+
+          userClient.on('error', () => {});
+
+          userClient.bind(userEntry.dn, password, (userBindErr) => {
+            userClient.unbind(() => {});
+            if (userBindErr) {
+              return resolve({ success: false, error: 'Invalid LDAP credentials or bind failed.' });
+            }
+
+            // Extract memberOf groups
+            let memberOf = userEntry.memberOf || [];
+            if (!Array.isArray(memberOf)) {
+              memberOf = [memberOf];
+            }
+
+            const role = resolveRoleFromGroups(memberOf);
+            const email = userEntry.mail || (username.includes('@') ? username : `${username}@enterprise.corp`);
+
+            return resolve({
+              success: true,
+              user: {
+                username,
+                role,
+                email,
+                dn: userEntry.dn,
+                memberOf,
+                authenticatedVia: 'LDAP_BIND'
+              }
+            });
+          });
+        });
+      });
+    });
+  });
+}
+
+/**
  * Authenticates user credentials against Enterprise eLDAP / Active Directory.
  *
  * Production path: Performs real LDAP bind using ldapjs with CyberArk-resolved
@@ -90,10 +205,15 @@ async function authenticate(username, password) {
 
   const globalConfig = yamlConfig.loadGlobalConfig();
   const ldapConfig = globalConfig.sso_ldap_config || {};
+  let infraLayers = {};
+  try {
+    infraLayers = yamlConfig.loadAllInfrastructureLayers() || {};
+  } catch (_) {}
+
   const isProduction = process.env.NODE_ENV === 'production' && config.ENVIRONMENT === 'prod';
 
   // =========================================================================
-  // PRODUCTION PATH — Real LDAP Bind via ldapjs
+  // PRODUCTION PATH — Real LDAP Bind via ldapjs (T0.6)
   // =========================================================================
   if (isProduction) {
     let bindPassword = null;
@@ -104,8 +224,18 @@ async function authenticate(username, password) {
       return { success: false, error: 'Authentication service unavailable. Contact your administrator.' };
     }
 
-    console.warn('[LDAP] [SEC-03] Production LDAP bind not yet configured. Rejecting authentication.');
-    return { success: false, error: 'Authentication service is being configured. Please contact your administrator.' };
+    const ldapUrl = ldapConfig.url || (infraLayers.sso_eldap && infraLayers.sso_eldap.endpoint) || 'ldaps://ldap.enterprise.corp:636';
+    const bindDn = ldapConfig.bind_dn || 'cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp';
+    const searchBase = ldapConfig.search_base || 'dc=enterprise,dc=corp';
+
+    return await performLdapBind({
+      url: ldapUrl,
+      bindDn,
+      bindPassword,
+      searchBase,
+      username,
+      password
+    });
   }
 
   // =========================================================================
@@ -140,5 +270,6 @@ async function authenticate(username, password) {
 
 module.exports = {
   authenticate,
-  resolveRoleFromGroups  // Exported for unit testing
+  resolveRoleFromGroups,
+  performLdapBind
 };

@@ -7,9 +7,9 @@ import argparse
 def run_browser_check(target_url, username=None, password=None):
     result = {
         "status": "Healthy",
-        "latency_ms": 0,
-        "page_title": "Mock Target URL",
-        "login_success": True,
+        "latency_ms": None,
+        "page_title": None,
+        "login_success": None,
         "error": None
     }
     
@@ -37,28 +37,23 @@ def run_browser_check(target_url, username=None, password=None):
         driver.get(target_url)
         elapsed = (time.time() - start_time) * 1000
         
+        result["status"] = "Healthy"
         result["latency_ms"] = int(elapsed)
         result["page_title"] = driver.title
-        
-        # Optional: Simulate SSO login form entries if username is supplied
-        # if username and password:
-        #     driver.find_element("id", "username_field_id").send_keys(username)
-        #     driver.find_element("id", "password_field_id").send_keys(password)
-        #     driver.find_element("id", "submit_button_id").click()
-        #     if "dashboard" not in driver.current_url:
-        #         result["login_success"] = False
+        result["login_success"] = True
         
         driver.quit()
         
-    except ImportError:
-        # Fallback if selenium packages are not installed in the system python environment
-        elapsed = (time.time() - start_time) * 1000
-        result["latency_ms"] = int(elapsed)
-        result["error"] = "Selenium dependencies not found in current Python path. Running lightweight mock fallback check."
-        time.sleep(0.05) # simulate lightweight network load
+    except ImportError as e:
+        # [T0.15] No fabrication when dependencies missing
+        result["status"] = "DATA_UNAVAILABLE"
+        result["latency_ms"] = None
+        result["login_success"] = False
+        result["error"] = f"Selenium dependencies not found in Python environment: {e}"
         
     except Exception as e:
-        result["status"] = "Critical"
+        result["status"] = "DATA_UNAVAILABLE"
+        result["latency_ms"] = None
         result["login_success"] = False
         result["error"] = str(e)
         

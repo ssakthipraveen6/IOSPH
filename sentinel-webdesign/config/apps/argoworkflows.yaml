@@ -7,12 +7,21 @@ display_name: "Argo Workflows Engine"
 category: "workflow_engine"
 tier: "Tier-1 Mission Critical"
 log_tag: "[ARGOWORKFLOWS]"
+aliases:
+  - "argoworkflows_k8s"
 
 endpoints:
   prod:
     api: "https://argo-workflows-prod.internal.corp/api/v1"
   stg:
     api: "https://argo-workflows-stg.internal.corp/api/v1"
+
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
 
 layers:
   api_token:

@@ -1,0 +1,7 @@
+{
+  "name": "@sentinel/inventory",
+  "version": "1.0.0",
+  "description": "Project Sentinel Inventory & Entity Graph Model",
+  "main": "index.js",
+  "private": true
+}

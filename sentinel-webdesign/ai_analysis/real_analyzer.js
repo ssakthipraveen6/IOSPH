@@ -49,7 +49,7 @@ function analyzeServerLogs(logLines, writeNasLog, triggerRecoveryFunc, env = 'st
         );
         
         if (activeAlerts.length === 0) {
-          db.addAlert(pattern.component, pattern.severity, pattern.message, env);
+          db.addAlert(pattern.component, pattern.severity, pattern.message, 'Active', env);
           writeNasLog('CRITICAL', 'AI_ENGINE_REAL', `[LOCAL AI PREDICTOR] [${env.toUpperCase()}] Raised ${pattern.severity} Alert for ${pattern.component}: "${pattern.message}"`);
           
           if (triggerRecoveryFunc) {

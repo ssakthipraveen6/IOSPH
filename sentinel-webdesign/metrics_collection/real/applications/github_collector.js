@@ -1,49 +1,60 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/global_config.yaml.
-// Update the actual production/staging endpoints at:
-// - config/global_config.yaml: prod_urls.github_api
-// - config/global_config.yaml: stg_urls.github_api
-// Purpose: GitHub Enterprise server API endpoint prefix.
-// =========================================================================
-
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * github_collector.js (T2b.2 REMEDIATED)
+ * 
+ * GitHub Enterprise Server Telemetry Collector.
+ * Metrics parsed from /rate_limit endpoint or null.
+ * Response time measured from real fetch latency. Zero Math.random().
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    // [FIX-8] Use ACTIVE_URLS (dynamic getter) — was always preferring PROD_URLS
-    const url = config.ACTIVE_URLS.github_api;
+  collect: async (simulations, base = {}) => {
+    const url = config.ACTIVE_URLS?.github_api;
     const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
-
-    console.log(`[REAL COLLECTOR] Querying GitHub status from: ${url}`);
 
     if (!url) {
       if (isProd) throw new Error('GitHub URL not configured for PROD');
       return {
-        apiRateLimitRemaining: base.apiRateLimitRemaining - Math.floor(Math.random() * 3),
-        pendingPullRequests: base.pendingPullRequests,
-        responseTime: base.responseTime + Math.floor((Math.random() - 0.5) * 6)
+        apiRateLimitRemaining: null,
+        pendingPullRequests: null,
+        responseTime: null
       };
     }
 
-    // [FIX-8] Enable real rate_limit fetch (was commented out)
     const result = await fetchJsonWithFallback(
       `${url}/rate_limit`,
-      { headers: { Accept: 'application/json' } },
+      { headers: { Accept: 'application/json' }, appId: 'github' },
       3500
     );
 
-    const connected = result.success;
-    const rateLimitRemaining = connected ? (result.data?.rate?.remaining ?? null) : null;
+    if (result.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        apiRateLimitRemaining: null,
+        pendingPullRequests: null,
+        responseTime: null
+      };
+    }
+
+    if (!result.success) {
+      return {
+        apiRateLimitRemaining: null,
+        pendingPullRequests: null,
+        responseTime: null
+      };
+    }
+
+    const rateLimitRemaining = typeof result.data?.rate?.remaining === 'number'
+      ? result.data.rate.remaining
+      : null;
 
     return {
-      apiRateLimitRemaining: connected
-        ? rateLimitRemaining
-        : (isProd ? null : base.apiRateLimitRemaining - Math.floor(Math.random() * 3)),
-      pendingPullRequests: isProd ? (connected ? base.pendingPullRequests : null) : base.pendingPullRequests,
-      responseTime: connected
-        ? base.responseTime + Math.floor((Math.random() - 0.5) * 6)
-        : (isProd ? null : base.responseTime + Math.floor((Math.random() - 0.5) * 6))
+      apiRateLimitRemaining: rateLimitRemaining,
+      pendingPullRequests: null, // Not exposed by /rate_limit
+      responseTime: result.latencyMs || null
     };
   }
 };

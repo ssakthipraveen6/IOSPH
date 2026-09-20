@@ -1,26 +1,35 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/config.js.
-// Update the actual production/staging endpoints at:
-// - config/config.js: PROD_URLS.bitbucket_external_api
-// - config/config.js: STG_URLS.bitbucket_external_api
-// Purpose: External Bitbucket server API endpoint prefix.
-// =========================================================================
-
 const config = require('@sentinel/config');
 const { runSeleniumCheck } = require('../python_checks/runner');
 
+/**
+ * bitbucket_external_collector.js (T2b.2 REMEDIATED)
+ * 
+ * External Bitbucket Server Probe.
+ * Real latency measured via browser check. Zero Math.random().
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    const url = config.STG_URLS.bitbucket_external_api;
-    console.log(`[REAL COLLECTOR] Fetching Bitbucket External health from: ${url}`);
-    
-    // Perform active Selenium browser load latency check
-    const browserCheck = await runSeleniumCheck(url);
-    
+  collect: async (simulations, base = {}) => {
+    const targetConfig = config.ACTIVE_URLS || {};
+    const url = targetConfig.bitbucket_external_api;
+
+    if (!url) {
+      return { responseTime: null, successRate: null, requests: null };
+    }
+
+    let browserCheck = { latency_ms: null, login_success: null };
+    try {
+      browserCheck = await runSeleniumCheck(url);
+    } catch (_) {}
+
+    let successRate = null;
+    if (browserCheck.login_success !== null && browserCheck.login_success !== undefined) {
+      successRate = browserCheck.login_success ? 100.0 : 0.0;
+    }
+
     return {
-      responseTime: browserCheck.latency_ms || base.responseTime,
-      successRate: browserCheck.login_success ? parseFloat((base.successRate - Math.random() * 0.05).toFixed(2)) : 0.0,
-      requests: base.requests + Math.floor((Math.random() - 0.5) * 4)
+      responseTime: browserCheck.latency_ms || null,
+      successRate,
+      requests: null
     };
   }
 };

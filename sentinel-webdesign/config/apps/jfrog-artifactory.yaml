@@ -7,12 +7,40 @@ display_name: "JFrog Artifactory Enterprise"
 category: "artifact_repository"
 tier: "Tier-1 Mission Critical"
 log_tag: "[ARTIFACTORY]"
+regions: ["emea", "apac", "amer"]
+aliases:
+  - "artifactory"
 
 endpoints:
   prod:
     api: "https://artifactory-prod.internal.corp/artifactory/api"
   stg:
     api: "https://artifactory-stg.internal.corp/artifactory/api"
+
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
+topology:
+  nodes:
+    emea:
+      app_nodes: 4
+      xray_nodes: 2
+    apac:
+      app_nodes: 2
+      xray_nodes: 2
+    amer:
+      app_nodes: 2
+      xray_nodes: 2
+  jump_servers:
+    - { host: "artifactory-jump-01.internal.corp", os: "linux" }
+
+lifecycle:
+  refweb_url: { url: "https://artifactory.internal.corp", expiry: "2027-05-31" }
+  license: { type: "JFrog Enterprise Plus", expiry: "2027-03-01" }
 
 layers:
   s3:
@@ -58,13 +86,12 @@ logs:
   log_path: "d:\\production_shares\\nas_logs\\artifactory_service.log"
   retention_days: 30
   rotation_size: "10M"
-  compression: "gzip"
 
 credentials:
   safe: "SF-ARTIFACTORY-PROD"
   objects:
     db: "ARTIFACTORY-DB-SVC"
-    s3: "ARTIFACTORY-S3-SVC"
     api_token: "ARTIFACTORY-API-TOKEN"
+    s3: "ARTIFACTORY-S3-KEY"
 
 jenkins_remediation_job: "JOB_RESTART_ARTIFACTORY_SERVICE"

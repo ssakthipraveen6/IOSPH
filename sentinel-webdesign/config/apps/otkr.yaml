@@ -14,6 +14,13 @@ endpoints:
   stg:
     api: "https://otkr-stg.internal.corp/api/v1"
 
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
 layers:
   db:
     jdbc: "jdbc:postgresql://db-prod-otkr.internal.corp:5432/otkr_db"

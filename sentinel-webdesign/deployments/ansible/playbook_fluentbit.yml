@@ -1,0 +1,66 @@
+---
+# =============================================================================
+# Ansible Playbook: Deploy Fluent Bit Log Shipper (Phase 3b / T3b.1)
+# Pinned version, host-level redaction filters, systemd service management.
+# =============================================================================
+- name: Deploy Fluent Bit Log Shipper across Linux Compute Fleet
+  hosts: linux_compute_nodes
+  become: yes
+  vars:
+    fluentbit_version: "3.0.4"
+    sentinel_endpoint: "https://sentinel.yourbank.internal/v1/logs"
+    sentinel_env: "{{ target_env | default('staging') }}"
+    shipper_token: "{{ vault_sentinel_shipper_token }}"
+
+  tasks:
+    - name: Ensure fluent-bit package repository is configured
+      apt_repository:
+        repo: "deb https://packages.fluentbit.io/ubuntu/{{ ansible_distribution_release }} {{ ansible_distribution_release }} main"
+        state: present
+        filename: fluent-bit
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure fluent-bit package repository (RHEL/CentOS)
+      yum_repository:
+        name: fluent-bit
+        description: Fluent Bit Repository
+        baseurl: "https://packages.fluentbit.io/centos/$releasever/$basearch/"
+        gpgcheck: yes
+        gpgkey: "https://packages.fluentbit.io/fluentbit.key"
+        enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Install pinned Fluent Bit package
+      package:
+        name: "fluent-bit-{{ fluentbit_version }}"
+        state: present
+
+    - name: Deploy Fluent Bit base configuration
+      template:
+        src: ../fluentbit_configs/fluentbit_base.conf
+        dest: /etc/fluent-bit/fluent-bit.conf
+        owner: root
+        group: root
+        mode: '0640'
+      notify: restart_fluentbit
+
+    - name: Deploy parsers configuration
+      copy:
+        src: ../fluentbit_configs/parsers.conf
+        dest: /etc/fluent-bit/parsers.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart_fluentbit
+
+    - name: Ensure Fluent Bit systemd service is enabled and started
+      systemd:
+        name: fluent-bit
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: restart_fluentbit
+      systemd:
+        name: fluent-bit
+        state: restarted

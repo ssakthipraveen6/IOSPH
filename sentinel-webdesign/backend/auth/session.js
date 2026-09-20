@@ -43,7 +43,31 @@ if (JWT_SECRET.length < 32) {
   process.exit(1);
 }
 
+// [T0.7] Key rotation support — active key and previous key for smooth migration
+function getActiveKid() {
+  return process.env.SENTINEL_JWT_KID || 'k1';
+}
+function getPrevKid() {
+  return process.env.SENTINEL_JWT_KID_PREV || 'k0';
+}
+function getPrevSecret() {
+  return process.env.SENTINEL_JWT_SECRET_PREV || null;
+}
+
 const TOKEN_TTL_MS = parseInt(process.env.JWT_TTL_MS, 10) || (8 * 60 * 60 * 1000); // 8 hours default
+
+// Lazy reference to database for revocation checks
+function getDb() {
+  try {
+    return require('@sentinel/database');
+  } catch (e) {
+    try {
+      return require('../../database/db');
+    } catch (_) {
+      return null;
+    }
+  }
+}
 
 function base64UrlEncode(str) {
   return Buffer.from(str)
@@ -61,70 +85,125 @@ function base64UrlDecode(str) {
   return Buffer.from(base64, 'base64').toString('utf8');
 }
 
-function sign(header, payload, secret) {
-  const data = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
-  const signature = crypto
+function signHmac(data, secret) {
+  return crypto
     .createHmac('sha256', secret)
     .update(data)
     .digest('base64')
     .replace(/=/g, '')
     .replace(/\+/g, '-')
     .replace(/\//g, '_');
+}
+
+function sign(header, payload, secret) {
+  const data = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
+  const signature = signHmac(data, secret);
   return `${data}.${signature}`;
 }
 
+/**
+ * Generates a signed JWT session token with `kid` and unique `jti` claim (T0.7).
+ */
 function generateToken(user, ttlMs = TOKEN_TTL_MS) {
   const now = Date.now();
-  const header = { alg: 'HS256', typ: 'JWT' };
+  const jti = crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
+  const header = { alg: 'HS256', typ: 'JWT', kid: getActiveKid() };
   const payload = {
     username: user.username,
     role: user.role || 'Operator',
     email: user.email || `${user.username}@enterprise.corp`,
+    environment: user.environment || 'staging',
     iat: now,
-    exp: now + ttlMs
+    exp: now + ttlMs,
+    jti
   };
   return sign(header, payload, JWT_SECRET);
 }
 
+/**
+ * Verifies a JWT token:
+ * - Checks signature against active key or previous rotation key via `kid`
+ * - Checks expiration
+ * - Checks revocation list keyed by `jti` in database
+ */
 function verifyToken(token) {
-  if (!token) return null;
+  if (!token || typeof token !== 'string') return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
 
   const [headerB64, payloadB64, signature] = parts;
   const data = `${headerB64}.${payloadB64}`;
 
-  // [SEC-01] Constant-time comparison to prevent timing attacks
-  const expectedSig = crypto
-    .createHmac('sha256', JWT_SECRET)
-    .update(data)
-    .digest('base64')
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-
-  const sigBuf = Buffer.from(signature);
-  const expectedBuf = Buffer.from(expectedSig);
-
-  if (
-    sigBuf.length !== expectedBuf.length ||
-    !crypto.timingSafeEqual(sigBuf, expectedBuf)
-  ) {
-    return null; // Invalid signature
-  }
-
+  let header;
+  let payload;
   try {
-    const payload = JSON.parse(base64UrlDecode(payloadB64));
-    if (payload.exp && payload.exp < Date.now()) {
-      return null; // Token expired
-    }
-    return payload;
+    header = JSON.parse(base64UrlDecode(headerB64));
+    payload = JSON.parse(base64UrlDecode(payloadB64));
   } catch (e) {
     return null;
   }
+
+  if (!header || header.alg !== 'HS256') return null;
+
+  // Determine which secret(s) to verify against based on kid
+  const secretsToTry = [];
+  const prevSecret = getPrevSecret();
+  const prevKid = getPrevKid();
+  const activeKid = getActiveKid();
+
+  if (header.kid === prevKid && prevSecret) {
+    secretsToTry.push(prevSecret);
+  } else if (header.kid === activeKid) {
+    secretsToTry.push(JWT_SECRET);
+  } else {
+    // If no kid or unknown kid, try active secret first, then previous secret if configured
+    secretsToTry.push(JWT_SECRET);
+    if (prevSecret) secretsToTry.push(prevSecret);
+  }
+
+  const sigBuf = Buffer.from(signature);
+  let signatureValid = false;
+
+  for (const secret of secretsToTry) {
+    const expectedSig = signHmac(data, secret);
+    const expectedBuf = Buffer.from(expectedSig);
+    if (
+      sigBuf.length === expectedBuf.length &&
+      crypto.timingSafeEqual(sigBuf, expectedBuf)
+    ) {
+      signatureValid = true;
+      break;
+    }
+  }
+
+  if (!signatureValid) return null;
+
+  // Expiration check
+  if (payload.exp && payload.exp < Date.now()) {
+    return null; // Token expired
+  }
+
+  // Revocation list check by jti (T0.7)
+  if (payload.jti) {
+    const db = getDb();
+    if (db && typeof db.isTokenRevoked === 'function' && db.isTokenRevoked(payload.jti)) {
+      return null; // Token revoked
+    }
+  }
+
+  return payload;
+}
+
+function revokeToken(jti, reason) {
+  const db = getDb();
+  if (db && typeof db.revokeToken === 'function') {
+    return db.revokeToken(jti, reason);
+  }
+  return false;
 }
 
 module.exports = {
   generateToken,
-  verifyToken
+  verifyToken,
+  revokeToken
 };

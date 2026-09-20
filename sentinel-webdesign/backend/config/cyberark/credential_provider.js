@@ -122,8 +122,16 @@ async function getCredential(appId, purpose, options = {}) {
   return value;
 }
 
-function clearCache() {
-  CACHE.clear();
+function clearCache(appId = null, purpose = null) {
+  if (appId && purpose) {
+    CACHE.delete(`${appId}:${purpose}`);
+  } else if (appId) {
+    for (const k of CACHE.keys()) {
+      if (k.startsWith(`${appId}:`)) CACHE.delete(k);
+    }
+  } else {
+    CACHE.clear();
+  }
 }
 
 function reloadRegistry() {

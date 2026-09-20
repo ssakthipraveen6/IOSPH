@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useId } from 'react';
 
 /**
  * Sparkline Component
@@ -15,6 +15,8 @@ export default function Sparkline({
   max: customMax = null,
   style = {}
 }) {
+  const uniqueId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+
   const pointsData = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) {
       return null;
@@ -65,7 +67,7 @@ export default function Sparkline({
     );
   }
 
-  const gradientId = `spark-grad-${Math.random().toString(36).substring(2, 9)}`;
+  const gradientId = `spark-grad-${uniqueId}`;
 
   return (
     <svg

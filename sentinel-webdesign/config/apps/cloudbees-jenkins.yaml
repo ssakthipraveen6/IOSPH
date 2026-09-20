@@ -7,12 +7,56 @@ display_name: "CloudBees Jenkins CI/CD"
 category: "ci_cd"
 tier: "Tier-1 Mission Critical"
 log_tag: "[JENKINS]"
+regions: ["emea", "apac", "amer"]
+aliases:
+  - "jenkins"
+  - "jenkins_k8s"
 
 endpoints:
   prod:
     api: "https://jenkins-prod.internal.corp/job"
   stg:
     api: "https://jenkins-stg.internal.corp/job"
+
+auth:
+  scheme: "basic_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: "service_user"
+  session: null
+
+topology:
+  operations_centers:
+    - id: "oc-01"
+      region: "emea"
+      url: "https://oc01.internal.corp"
+      k8s_cluster: "k8s-oc-emea-01"
+      controllers:
+        - { id: "oc-01-aps", flavour: "APS", url: "https://oc01-aps.internal.corp" }
+        - { id: "oc-01-dev", flavour: "DEV", url: "https://oc01-dev.internal.corp" }
+    - id: "oc-02"
+      region: "apac"
+      url: "https://oc02.internal.corp"
+      k8s_cluster: "k8s-oc-apac-01"
+      controllers:
+        - { id: "oc-02-prod", flavour: "PROD", url: "https://oc02-prod.internal.corp" }
+  agent_pools:
+    - { id: "win-build", os: "windows", expected_count: 200, discovery: "jenkins_api" }
+    - { id: "linux-docker", os: "linux", expected_count: 50, discovery: "jenkins_api" }
+  jump_servers:
+    - { host: "jump-01.internal.corp", os: "linux" }
+    - { host: "jump-02.internal.corp", os: "linux" }
+  build_clusters:
+    - { id: "k8s-ci-build", purpose: "ci" }
+    - { id: "k8s-cd-build", purpose: "cd" }
+    - { id: "k8s-cd-apac-build", purpose: "cd", region: "apac" }
+    - { id: "k8s-cd-amer-build", purpose: "cd", region: "amer" }
+
+lifecycle:
+  refweb_url: { url: "https://jenkins.internal.corp", expiry: "2027-03-31" }
+  license: { type: "CloudBees CI", expiry: "2027-01-15" }
+  certificates:
+    - { name: "ingress-tls", probe: "jenkins.internal.corp:443" }
 
 layers:
   db:

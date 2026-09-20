@@ -166,7 +166,18 @@ function executeRecoveryWorkflow(runId, component) {
 }
 
 // Manual trigger or automated initiation of a pending action
-function triggerRecovery(component, triggerReason, isManualTrigger = false, env = null) {
+function triggerRecovery(component, triggerReason, options = {}) {
+  // [T0.1 REMEDIATED] Options object { manual: false, env } prevents environment string from bypassing four-eyes queue
+  let isManualTrigger = false;
+  let env = null;
+
+  if (typeof options === 'boolean') {
+    isManualTrigger = options;
+  } else if (typeof options === 'object' && options !== null) {
+    isManualTrigger = !!options.manual;
+    env = options.env || null;
+  }
+
   const workflow = resolveWorkflow(component);
   if (!workflow) return null;
   
@@ -215,7 +226,10 @@ function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', r
   
   const userRole = typeof approvingUser === 'object' ? (approvingUser.role || 'Admin') : 'Admin';
 
-  const run = db.getRecoveryLogs().find(r => r.id === runId);
+  const allLogs = (db.recovery && Array.isArray(db.recovery)) 
+    ? db.recovery 
+    : [...db.getRecoveryLogs('prod'), ...db.getRecoveryLogs('staging'), ...db.getRecoveryLogs('demo')];
+  const run = allLogs.find(r => r.id === runId);
   if (!run || run.status !== 'Awaiting-Approval') {
     return false;
   }
@@ -266,8 +280,8 @@ function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', r
   }
 }
 
-// Evaluates the current system metrics and triggers self-healing if needed
-function runSelfHealingOrchestrator(currentMetrics) {
+// [T0.3 REMEDIATED] Evaluates current system metrics and honors env parameter
+function runSelfHealingOrchestrator(currentMetrics, env = 'staging') {
   Object.keys(currentMetrics).forEach(component => {
     const data = currentMetrics[component];
     const workflow = resolveWorkflow(component);
@@ -275,20 +289,20 @@ function runSelfHealingOrchestrator(currentMetrics) {
     // Trigger recovery if status is Critical and we have an automated runbook for it
     if (data.status === SEVERITY.CRITICAL && workflow) {
       // Create Dynatrace critical alert and ServiceNow Ticket if they don't exist yet
-      const activeAlerts = db.getAlerts().filter(
+      const activeAlerts = db.getAlerts(env).filter(
         a => a.component === component && a.status === 'Active' && a.severity === SEVERITY.CRITICAL
       );
       
       if (activeAlerts.length === 0) {
-        db.addAlert(component, SEVERITY.CRITICAL, `Outage/Critical event detected on component: ${component}. System offline or threshold breached.`);
+        db.addAlert(component, SEVERITY.CRITICAL, `Outage/Critical event detected on component: ${component}. System offline or threshold breached.`, 'Active', env);
         
         // Also log to the simulated ServiceNow ticket queue
         const ticketId = 'INC-' + Math.floor(100000 + Math.random() * 900000);
-        db.addAlert('servicenow', SEVERITY.WARNING, `Ticket ${ticketId} created in ServiceNow for ${component} critical failure.`, 'Active');
+        db.addAlert('servicenow', SEVERITY.WARNING, `Ticket ${ticketId} created in ServiceNow for ${component} critical failure.`, 'Active', env);
       }
       
-      // Trigger recovery
-      triggerRecovery(component, `Automatic health check detected 'Critical' status.`);
+      // Trigger recovery with explicit options object
+      triggerRecovery(component, `Automatic health check detected 'Critical' status.`, { manual: false, env });
     }
   });
 }

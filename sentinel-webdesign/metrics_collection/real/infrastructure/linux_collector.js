@@ -1,106 +1,103 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/config.js.
-// Update the actual production/staging endpoints at:
-// - config/config.js: Line 26 (PROD_URLS.unix_api / linux_api)
-// - config/config.js: Line 140 (STG_URLS.unix_api / linux_api)
-// Purpose: Linux/Unix compute CPU and memory telemetry endpoints.
-// =========================================================================
-
 const config = require('@sentinel/config');
 
+/**
+ * linux_collector.js (T2b.2 REMEDIATED)
+ * 
+ * Linux/Unix compute CPU, memory, and load telemetry collector.
+ * All metrics parsed directly from host endpoints or null.
+ * Zero Math.random(), zero synthetic fallback values.
+ */
 module.exports = {
-  collect: async (simulations, base) => {
+  collect: async (simulations, base = {}) => {
     const targetConfig = config.ACTIVE_URLS || {};
     const appConfigs = targetConfig.applications || {};
     const url = targetConfig.linux_api || targetConfig.unix_api;
-    console.log(`[REAL COLLECTOR] Fetching Linux host metrics from: ${url}`);
-    
-    let globalMetrics = {};
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 1500);
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(id);
-      
-      if (res.ok) {
-        const payload = await res.json();
-        globalMetrics = payload.metrics || {};
+    const isOutage = simulations && simulations.linux_servers && simulations.linux_servers.type === 'outage';
+
+    let globalMetrics = null;
+    if (url && !isOutage) {
+      try {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 1500);
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(id);
+        
+        if (res.ok) {
+          const payload = await res.json();
+          globalMetrics = payload.metrics || payload;
+        }
+      } catch (e) {
+        // unreachable
       }
-    } catch (e) {
-      console.warn(`[REAL COLLECTOR] Failed fetching Linux host API: ${e.message}. Using baseline.`);
     }
 
     const result = {
-      cpu: globalMetrics.cpu !== undefined ? globalMetrics.cpu : parseFloat((base.cpu + (Math.random() - 0.5) * 3).toFixed(2)),
-      memory: globalMetrics.memory !== undefined ? globalMetrics.memory : parseFloat((base.memory + (Math.random() - 0.5) * 1).toFixed(2)),
-      load: globalMetrics.load !== undefined ? globalMetrics.load : parseFloat((base.load + (Math.random() - 0.5) * 0.05).toFixed(2)),
-      bitbucket_cpu: base.bitbucket_cpu,
-      jenkins_cpu: base.jenkins_cpu,
-      artifactory_cpu: base.artifactory_cpu,
-      nexusiq_cpu: base.nexusiq_cpu,
-      teamcity_cpu: base.teamcity_cpu,
-      mcp_cpu: base.mcp_cpu,
-      argocd_cpu: base.argocd_cpu,
-      bitbucket_mem: base.bitbucket_mem,
-      jenkins_mem: base.jenkins_mem,
-      artifactory_mem: base.artifactory_mem,
-      nexusiq_mem: base.nexusiq_mem,
-      teamcity_mem: base.teamcity_mem,
-      mcp_mem: base.mcp_mem,
-      argocd_mem: base.argocd_mem
+      cpu: isOutage ? null : (globalMetrics?.cpu ?? null),
+      memory: isOutage ? null : (globalMetrics?.memory ?? null),
+      load: isOutage ? null : (globalMetrics?.load ?? null),
+      bitbucket_cpu: null,
+      jenkins_cpu: null,
+      artifactory_cpu: null,
+      nexusiq_cpu: null,
+      teamcity_cpu: null,
+      mcp_cpu: null,
+      argocd_cpu: null,
+      bitbucket_mem: null,
+      jenkins_mem: null,
+      artifactory_mem: null,
+      nexusiq_mem: null,
+      teamcity_mem: null,
+      mcp_mem: null,
+      argocd_mem: null
     };
+
+    if (isOutage) return result;
 
     const appKeys = ['bitbucket', 'jenkins_k8s', 'artifactory', 'nexusiq', 'teamcity', 'mcp_server_k8s', 'argocd_k8s'];
     for (const appKey of appKeys) {
       const metricPrefix = appKey.replace('_k8s', '').replace('_server', '');
       const appConfig = appConfigs[appKey];
-      if (appConfig) {
-        if (appConfig.servers) {
-          const linuxServers = appConfig.servers.filter(s => s.type === 'linux');
-          if (linuxServers.length > 0) {
-            const promises = linuxServers.map(async (server) => {
-              console.log(`[REAL COLLECTOR] Fetching Linux host metrics for ${appKey} node ${server.node} from: ${server.api}`);
+      if (!appConfig) continue;
+
+      if (appConfig.servers) {
+        const linuxServers = appConfig.servers.filter(s => s.type === 'linux');
+        if (linuxServers.length > 0) {
+          const promises = linuxServers.map(async (server) => {
+            try {
               const controller = new AbortController();
               const id = setTimeout(() => controller.abort(), 1500);
-              try {
-                const res = await fetch(server.api, { signal: controller.signal });
-                clearTimeout(id);
-                if (res.ok) {
-                  const payload = await res.json();
-                  return payload.metrics || null;
-                }
-              } catch (e) {
-                console.warn(`[REAL COLLECTOR] Failed fetching Linux host API for ${appKey} node ${server.node}: ${e.message}`);
+              const res = await fetch(server.api, { signal: controller.signal });
+              clearTimeout(id);
+              if (res.ok) {
+                const payload = await res.json();
+                return payload.metrics || payload;
               }
-              return null;
-            });
+            } catch (_) {}
+            return null;
+          });
 
-            const results = await Promise.all(promises);
-            const validResults = results.filter(r => r !== null);
-            if (validResults.length > 0) {
-              const sumCpu = validResults.reduce((acc, r) => acc + (r.cpu !== undefined ? r.cpu : 0), 0);
-              const sumMem = validResults.reduce((acc, r) => acc + (r.memory !== undefined ? r.memory : 0), 0);
-              result[`${metricPrefix}_cpu`] = parseFloat((sumCpu / validResults.length).toFixed(2));
-              result[`${metricPrefix}_mem`] = parseFloat((sumMem / validResults.length).toFixed(2));
-            }
-          }
-        } else if (appConfig.linux_api) {
-          console.log(`[REAL COLLECTOR] Fetching Linux host metrics for ${appKey} from: ${appConfig.linux_api}`);
-          try {
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), 1500);
-            const res = await fetch(appConfig.linux_api, { signal: controller.signal });
-            clearTimeout(id);
-            if (res.ok) {
-              const payload = await res.json();
-              const metrics = payload.metrics || {};
-              if (metrics.cpu !== undefined) result[`${metricPrefix}_cpu`] = metrics.cpu;
-              if (metrics.memory !== undefined) result[`${metricPrefix}_mem`] = metrics.memory;
-            }
-          } catch (e) {
-            console.warn(`[REAL COLLECTOR] Failed fetching Linux host API for ${appKey}: ${e.message}`);
+          const results = await Promise.all(promises);
+          const validResults = results.filter(r => r !== null);
+          if (validResults.length > 0) {
+            const sumCpu = validResults.reduce((acc, r) => acc + (typeof r.cpu === 'number' ? r.cpu : 0), 0);
+            const sumMem = validResults.reduce((acc, r) => acc + (typeof r.memory === 'number' ? r.memory : 0), 0);
+            result[`${metricPrefix}_cpu`] = parseFloat((sumCpu / validResults.length).toFixed(2));
+            result[`${metricPrefix}_mem`] = parseFloat((sumMem / validResults.length).toFixed(2));
           }
         }
+      } else if (appConfig.linux_api) {
+        try {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), 1500);
+          const res = await fetch(appConfig.linux_api, { signal: controller.signal });
+          clearTimeout(id);
+          if (res.ok) {
+            const payload = await res.json();
+            const metrics = payload.metrics || payload;
+            if (metrics.cpu !== undefined && metrics.cpu !== null) result[`${metricPrefix}_cpu`] = metrics.cpu;
+            if (metrics.memory !== undefined && metrics.memory !== null) result[`${metricPrefix}_mem`] = metrics.memory;
+          }
+        } catch (_) {}
       }
     }
 

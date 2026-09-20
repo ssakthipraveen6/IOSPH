@@ -206,106 +206,20 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
     return `${parseInt(val)} ${unit}`;
   };
 
-  // Helper to generate fallback points for smooth charts (DEMO MODE ONLY)
-  const generateFallbackPoints = (metricName) => {
-    if (currentEnv === 'prod' || currentEnv === 'staging') {
-      return [];
-    }
-    const fallbackPoints = [];
-    const now = Date.now();
-    const rangeHours = timeRange === '1h' ? 1 : timeRange === '6h' ? 6 : 24;
-    const step = (rangeHours * 60 * 60 * 1000) / 20;
-
-    let baseVal = 45;
-    if (metricName.includes('cpu')) baseVal = 22;
-    if (metricName.includes('mem')) baseVal = 18;
-    if (metricName.includes('space') || metricName.includes('spaceUsed')) baseVal = 320;
-    if (metricName.includes('iops')) baseVal = 420;
-    if (metricName.includes('flow') || metricName.includes('ingressFlow')) baseVal = 24;
-    if (metricName.includes('connections')) baseVal = 65;
-
-    for (let i = 20; i >= 0; i--) {
-      const time = now - i * step;
-      const noise = (Math.random() - 0.5) * (baseVal * 0.1);
-      fallbackPoints.push({
-        timestamp: new Date(time).toISOString(),
-        value: parseFloat(Math.max(0, baseVal + noise).toFixed(2))
-      });
-    }
-    return fallbackPoints;
-  };
+  // Helper to generate fallback points (returns empty array - no synthetic fabrication)
+  const generateFallbackPoints = () => [];
 
   // Generate historical metric lines
   const getActiveMetrics = (comp = selectedComponent) => {
     const rawData = historicalMetrics[comp] || [];
     if (rawData && rawData.length > 0) {
-      // [FIX-4] Strip sentinel unavailable records written by db.js for empty components
+      // Strip sentinel unavailable records written by db.js for empty components
       const realData = rawData.filter(
         m => m.value !== 'Data Not Available' && m.value !== 'Value Not Available' && m.metricName !== 'status'
       );
       if (realData.length > 0) return realData;
     }
-
-    // In PROD or STAGING, never inject synthetic mock demo data
-    if (currentEnv === 'prod' || currentEnv === 'staging') {
-      return [];
-    }
-
-    const fallbackMetrics = [];
-    const now = Date.now();
-    const rangeHours = timeRange === '1h' ? 1 : timeRange === '6h' ? 6 : 24;
-    const intervalsCount = 20;
-    const step = (rangeHours * 60 * 60 * 1000) / intervalsCount;
-
-    const metricNamesMap = {
-      sso_gateway: ['authLatency', 'activeSessions', 'failedAuthentications'],
-      avi_load_balancer: ['connections', 'ingressFlow', 'throughput', 'bitbucket_ingressFlow', 'artifactory_ingressFlow', 'jenkins_ingressFlow', 'argocd_ingressFlow', 'bitbucket_external_ingressFlow', 'otkr_ingressFlow', 'performance_center_ingressFlow'],
-      database: ['cpu', 'memory', 'transactions', 'iops', 'bitbucket_connections', 'artifactory_connections', 'jenkins_connections', 'teamcity_connections', 'bitbucket_external_connections', 'otkr_connections', 'performance_center_connections'],
-      linux_servers: ['cpu', 'memory', 'load', 'bitbucket_cpu', 'artifactory_cpu', 'jenkins_cpu', 'teamcity_cpu', 'nexusiq_cpu', 'bitbucket_external_cpu', 'otkr_cpu'],
-      windows_servers: ['cpu', 'memory', 'disk', 'fortify_cpu', 'fortify_mem', 'performance_center_cpu', 'performance_center_mem', 'iis_threads', 'iis_sessions'],
-      nas_performance: ['iops', 'throughput', 'spaceUsed', 'bitbucket_spaceUsed', 'artifactory_spaceUsed', 'jenkins_spaceUsed', 'teamcity_spaceUsed', 'nexusiq_spaceUsed', 'bitbucket_external_spaceUsed', 'otkr_spaceUsed', 'performance_center_spaceUsed'],
-      s3_storage: ['latency', 'space', 'bandwidth', 'bitbucket_space', 'artifactory_space', 'jenkins_space', 'teamcity_space', 'fortify_space', 'bitbucket_external_space'],
-      network_latency: ['packetLoss', 'latency_ms', 'jitter'],
-      bitbucket: ['responseTime', 'successRate', 'requests'],
-      artifactory: ['heap', 'space', 'latency'],
-      argocd_k8s: ['latency', 'clusterCount'],
-      argoworkflows_k8s: ['activeWorkflows', 'failedWorkflows', 'responseTime'],
-      jenkins_k8s: ['executors', 'queue', 'responseTime'],
-      teamcity: ['activeBuilds', 'agents', 'load'],
-      sonarqube: ['analysisQueue', 'responseTime'],
-      nexusiq: ['scanQueue', 'violations', 'responseTime'],
-      fortify: ['scanQueue', 'cpu', 'failures'],
-      github: ['apiRateLimitRemaining', 'pendingPullRequests', 'responseTime'],
-      bitbucket_external: ['responseTime', 'successRate', 'requests'],
-      otkr: ['scanQueue', 'findings', 'responseTime'],
-      performance_center: ['activeTests', 'avgResponseTime', 'throughput']
-    };
-
-    const targetNames = metricNamesMap[comp] || ['cpu', 'memory', 'load'];
-
-    targetNames.forEach(mName => {
-      let baseVal = 50;
-      if (mName.includes('cpu')) baseVal = 20;
-      if (mName.includes('mem') || mName.includes('heap')) baseVal = 35;
-      if (mName.includes('latency') || mName.includes('Time') || mName.includes('responseTime')) baseVal = 45;
-      if (mName.includes('connections')) baseVal = 1200;
-      if (mName.includes('ingressFlow') || mName.includes('throughput') || mName.includes('bandwidth')) baseVal = 180;
-      if (mName.includes('successRate')) baseVal = 99.8;
-      if (mName.includes('transactions') || mName.includes('iops')) baseVal = 650;
-
-      for (let i = intervalsCount; i >= 0; i--) {
-        const time = now - i * step;
-        const noise = (Math.random() - 0.5) * (baseVal * 0.1);
-        fallbackMetrics.push({
-          timestamp: new Date(time).toISOString(),
-          component: comp,
-          metricName: mName,
-          value: parseFloat(Math.max(0, baseVal + noise).toFixed(2))
-        });
-      }
-    });
-
-    return fallbackMetrics;
+    return [];
   };
 
   const activeMetrics = getActiveMetrics();

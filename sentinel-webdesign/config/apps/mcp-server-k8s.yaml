@@ -3,17 +3,32 @@
 # =========================================================================
 id: "mcp_server_k8s"
 kind: "application"
-display_name: "Model Context Protocol K8s Server (Placeholder)"
-category: "extra_placeholder"
-is_placeholder: true
-tier: "Tier-3 Development"
+display_name: "Model Context Protocol Server (k8s)"
+category: "ai_tooling"
+tier: "Tier-2 Operational"
 log_tag: "[MCP-K8S]"
+regions: ["emea"]
 
 endpoints:
   prod:
     api: "https://mcp-server-prod.internal.corp/api/v1"
   stg:
     api: "https://mcp-server-stg.internal.corp/api/v1"
+
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
+topology:
+  build_clusters:
+    - { id: "k8s-ai-helpers", purpose: "ai_tooling", region: "emea" }
+
+lifecycle:
+  refweb_url: { url: "https://mcp.internal.corp", expiry: "2027-12-31" }
+  license: { type: "Internal Open Source", expiry: "2028-01-01" }
 
 layers:
   k8s:
@@ -28,8 +43,8 @@ servers:
   windows: []
 
 metrics:
-  provider: "native"
-  scrape_interval: "60s"
+  provider: "opentelemetry"
+  scrape_interval: "30s"
 
 metrics_baseline:
   responseTime: 90
@@ -39,5 +54,10 @@ metrics_baseline:
 logs:
   log_tag: "[MCP-K8S]"
   log_path: "d:\\production_shares\\nas_logs\\mcp_server.log"
+
+credentials:
+  safe: "SF-AI-HELPERS-PROD"
+  objects:
+    api_token: "MCP-SERVER-TOKEN"
 
 jenkins_remediation_job: "JOB_RESTART_MCP_SERVER"

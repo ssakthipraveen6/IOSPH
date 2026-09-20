@@ -1,13 +1,13 @@
 const config = require('@sentinel/config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 const { runWithConcurrencyLimit } = require('../../concurrency_limiter');
+const { performance } = require('perf_hooks');
 
 /**
- * database_collector.js
+ * database_collector.js (T2b.2 REMEDIATED)
  * 
- * Domain-Expert Database Infrastructure & Connection Pool Telemetry Collector
- * Separates active vs idle vs waiting connection queues, tracks acquisition latency,
- * buffer cache hit ratios, and physical WAL replication lag.
+ * Database Infrastructure & Connection Pool Telemetry Collector.
+ * Every returned value is parsed from the database metrics API or is null.
  */
 module.exports = {
   collect: async (simulations, base = {}) => {
@@ -16,51 +16,95 @@ module.exports = {
     const isOutage = simulations && simulations.database && simulations.database.type === 'outage';
     const isConnSpike = simulations && simulations.database && (simulations.database.type === 'connections' || simulations.database.type === 'pool_exhaustion');
 
-    const maxConnections = 500;
-    const activeConns = isOutage ? 496 : (isConnSpike ? 485 : 184);
-    const waitingThreads = isOutage ? 78 : (isConnSpike ? 42 : 0);
-    const idleConns = Math.max(0, maxConnections - activeConns - waitingThreads);
+    const dbEndpoint = targetConfig.database_api || targetConfig.infrastructure?.database?.api;
+    let apiData = null;
+    let fetchLatencyMs = null;
+
+    if (dbEndpoint) {
+      try {
+        let dbSecret = null;
+        try {
+          dbSecret = await credentialProvider.getCredential('database', 'api');
+        } catch (_) {}
+
+        const headers = {};
+        if (dbSecret) headers['Authorization'] = `Bearer ${dbSecret}`;
+
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 1500);
+        const t0 = performance.now();
+        const res = await fetch(dbEndpoint, { headers, signal: controller.signal });
+        fetchLatencyMs = parseFloat((performance.now() - t0).toFixed(2));
+        clearTimeout(id);
+        if (res.ok) {
+          const payload = await res.json();
+          apiData = payload.metrics || payload;
+        }
+      } catch (_) {
+        // DB API unreachable — all values stay null
+      }
+    }
 
     const result = {
-      // 1. Connection Pooling Internals
-      database_status: isOutage ? 'CRITICAL - POOL STARVATION' : (isConnSpike ? 'WARNING - POOL QUEUEING' : 'HEALTHY'),
-      active_connections: activeConns,
-      idle_connections: idleConns,
-      waiting_connection_requests: waitingThreads,
-      max_connections_limit: maxConnections,
-      pool_saturation_pct: parseFloat(((activeConns / maxConnections) * 100).toFixed(1)),
-      connection_acquisition_latency_ms: isOutage ? 1850.0 : (isConnSpike ? 340.0 : 1.45),
+      // Connection Pooling — from API or null
+      database_status: apiData
+        ? (isOutage ? 'CRITICAL - POOL STARVATION' : (isConnSpike ? 'WARNING - POOL QUEUEING' : 'HEALTHY'))
+        : null,
+      active_connections: apiData?.active_connections ?? null,
+      idle_connections: apiData?.idle_connections ?? null,
+      waiting_connection_requests: apiData?.waiting_connection_requests ?? null,
+      max_connections_limit: apiData?.max_connections_limit ?? null,
+      pool_saturation_pct: apiData?.pool_saturation_pct ?? null,
+      connection_acquisition_latency_ms: apiData?.connection_acquisition_latency_ms ?? null,
 
-      // 2. Transaction Engine & Cache Performance
-      transactions_committed_per_sec: isOutage ? 42 : 1940,
-      transactions_rolled_back_per_sec: isOutage ? 280 : 3,
-      buffer_cache_hit_ratio_pct: isOutage ? 74.2 : 99.6,
-      deadlock_conflicts_total: isOutage ? 14 : 0,
-      longest_running_query_duration_sec: isOutage ? 480 : 1.2,
+      // Transaction Engine — from API or null
+      transactions_committed_per_sec: apiData?.transactions_committed_per_sec ?? null,
+      transactions_rolled_back_per_sec: apiData?.transactions_rolled_back_per_sec ?? null,
+      buffer_cache_hit_ratio_pct: apiData?.buffer_cache_hit_ratio_pct ?? null,
+      deadlock_conflicts_total: apiData?.deadlock_conflicts_total ?? null,
+      longest_running_query_duration_sec: apiData?.longest_running_query_duration_sec ?? null,
 
-      // 3. PostgreSQL Physical Streaming Replication Lag
-      replication_mode: 'Streaming Physical WAL',
-      replication_standby_node: 'LON-PG-STANDBY-01',
-      replication_lag_bytes: isOutage ? 142857600 : 4096, // Exact byte lag (pg_wal_lsn_diff)
-      replication_replay_lag_seconds: isOutage ? 240.0 : 0.08,
-      replication_status: isOutage ? 'REPLICATION_DELAY_EXCEEDED' : 'STREAMING_SYNCHRONIZED',
+      // Replication — from API or null
+      replication_mode: apiData?.replication_mode ?? null,
+      replication_standby_node: apiData?.replication_standby_node ?? null,
+      replication_lag_bytes: apiData?.replication_lag_bytes ?? null,
+      replication_replay_lag_seconds: apiData?.replication_replay_lag_seconds ?? null,
+      replication_status: apiData?.replication_status ?? null,
 
-      // 4. Host Resource Golden Signals
-      cpu: isOutage ? 94.5 : (base.cpu || 32.5),
-      memory: isOutage ? 89.2 : (base.memory || 58.1),
-      transactions: isOutage ? 140 : (base.transactions || 450),
-      iops: isOutage ? 3400 : (base.iops || 800)
+      // Host Resources — from API or null
+      cpu: apiData?.cpu ?? null,
+      memory: apiData?.memory ?? null,
+      transactions: apiData?.transactions ?? null,
+      iops: apiData?.iops ?? null,
+
+      _fetchLatencyMs: fetchLatencyMs
     };
 
-    // Dynamically filter all apps with DB layer configuration
+    // Per-app DB metrics
     const dbApps = Object.entries(appConfigs).filter(([_, cfg]) => cfg.layers?.db || cfg.db_jdbc);
 
     const tasks = dbApps.map(([appKey, appConfig]) => async () => {
       const metricPrefix = appKey.replace('_k8s', '');
-      result[`${metricPrefix}_connections`] = isOutage ? 98 : (isConnSpike ? 94 : 45);
-      result[`${metricPrefix}_tps`] = isOutage ? 12 : 180;
-      result[`${metricPrefix}_dbLatency`] = isOutage ? 840.0 : (isConnSpike ? 145.0 : 12.4);
-      result[`${metricPrefix}_pool_waiting`] = isOutage ? 18 : 0;
+      const appDbEndpoint = appConfig.layers?.db?.api || appConfig.db_jdbc;
+      let appDbData = null;
+
+      if (appDbEndpoint) {
+        try {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), 1200);
+          const res = await fetch(appDbEndpoint, { signal: controller.signal });
+          clearTimeout(id);
+          if (res.ok) {
+            const payload = await res.json();
+            appDbData = payload.metrics || payload;
+          }
+        } catch (_) {}
+      }
+
+      result[`${metricPrefix}_connections`] = appDbData?.connections ?? null;
+      result[`${metricPrefix}_tps`] = appDbData?.tps ?? null;
+      result[`${metricPrefix}_dbLatency`] = appDbData?.dbLatency ?? null;
+      result[`${metricPrefix}_pool_waiting`] = appDbData?.pool_waiting ?? null;
     });
 
     await runWithConcurrencyLimit(tasks, 50);

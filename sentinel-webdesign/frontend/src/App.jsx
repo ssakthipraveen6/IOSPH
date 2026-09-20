@@ -8,6 +8,7 @@ import AiLogPerformance from './components/analytics/AiLogPerformance';
 import AdminManagement from './components/admin/AdminManagement';
 import StatusBadge, { StatusDot } from './components/shared/StatusBadge';
 import Sparkline from './components/shared/Sparkline';
+import { MaintenanceBanner } from './components/shared/MaintenanceNotice';
 import YamlConfigManager from './components/admin/YamlConfigManager';
 import MiscOperations from './components/sre/MiscOperations';
 import SreEnterpriseControl from './components/sre/SreEnterpriseControl';
@@ -16,7 +17,10 @@ import EntityExplorerView from './components/correlation/EntityExplorerView';
 import EntityDrillDownPanel from './components/correlation/EntityDrillDownPanel';
 import GlobalEntitySearch from './components/correlation/GlobalEntitySearch';
 import { MAINTENANCE_CONFIG } from './maintenanceConfig';
-import { MaintenanceBanner } from './components/shared/MaintenanceNotice';
+import LogExplorerView from './components/logs/LogExplorerView';
+import FleetExplorerView from './components/fleet/FleetExplorerView';
+import BlastRadiusView from './components/correlation/BlastRadiusView';
+import PipelineOpsView from './components/ops/PipelineOpsView';
 import './App.css';
 
 export default function App() {
@@ -26,6 +30,7 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [environment, setEnvironment] = useState('staging'); // 'prod' | 'staging' | 'demo'
   const envRef = useRef(environment);
+  const wsRef = useRef(null);
   useEffect(() => { envRef.current = environment; }, [environment]);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
@@ -170,27 +175,16 @@ export default function App() {
   const fetchInitialStates = async (targetEnv) => {
     const activeEnv = targetEnv || envRef.current || 'staging';
     try {
-      const envRes = await fetch('/api/environment');
-      let currentEnv = activeEnv;
-      if (envRes.ok) {
-        const envData = await envRes.json();
-        if (envData.environment) {
-          currentEnv = envData.environment;
-          setEnvironment(envData.environment);
-        }
-      }
-
-      const hRes = await fetch(`/api/health?environment=${encodeURIComponent(currentEnv)}`);
+      const hRes = await fetch(`/api/health?environment=${encodeURIComponent(activeEnv)}`);
       if (hRes.ok) {
         const hData = await hRes.json();
         setHealthData(hData);
-        if (hData.environment) setEnvironment(hData.environment);
       }
       
-      const aRes = await fetch(`/api/alerts?environment=${encodeURIComponent(currentEnv)}`);
+      const aRes = await fetch(`/api/alerts?environment=${encodeURIComponent(activeEnv)}`);
       if (aRes.ok) setAlerts(await aRes.json());
       
-      const rRes = await fetch(`/api/recovery?environment=${encodeURIComponent(currentEnv)}`);
+      const rRes = await fetch(`/api/recovery?environment=${encodeURIComponent(activeEnv)}`);
       if (rRes.ok) setRecovery(await rRes.json());
       
       const sRes = await fetch('/api/settings');
@@ -211,18 +205,23 @@ export default function App() {
     // Poll metrics every 10s to keep metrics dataset fresh
     const metricsPoll = setInterval(() => fetchAllMetrics(envRef.current), 10000);
 
-    const authToken = localStorage.getItem('sentinel_auth_token') || '';
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws${authToken ? `?token=${encodeURIComponent(authToken)}` : ''}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     let ws = null;
     let reconnectTimeout = null;
 
     function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws?environment=${encodeURIComponent(envRef.current || 'staging')}`;
       ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
       ws.onopen = () => {
         console.log('[WS] Connected to Intelligent Observability & Autonomous Recovery Framework backend');
         setWsConnected(true);
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'subscribe', environment: envRef.current || 'staging' }));
+        }
       };
 
       ws.onmessage = (event) => {
@@ -238,7 +237,6 @@ export default function App() {
         switch (type) {
           case 'init':
             setHealthData(data.health);
-            if (data.health?.environment) setEnvironment(data.health.environment);
             setAlerts(data.alerts);
             setRecovery(data.recovery);
             setSettings(data.settings);
@@ -248,7 +246,6 @@ export default function App() {
             
           case 'metrics_tick':
             setHealthData(data.health);
-            if (data.health?.environment) setEnvironment(data.health.environment);
             setSimulations(data.simulations);
             if (data.customChecks) setCustomChecks(data.customChecks);
             break;
@@ -258,7 +255,6 @@ export default function App() {
             setRecovery(data.recovery);
             setSettings(data.settings);
             setHealthData(data.health);
-            if (data.health?.environment) setEnvironment(data.health.environment);
             if (data.customChecks) setCustomChecks(data.customChecks);
             break;
             
@@ -298,16 +294,23 @@ export default function App() {
 
   // --- CONTROL ACTIONS ---
 
+  function getCsrfToken() {
+    const match = document.cookie.match(/(^|;\s*)sentinel_csrf=([^;]*)/);
+    return match ? decodeURIComponent(match[2]) : '';
+  }
+
   const handleToggleAutonomous = async () => {
     try {
       const updatedValue = !settings.autonomousMode;
-      const token = localStorage.getItem('sentinel_auth_token');
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken()
+      };
 
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers,
+        credentials: 'same-origin',
         body: JSON.stringify({ autonomousMode: updatedValue })
       });
       if (res.ok) {
@@ -321,13 +324,15 @@ export default function App() {
 
   const handleSimulate = async (component, type) => {
     try {
-      const token = localStorage.getItem('sentinel_auth_token');
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken()
+      };
 
       const res = await fetch('/api/simulate', {
         method: 'POST',
         headers,
+        credentials: 'same-origin',
         body: JSON.stringify({ component, type })
       });
       if (res.ok) {
@@ -341,13 +346,15 @@ export default function App() {
 
   const handleApproveRecovery = async (runId) => {
     try {
-      const token = localStorage.getItem('sentinel_auth_token');
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken()
+      };
 
       const res = await fetch('/api/recovery/approve', {
         method: 'POST',
         headers,
+        credentials: 'same-origin',
         body: JSON.stringify({ runId })
       });
       if (res.ok) {
@@ -362,19 +369,27 @@ export default function App() {
   const handleEnvironmentSwitch = async (newEnv) => {
     if (newEnv === environment) return;
     try {
-      const token = localStorage.getItem('sentinel_auth_token');
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      setEnvironment(newEnv);
+      envRef.current = newEnv;
+
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'subscribe', environment: newEnv }));
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken()
+      };
 
       const res = await fetch('/api/environment', {
         method: 'POST',
         headers,
+        credentials: 'same-origin',
         body: JSON.stringify({ environment: newEnv })
       });
       if (res.ok) {
         const data = await res.json();
-        const appliedEnv = data.environment;
-        setEnvironment(appliedEnv);
+        const appliedEnv = data.environment || newEnv;
         if (appliedEnv !== 'demo') {
           setSimulations({});
         }
@@ -420,6 +435,10 @@ export default function App() {
             { id: 'health', icon: '📊', label: 'NOC System Dashboard', tip: 'NOC System Dashboard & Multi-Node Topology' },
             { id: 'metrics', icon: '🔍', label: 'Telemetry & Historical Analytics', tip: 'Live Golden Signals, Timeseries & Historical PowerBI Baseline Trends' },
             { id: 'matrix', icon: '🌍', label: 'Enterprise Health Matrix', tip: 'Multi-Cluster Global Infrastructure Grid' },
+            { id: 'logs', icon: '📋', label: 'Log Explorer', tip: 'Full-Text Log Search, Masked Clustering & Keyset Explorer' },
+            { id: 'fleet', icon: '🛰️', label: 'Fleet & Topology Explorer', tip: 'Hierarchical Multi-Tier Browse & Discovered Agent Verification' },
+            { id: 'blast-radius', icon: '💥', label: 'Root Cause & Blast Radius', tip: 'Causality Graph, Downstream Fan-Out & Operator Feedback Loop' },
+            { id: 'pipeline-ops', icon: '📈', label: 'Pipeline Operations & Health', tip: 'Queue Depth, Ingest Health, Cardinality & Circuit Breakers' },
             { id: 'command', icon: '⚡', label: 'Autonomous Healing & Operations', tip: 'Self-Healing Orchestrator, Playbook Logs & Team Operations' },
             { id: 'sre', icon: '🏛️', label: 'SRE Platform & Toolchain Capacity', tip: 'Platform Toolchain Saturation, Secret Expiry & Central Governance' },
             { id: 'entities', icon: '🧭', label: 'Universal Entity Explorer', tip: 'Universal Asset & Topology Resolver' },
@@ -706,6 +725,33 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'logs' && (
+            <LogExplorerView 
+              environment={environment}
+              onInspectEntity={handleOpenEntityPanel}
+            />
+          )}
+
+          {activeTab === 'fleet' && (
+            <FleetExplorerView 
+              environment={environment}
+              onInspectEntity={handleOpenEntityPanel}
+            />
+          )}
+
+          {activeTab === 'blast-radius' && (
+            <BlastRadiusView 
+              environment={environment}
+              onInspectEntity={handleOpenEntityPanel}
+            />
+          )}
+
+          {activeTab === 'pipeline-ops' && (
+            <PipelineOpsView 
+              environment={environment}
+            />
+          )}
+
           {activeTab === 'pbi' && (
             <PowerBiDashboard environment={environment} />
           )}
@@ -842,6 +888,10 @@ export default function App() {
                 { id: 'health', label: 'NOC System Dashboard', icon: '📊', category: 'Views', action: () => { setActiveTab('health'); setIsCommandPaletteOpen(false); } },
                 { id: 'metrics', label: 'Telemetry & Historical Analytics', icon: '🔍', category: 'Views', action: () => { setActiveTab('metrics'); setIsCommandPaletteOpen(false); } },
                 { id: 'matrix', label: 'Enterprise Health Matrix', icon: '🌍', category: 'Views', action: () => { setActiveTab('matrix'); setIsCommandPaletteOpen(false); } },
+                { id: 'logs', label: 'Log Explorer', icon: '📋', category: 'Views', action: () => { setActiveTab('logs'); setIsCommandPaletteOpen(false); } },
+                { id: 'fleet', label: 'Fleet & Topology Explorer', icon: '🛰️', category: 'Views', action: () => { setActiveTab('fleet'); setIsCommandPaletteOpen(false); } },
+                { id: 'blast-radius', label: 'Root Cause & Blast Radius', icon: '💥', category: 'Views', action: () => { setActiveTab('blast-radius'); setIsCommandPaletteOpen(false); } },
+                { id: 'pipeline-ops', label: 'Pipeline Operations & Health', icon: '📈', category: 'Views', action: () => { setActiveTab('pipeline-ops'); setIsCommandPaletteOpen(false); } },
                 { id: 'command', label: 'Autonomous Healing & Operations', icon: '⚡', category: 'Views', action: () => { setActiveTab('command'); setIsCommandPaletteOpen(false); } },
                 { id: 'sre', label: 'SRE Platform & Toolchain Capacity', icon: '🏛️', category: 'Views', action: () => { setActiveTab('sre'); setIsCommandPaletteOpen(false); } },
                 { id: 'entities', label: 'Universal Entity Explorer', icon: '🧭', category: 'Views', action: () => { setActiveTab('entities'); setIsCommandPaletteOpen(false); } },

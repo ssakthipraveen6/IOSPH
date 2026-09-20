@@ -12,12 +12,7 @@ export default function YamlConfigManager({ environment = 'staging' }) {
   const [loading, setLoading] = useState(false);
   const [commitMsg, setCommitMsg] = useState('');
 
-  useEffect(() => {
-    fetchApps();
-    loadYaml(null);
-  }, [environment]);
-
-  const fetchApps = async () => {
+  async function fetchApps() {
     try {
       const res = await fetch('/api/yaml/all');
       if (res.ok) {
@@ -27,9 +22,9 @@ export default function YamlConfigManager({ environment = 'staging' }) {
     } catch (err) {
       console.error('Failed fetching YAML apps:', err);
     }
-  };
+  }
 
-  const loadYaml = async (appId) => {
+  async function loadYaml(appId) {
     setSelectedApp(appId);
     setStatusMessage('');
     setPrData(null);
@@ -45,37 +40,19 @@ export default function YamlConfigManager({ environment = 'staging' }) {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleSaveAndCreatePR = async () => {
-    setStatusMessage('Creating GitOps Bitbucket Pull Request...');
-    setPrData(null);
+  useEffect(() => {
+    fetchApps();
+    loadYaml(null);
+  }, [environment]);
+
+  const handleCopyToClipboard = async () => {
     try {
-      const res = await fetch('/api/yaml/raw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appId: selectedApp,
-          rawYaml: rawYaml,
-          author: 'DevSecOps Admin',
-          commitMessage: commitMsg
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setStatusMessage('✅ Configuration saved & Bitbucket GitOps PR generated successfully!');
-        setPrData({
-          prId: data.prId,
-          prUrl: data.prUrl,
-          branchName: data.branchName,
-          filePath: data.filePath
-        });
-        fetchApps();
-      } else {
-        setStatusMessage(`❌ Syntax/GitOps Error: ${data.error}`);
-      }
+      await navigator.clipboard.writeText(rawYaml);
+      setStatusMessage('📋 Configuration copied to clipboard! (Live runtime edits disabled per GitOps policy — submit changes via Git PR)');
     } catch (err) {
-      setStatusMessage(`❌ Error creating PR: ${err.message}`);
+      setStatusMessage('❌ Error copying to clipboard.');
     }
   };
 
@@ -134,18 +111,18 @@ export default function YamlConfigManager({ environment = 'staging' }) {
               </h4>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn-action primary" onClick={handleSaveAndCreatePR} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                🚀 Save & Create Bitbucket PR
+              <button className="btn-action primary" onClick={handleCopyToClipboard} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                📋 Copy to Clipboard
               </button>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Commit Msg:</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Git Target:</span>
             <input 
               type="text" 
               value={commitMsg}
-              onChange={(e) => setCommitMsg(e.target.value)}
+              readOnly
               style={{ flex: 1, padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
             />
           </div>
@@ -221,8 +198,7 @@ export default function YamlConfigManager({ environment = 'staging' }) {
               resize: 'vertical'
             }}
             value={rawYaml}
-            onChange={(e) => setRawYaml(e.target.value)}
-            disabled={loading}
+            readOnly={true}
             placeholder="Loading YAML..."
           />
         </div>

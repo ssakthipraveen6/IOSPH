@@ -14,6 +14,13 @@ endpoints:
   stg:
     api: "https://bitbucket-external-stg.internal.corp/rest/api/1.0"
 
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
 layers:
   db:
     jdbc: "jdbc:postgresql://db-prod-bitbucket-ext.internal.corp:5432/bitbucket_ext_db"

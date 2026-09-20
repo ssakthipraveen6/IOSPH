@@ -144,11 +144,11 @@ export default function CommandCenter({
             </div>
           </div>
           <div className="approvals-list">
-            {pendingApprovals.map(appr => {
+            {pendingApprovals.map((appr, idx) => {
               const approvalCount = Array.isArray(appr.approvals) ? appr.approvals.length : 0;
               const approverNames = (appr.approvals || []).map(a => typeof a === 'string' ? a : (a.username || 'Admin')).join(', ');
               return (
-                <div key={appr.id || Math.random()} className="approval-row">
+                <div key={appr.id || `appr-${idx}`} className="approval-row">
                   <div className="appr-details">
                     <span className="appr-comp">{(appr.component || 'SERVICE').toUpperCase()}</span>
                     <span className="appr-action">{appr.action || 'Remediation'}</span>
@@ -360,8 +360,8 @@ export default function CommandCenter({
             {effectiveRecovery.length === 0 ? (
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Value Not Available</div>
             ) : (
-              [...effectiveRecovery].reverse().map(rec => (
-                <div key={rec.id || Math.random()} style={{ padding: '8px', background: 'var(--bg-dark)', borderRadius: '4px', borderLeft: `3px solid ${rec.status === 'Success' ? '#10b981' : rec.status === 'In-Progress' ? '#f59e0b' : '#ef4444'}` }}>
+              [...effectiveRecovery].reverse().map((rec, idx) => (
+                <div key={rec.id || `rec-${idx}`} style={{ padding: '8px', background: 'var(--bg-dark)', borderRadius: '4px', borderLeft: `3px solid ${rec.status === 'Success' ? '#10b981' : rec.status === 'In-Progress' ? '#f59e0b' : '#ef4444'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold' }}>
                     <span>{rec.action || 'Remediation Runbook'}</span>
                     <span style={{ color: rec.status === 'Success' ? '#10b981' : '#f59e0b' }}>{rec.status || 'Pending'}</span>

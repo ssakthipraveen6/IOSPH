@@ -2,11 +2,11 @@
   "users": [
     {
       "id": 1,
-      "name": "DevSecops Admin",
-      "email": "devsecops-admin@enterprise.corp",
+      "name": "Sentinel Administrator",
+      "email": "admin@sentinel.local",
       "role": "Super Admin",
       "status": "Active",
-      "dept": "DevSecOps & NOC",
+      "dept": "Platform Operations",
       "lastLogin": "Just Now",
       "mfa": true,
       "permissions": [
@@ -20,8 +20,8 @@
     },
     {
       "id": 2,
-      "name": "Sarah Jenkins",
-      "email": "sarah.j@enterprise.corp",
+      "name": "Reliability Lead",
+      "email": "sre.lead@sentinel.local",
       "role": "SRE Lead",
       "status": "Active",
       "dept": "Site Reliability",
@@ -36,8 +36,8 @@
     },
     {
       "id": 3,
-      "name": "Marcus Vance",
-      "email": "m.vance@enterprise.corp",
+      "name": "NOC Operations Specialist",
+      "email": "noc.operator@sentinel.local",
       "role": "NOC Operator",
       "status": "Active",
       "dept": "Operations Center",
@@ -50,11 +50,11 @@
     },
     {
       "id": 4,
-      "name": "Elena Rostova",
-      "email": "e.rostova@enterprise.corp",
+      "name": "Compliance Auditor",
+      "email": "auditor@sentinel.local",
       "role": "Security Auditor",
       "status": "Active",
-      "dept": "Compliance & Cyber",
+      "dept": "Compliance & Security",
       "lastLogin": "3 hours ago",
       "mfa": true,
       "permissions": [
@@ -65,10 +65,10 @@
     {
       "id": 5,
       "name": "Automation Service Bot",
-      "email": "svc-sentinel@enterprise.corp",
+      "email": "svc-sentinel@sentinel.local",
       "role": "Service Account",
       "status": "Active",
-      "dept": "CI/CD Pipeline",
+      "dept": "CI/CD Automation",
       "lastLogin": "Continuous",
       "mfa": false,
       "permissions": [
@@ -77,71 +77,6 @@
       ]
     }
   ],
-  "auditLogs": [
-    {
-      "id": 101,
-      "timestamp": "12:47:57 pm",
-      "user": "DevSecops Admin",
-      "action": "Modified Threshold",
-      "details": "Updated Bitbucket CPU warning threshold to 85%",
-      "ip": "10.240.12.89"
-    },
-    {
-      "id": 102,
-      "timestamp": "12:37:57 pm",
-      "user": "DevSecops Admin",
-      "action": "Auto-Remediation Trigger",
-      "details": "Executed Service Restart on Jenkins_k8s container",
-      "ip": "10.240.12.89"
-    },
-    {
-      "id": 103,
-      "timestamp": "11:47:57 am",
-      "user": "Sarah Jenkins",
-      "action": "Exported Telemetry",
-      "details": "Downloaded 24h Metrics CSV report for Postgres Database",
-      "ip": "10.240.14.102"
-    }
-  ],
-  "ssoLogs": [
-    {
-      "id": "SSO-LOG-1001",
-      "timestamp": "31/08/2026, 12:47:57",
-      "user": "DevSecops Admin",
-      "email": "devsecops-admin@enterprise.corp",
-      "role": "Super Admin",
-      "dept": "DevSecOps & NOC",
-      "provider": "eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)",
-      "ldapDn": "cn=DevSecops Admin,ou=Users,dc=enterprise,dc=corp",
-      "ip": "10.240.12.89",
-      "sessionId": "sso-sess-908423",
-      "status": "SUCCESS"
-    },
-    {
-      "id": "SSO-LOG-1002",
-      "timestamp": "31/08/2026, 12:17:57",
-      "user": "Sarah Jenkins",
-      "email": "sarah.j@enterprise.corp",
-      "role": "SRE Lead",
-      "dept": "Site Reliability",
-      "provider": "eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)",
-      "ldapDn": "cn=Sarah Jenkins,ou=Users,dc=enterprise,dc=corp",
-      "ip": "10.240.14.102",
-      "sessionId": "sso-sess-817234",
-      "status": "SUCCESS"
-    },
-    {
-      "id": "SSO-LOG-1003",
-      "timestamp": "31/08/2026, 10:47:57",
-      "user": "Marcus Vance",
-      "email": "m.vance@enterprise.corp",
-      "role": "NOC Operator",
-      "dept": "Operations Center",
-      "provider": "eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)",
-      "ldapDn": "cn=Marcus Vance,ou=Users,dc=enterprise,dc=corp",
-      "ip": "10.240.12.44",
-      "sessionId": "sso-sess-712390",
-      "status": "SUCCESS"
-    }
-  ]
+  "auditLogs": [],
+  "ssoLogs": []
 }

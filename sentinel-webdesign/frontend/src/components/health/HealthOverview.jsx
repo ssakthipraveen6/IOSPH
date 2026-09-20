@@ -249,6 +249,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
   const appStatus = componentStatuses[appKeys[selectedFlowApp]] || noDataDefault;
 
   const formatStatusText = (st) => {
+    if (st === 'AUTH_FAILED') return 'AUTH FAILED';
     if (st === 'DATA_UNAVAILABLE' || st === 'NO_DATA') return 'Value Not Available';
     return st;
   };
@@ -338,7 +339,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
       errorRate: errorRateVal,
       throughput: throughputVal,
       saturation: saturationVal,
-      status: compStatus === 'Critical' ? 'critical' : compStatus === 'Warning' ? 'warn' : compStatus === 'DATA_UNAVAILABLE' ? 'DATA_UNAVAILABLE' : 'healthy',
+      status: compStatus === 'Critical' ? 'critical' : compStatus === 'Warning' ? 'warn' : compStatus === 'DATA_UNAVAILABLE' ? 'DATA_UNAVAILABLE' : compStatus === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'healthy',
       spark: sparkPoints.length > 1 ? sparkPoints : []
     };
   });
@@ -1217,7 +1218,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
                   >
                     <td>
                       <StatusDot 
-                        status={app.status === 'warn' ? 'warning' : app.status === 'critical' ? 'critical' : app.status === 'DATA_UNAVAILABLE' ? 'info' : 'healthy'} 
+                        status={app.status === 'warn' ? 'warning' : app.status === 'critical' ? 'critical' : app.status === 'DATA_UNAVAILABLE' ? 'info' : app.status === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'healthy'} 
                         pulse={app.status === 'warn' || app.status === 'critical'} 
                         size={8} 
                       />

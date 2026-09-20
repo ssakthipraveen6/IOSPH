@@ -1,47 +1,55 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/global_config.yaml.
-// Update the actual production/staging endpoints at:
-// - config/global_config.yaml: prod_urls.argocd_api
-// - config/global_config.yaml: stg_urls.argocd_api
-// Purpose: ArgoCD sync states query endpoint prefix.
-// =========================================================================
-
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * argocd_collector.js (T2b.2 REMEDIATED)
+ * 
+ * ArgoCD GitOps Continuous Delivery Telemetry Collector.
+ * Metrics parsed from live /applications endpoint or null.
+ * Real latency measured via performance timer. Zero Math.random().
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    // [FIX-8] Use ACTIVE_URLS (dynamic getter) — was incorrectly preferring STG_URLS first
-    const url = config.ACTIVE_URLS.argocd_api;
+  collect: async (simulations, base = {}) => {
+    const url = config.ACTIVE_URLS?.argocd_api;
     const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
 
     if (!url) {
-      console.warn('[REAL COLLECTOR] No ArgoCD endpoint URL configured. Using baseline.');
       if (isProd) throw new Error('ArgoCD URL not configured for PROD');
-      return { syncStatus: 'Synced', latency: base.latency, clusterCount: base.clusterCount };
+      return { syncStatus: null, latency: null, clusterCount: null };
     }
-
-    console.log(`[REAL COLLECTOR] Fetching ArgoCD cluster syncs from: ${url}`);
 
     const healthResult = await fetchJsonWithFallback(
       `${url}/applications`,
-      { headers: { Accept: 'application/json' } },
+      { headers: { Accept: 'application/json' }, appId: 'argocd' },
       3500
     );
 
-    const connected = healthResult.success;
-    const apps = connected ? (healthResult.data?.items || []) : null;
+    if (healthResult.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        syncStatus: null,
+        latency: null,
+        clusterCount: null
+      };
+    }
+
+    if (!healthResult.success) {
+      return {
+        syncStatus: null,
+        latency: null,
+        clusterCount: null
+      };
+    }
+
+    const apps = Array.isArray(healthResult.data?.items) ? healthResult.data.items : [];
+    const syncStatus = apps.length > 0 && apps.every(a => a.status?.sync?.status === 'Synced') ? 'Synced' : (apps.length > 0 ? 'OutOfSync' : 'Unknown');
 
     return {
-      syncStatus: connected
-        ? (apps && apps.every(a => a.status?.sync?.status === 'Synced') ? 'Synced' : 'OutOfSync')
-        : (isProd ? null : 'Synced'),
-      latency: connected
-        ? base.latency + Math.floor((Math.random() - 0.5) * 4)
-        : (isProd ? null : base.latency + Math.floor((Math.random() - 0.5) * 4)),
-      clusterCount: connected
-        ? (apps ? apps.length : base.clusterCount)
-        : (isProd ? null : base.clusterCount)
+      syncStatus,
+      latency: healthResult.latencyMs || null,
+      clusterCount: apps.length
     };
   }
 };

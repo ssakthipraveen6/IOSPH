@@ -85,6 +85,7 @@ export default function UnifiedHealthMatrix({
 
   const getStatusClass = (status) => {
     const s = (status || 'Healthy').toLowerCase();
+    if (s === 'auth_failed') return 'status-auth-failed';
     if (s === 'data_unavailable' || s === 'no_data') return 'status-unknown';
     if (s === 'critical') return 'status-critical';
     if (s === 'warning') return 'status-warning';
@@ -92,12 +93,14 @@ export default function UnifiedHealthMatrix({
   };
 
   const getStatusText = (status) => {
+    if (status === 'AUTH_FAILED') return 'AUTH FAILED';
     if (status === 'DATA_UNAVAILABLE' || status === 'NO_DATA') return 'Value Not Available';
     return status || 'Healthy';
   };
 
   const getStatusDot = (status) => {
     const s = (status || 'Healthy').toLowerCase();
+    if (s === 'auth_failed') return '#f97316';
     if (s === 'data_unavailable' || s === 'no_data') return '#94a3b8';
     if (s === 'critical') return '#ef4444';
     if (s === 'warning') return '#f59e0b';
@@ -131,7 +134,7 @@ export default function UnifiedHealthMatrix({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
             {appItems.map(app => {
-              const status = isProdOrStg ? 'DATA_UNAVAILABLE' : (componentStatuses[app.key] || 'Healthy');
+              const status = componentStatuses[app.key] || (isProdOrStg ? 'DATA_UNAVAILABLE' : 'Healthy');
               const activeAlertsCount = isProdOrStg ? 0 : alerts.filter(a => a.component === app.key && a.status === 'Active').length;
               
               return (
@@ -190,7 +193,7 @@ export default function UnifiedHealthMatrix({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
             {infraItems.map(infra => {
-              const status = isProdOrStg ? 'DATA_UNAVAILABLE' : (componentStatuses[infra.key] || 'Healthy');
+              const status = componentStatuses[infra.key] || (isProdOrStg ? 'DATA_UNAVAILABLE' : 'Healthy');
               const activeAlertsCount = isProdOrStg ? 0 : alerts.filter(a => a.component === infra.key && a.status === 'Active').length;
 
               return (

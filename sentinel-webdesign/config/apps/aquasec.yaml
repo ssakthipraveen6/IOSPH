@@ -1,0 +1,57 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: Aqua Security Container Scanner
+# Per Constraint C6: Collection is URL and exposed-metrics only (no agents)
+# =========================================================================
+id: "aquasec"
+kind: "application"
+display_name: "Aqua Security Scanner"
+category: "security_scanner"
+tier: "Tier-2 Operational"
+log_tag: "[AQUASEC]"
+regions: ["emea"]
+
+endpoints:
+  prod:
+    api: "https://aquasec-prod.internal.corp/api/v1"
+  stg:
+    api: "https://aquasec-stg.internal.corp/api/v1"
+
+auth:
+  scheme: "none"
+  credential_purpose: null
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
+topology:
+  servers:
+    scanner_endpoint: "https://aquasec-prod.internal.corp/api/v1"
+
+lifecycle:
+  refweb_url: { url: "https://aquasec.internal.corp", expiry: "2027-09-30" }
+  license: { type: "Aqua Security Enterprise", expiry: "2027-06-01" }
+
+layers:
+  api_token:
+    credential_purpose: "api_token"
+  avi:
+    api: "https://avi-prod-aquasec.internal.corp/api/v1/telemetry"
+    credential_purpose: null
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "60s"
+
+metrics_baseline:
+  responseTime: 160
+  successRate: 99.2
+  requests: 25
+
+logs:
+  log_tag: "[AQUASEC]"
+  log_path: "d:\\production_shares\\nas_logs\\aquasec.log"
+
+credentials:
+  safe: "SF-AQUASEC-PROD"
+  objects:
+    api_token: "AQUASEC-API-TOKEN"

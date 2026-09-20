@@ -8,12 +8,38 @@ display_name: "Bitbucket Enterprise SCM"
 category: "source_control"
 tier: "Tier-1 Mission Critical"
 log_tag: "[BB-NET]"
+regions: ["emea", "apac", "amer"]
+aliases:
+  - "bitbucket_external"
 
 endpoints:
   prod:
     api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
   stg:
     api: "https://bitbucket-stg.internal.corp/rest/api/1.0"
+
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
+topology:
+  nodes:
+    emea:
+      cluster_nodes: 15
+    apac:
+      mirror_nodes: 5
+    amer:
+      mirror_nodes: 5
+  jump_servers:
+    - { host: "bb-jump-01.internal.corp", os: "linux" }
+    - { host: "bb-jump-02.internal.corp", os: "linux" }
+
+lifecycle:
+  refweb_url: { url: "https://bitbucket.internal.corp", expiry: "2027-06-30" }
+  license: { type: "Bitbucket Data Center", expiry: "2027-04-01" }
 
 layers:
   sso:

@@ -1,26 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { MAINTENANCE_CONFIG } from '../../maintenanceConfig';
 import { MaintenanceBadge, MaintenanceBanner } from '../shared/MaintenanceNotice';
+import PreflightCheckView from './PreflightCheckView';
 
 const initialUsers = [
-  { id: 1, name: 'DevSecops Admin', email: 'devsecops-admin@enterprise.corp', role: 'Super Admin', status: 'Active', dept: 'DevSecOps & NOC', lastLogin: 'Just Now', mfa: true, permissions: ['read', 'remediate', 'thresholds', 'export', 'users', 'tokens'] },
-  { id: 2, name: 'Sarah Jenkins', email: 'sarah.j@enterprise.corp', role: 'SRE Lead', status: 'Active', dept: 'Site Reliability', lastLogin: '10 mins ago', mfa: true, permissions: ['read', 'remediate', 'thresholds', 'export'] },
-  { id: 3, name: 'Marcus Vance', email: 'm.vance@enterprise.corp', role: 'NOC Operator', status: 'Active', dept: 'Operations Center', lastLogin: '1 hour ago', mfa: true, permissions: ['read', 'remediate'] },
-  { id: 4, name: 'Elena Rostova', email: 'e.rostova@enterprise.corp', role: 'Security Auditor', status: 'Active', dept: 'Compliance & Cyber', lastLogin: '3 hours ago', mfa: true, permissions: ['read', 'export'] },
-  { id: 5, name: 'Automation Service Bot', email: 'svc-sentinel@enterprise.corp', role: 'Service Account', status: 'Active', dept: 'CI/CD Pipeline', lastLogin: 'Continuous', mfa: false, permissions: ['read', 'remediate'] },
+  { id: 1, name: 'Sentinel Administrator', email: 'admin@sentinel.local', role: 'Super Admin', status: 'Active', dept: 'Platform Operations', lastLogin: 'Just Now', mfa: true, permissions: ['read', 'remediate', 'thresholds', 'export', 'users', 'tokens'] },
+  { id: 2, name: 'Reliability Lead', email: 'sre.lead@sentinel.local', role: 'SRE Lead', status: 'Active', dept: 'Site Reliability', lastLogin: '10 mins ago', mfa: true, permissions: ['read', 'remediate', 'thresholds', 'export'] },
+  { id: 3, name: 'NOC Operations Specialist', email: 'noc.operator@sentinel.local', role: 'NOC Operator', status: 'Active', dept: 'Operations Center', lastLogin: '1 hour ago', mfa: true, permissions: ['read', 'remediate'] },
+  { id: 4, name: 'Compliance Auditor', email: 'auditor@sentinel.local', role: 'Security Auditor', status: 'Active', dept: 'Compliance & Security', lastLogin: '3 hours ago', mfa: true, permissions: ['read', 'export'] },
+  { id: 5, name: 'Automation Service Bot', email: 'svc-sentinel@sentinel.local', role: 'Service Account', status: 'Active', dept: 'CI/CD Automation', lastLogin: 'Continuous', mfa: false, permissions: ['read', 'remediate'] }
 ];
 
-const initialAuditLogs = [
-  { id: 101, timestamp: new Date().toLocaleTimeString(), user: 'DevSecops Admin', action: 'Modified Threshold', details: 'Updated Bitbucket CPU warning threshold to 85%', ip: '10.240.12.89' },
-  { id: 102, timestamp: new Date(Date.now() - 600000).toLocaleTimeString(), user: 'DevSecops Admin', action: 'Auto-Remediation Trigger', details: 'Executed Service Restart on Jenkins_k8s container', ip: '10.240.12.89' },
-  { id: 103, timestamp: new Date(Date.now() - 3600000).toLocaleTimeString(), user: 'Sarah Jenkins', action: 'Exported Telemetry', details: 'Downloaded 24h Metrics CSV report for Postgres Database', ip: '10.240.14.102' },
-];
-
-const initialSsoAccessLogs = [
-  { id: 'SSO-LOG-1001', timestamp: new Date().toLocaleString('en-GB'), user: 'DevSecops Admin', email: 'devsecops-admin@enterprise.corp', role: 'Super Admin', dept: 'DevSecOps & NOC', provider: 'eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)', ldapDn: 'cn=DevSecops Admin,ou=Users,dc=enterprise,dc=corp', ip: '10.240.12.89', sessionId: 'sso-sess-908423', status: 'SUCCESS' },
-  { id: 'SSO-LOG-1002', timestamp: new Date(Date.now() - 1800000).toLocaleString('en-GB'), user: 'Sarah Jenkins', email: 'sarah.j@enterprise.corp', role: 'SRE Lead', dept: 'Site Reliability', provider: 'eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)', ldapDn: 'cn=Sarah Jenkins,ou=Users,dc=enterprise,dc=corp', ip: '10.240.14.102', sessionId: 'sso-sess-817234', status: 'SUCCESS' },
-  { id: 'SSO-LOG-1003', timestamp: new Date(Date.now() - 7200000).toLocaleString('en-GB'), user: 'Marcus Vance', email: 'm.vance@enterprise.corp', role: 'NOC Operator', dept: 'Operations Center', provider: 'eLDAP / Active Directory (ldaps://ldap.enterprise.corp:636)', ldapDn: 'cn=Marcus Vance,ou=Users,dc=enterprise,dc=corp', ip: '10.240.12.44', sessionId: 'sso-sess-712390', status: 'SUCCESS' }
-];
+const initialAuditLogs = [];
+const initialSsoAccessLogs = [];
 
 export default function AdminManagement({ environment = 'staging' }) {
   const currentEnv = environment || 'staging';
@@ -46,11 +38,16 @@ export default function AdminManagement({ environment = 'staging' }) {
   const [activeTab, setActiveTab] = useState('users'); // users, rbac, audit, policies
   const [notification, setNotification] = useState(null);
 
+  const getCsrfToken = () => {
+    const match = document.cookie.match(/(^|;\s*)sentinel_csrf=([^;]*)/);
+    return match ? decodeURIComponent(match[2]) : '';
+  };
+
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('sentinel_auth_token') || '';
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return headers;
+    return {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': getCsrfToken()
+    };
   };
 
   // Fetch real data from backend API
@@ -344,6 +341,13 @@ export default function AdminManagement({ environment = 'staging' }) {
             style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
           >
             ⚙️ Security & SSO Policies
+          </button>
+          <button 
+            className={`nav-tab-btn ${activeTab === 'preflight' ? 'active' : ''}`}
+            onClick={() => setActiveTab('preflight')}
+            style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
+          >
+            🔍 Endpoint Preflight
           </button>
         </div>
       </div>
@@ -661,7 +665,7 @@ export default function AdminManagement({ environment = 'staging' }) {
                 </thead>
                 <tbody>
                   {filteredSsoLogs.length === 0 ? (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No SSO access logs matching search filter.</td></tr>
+                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No records</td></tr>
                   ) : (
                     filteredSsoLogs.map(log => (
                       <tr key={log.id}>
@@ -721,7 +725,10 @@ export default function AdminManagement({ environment = 'staging' }) {
                 </tr>
               </thead>
               <tbody>
-                {auditLogs.map(log => (
+                {auditLogs.length === 0 ? (
+                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No records</td></tr>
+                ) : (
+                  auditLogs.map(log => (
                   <tr key={log.id}>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{log.timestamp}</td>
                     <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{log.user}</td>
@@ -729,7 +736,7 @@ export default function AdminManagement({ environment = 'staging' }) {
                     <td style={{ fontSize: '0.78rem' }}>{log.details}</td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>{log.ip}</td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
@@ -951,6 +958,10 @@ export default function AdminManagement({ environment = 'staging' }) {
             </form>
           </div>
         </div>
+      )}
+
+      {activeTab === 'preflight' && (
+        <PreflightCheckView environment={currentEnv} />
       )}
 
     </div>

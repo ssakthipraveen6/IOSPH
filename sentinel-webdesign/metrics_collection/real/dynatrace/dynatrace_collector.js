@@ -2,18 +2,11 @@ const config = require('@sentinel/config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 const { SEVERITY } = require('@sentinel/shared-constants');
 
-// [SEC-02 REMEDIATED] — CWE-798: Hard-coded credential literal removed.
-// Token resolution: CyberArk → process.env.DYNATRACE_API_TOKEN → graceful DATA_UNAVAILABLE
-async function resolveApiToken() {
-  try {
-    return await credentialProvider.getCredential('dynatrace', 'api_token');
-  } catch (e) {
-    const envToken = process.env.DYNATRACE_API_TOKEN;
-    if (envToken && envToken.trim().length > 0) {
-      return envToken;
-    }
-    return null;
-  }
+const tokenProvider = require('./token_provider');
+
+// [T5.1 REMEDIATED] Token resolution through short-lived (30s) token provider with single-flight lock
+async function resolveApiToken(forceRefresh = false) {
+  return await tokenProvider.getApiToken(forceRefresh);
 }
 
 /**
@@ -29,7 +22,10 @@ async function collectDynatraceAlerts(db, writeNasLog, targetEnv = null) {
 
   const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
   const targetConfig = (currentEnv === 'prod' ? config.PROD_URLS : config.STG_URLS) || config.ACTIVE_URLS || {};
-  const baseUrl = targetConfig.dynatrace_api_endpoint || 'https://dynatrace.internal.corp';
+  const baseUrl = targetConfig.dynatrace_api_endpoint;
+  if (!baseUrl && currentEnv !== 'demo') {
+    return { status: 'DATA_UNAVAILABLE', metrics: { alertCount: null, error: 'dynatrace_api_endpoint not configured' } };
+  }
 
   if (currentEnv === 'demo') {
     return {
@@ -183,7 +179,8 @@ async function getActiveProblems(env = null) {
   // 2. PROD MODE: strictly query live Dynatrace API v2 endpoint
   if (currentEnv === 'prod') {
     const targetConfig = config.ACTIVE_URLS || {};
-    const baseUrl = targetConfig.dynatrace_api_endpoint || 'https://dynatrace.internal.corp';
+    const baseUrl = targetConfig.dynatrace_api_endpoint;
+    if (!baseUrl) return [];
     const token = await resolveApiToken();
 
     if (!token) {
@@ -277,7 +274,16 @@ function getStagingProblems() {
 async function fetchHostManagementMetrics(db = null, writeNasLog = null, targetEnv = null) {
   const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
   const targetConfig = (currentEnv === 'prod' ? config.PROD_URLS : config.STG_URLS) || config.ACTIVE_URLS || {};
-  const baseUrl = targetConfig.dynatrace_api_endpoint || 'https://dynatrace.internal.corp';
+  const baseUrl = targetConfig.dynatrace_api_endpoint;
+  if (!baseUrl && currentEnv !== 'demo') {
+    return {
+      status: 'DATA_UNAVAILABLE',
+      enabled: false,
+      managementZones: [],
+      hosts: [],
+      summary: { totalHosts: 0, healthyHosts: 0, avgCpuPct: null, avgMemPct: null }
+    };
+  }
 
   // 1. Check if Dynatrace is enabled in configuration
   if (typeof config.isCollectorEnabled === 'function' && !config.isCollectorEnabled('dynatrace')) {

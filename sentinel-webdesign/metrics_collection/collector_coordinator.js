@@ -45,6 +45,7 @@ async function collectTier(tierName) {
 
     const environments = getActiveEnvironments();
     for (const env of environments) {
+      global.collectorEnvironment = env;
       const simsForEnv = (env === 'staging' || env === 'demo') ? activeSims : {};
 
       if (tierName === 'high' || tierName === 'all') {
@@ -62,7 +63,7 @@ async function collectTier(tierName) {
         const rawLogs = await fluentdCollector.collectFluentdLogs(simsForEnv, db, writeNasLog, env);
         if (aiAnalyzer && typeof aiAnalyzer.analyzeServerLogs === 'function') {
           aiAnalyzer.analyzeServerLogs(rawLogs, writeNasLog, (comp, reason) => {
-            triggerRecovery(comp, reason, env);
+            triggerRecovery(comp, reason, { manual: false, env });
           }, env);
         }
       }
@@ -87,24 +88,49 @@ async function collectTier(tierName) {
   }
 }
 
+const circuitBreaker = require('./shared/circuit_breaker');
+
+const SENTINEL_SHARD_INDEX = parseInt(process.env.SENTINEL_SHARD_INDEX || '0', 10);
+const SENTINEL_SHARD_TOTAL = parseInt(process.env.SENTINEL_SHARD_TOTAL || '1', 10);
+
+function isTargetAssignedToShard(targetKey) {
+  if (SENTINEL_SHARD_TOTAL <= 1) return true;
+  let hash = 0;
+  for (let i = 0; i < targetKey.length; i++) {
+    hash = ((hash << 5) - hash) + targetKey.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % SENTINEL_SHARD_TOTAL === SENTINEL_SHARD_INDEX;
+}
+
 function start() {
   if (timers.length > 0) return;
 
-  writeNasLog('INFO', 'COORDINATOR', `Intelligent Observability Daemon started with Tiered Polling in [${mode.toUpperCase()}] mode.`);
+  // [T2.4] Role Separation: if SENTINEL_ROLE is 'api', do not run collectors in this process
+  if (process.env.SENTINEL_ROLE === 'api') {
+    writeNasLog('INFO', 'COORDINATOR', '[ROLE=API] Background collector loops disabled on API node.');
+    return;
+  }
 
-  // Immediate initial run (collects prod/stg only)
-  collectTier('all');
+  writeNasLog('INFO', 'COORDINATOR', `Intelligent Observability Daemon started with Tiered Polling in [${mode.toUpperCase()}] mode (Shard ${SENTINEL_SHARD_INDEX}/${SENTINEL_SHARD_TOTAL}).`);
 
-  // Tier 1: High priority app endpoints (every 10s)
-  const highTimer = setInterval(() => collectTier('high'), 10000);
+  // [T2.4] Scheduling jitter prevents stampeding targets simultaneously
+  const jitter = () => Math.floor(Math.random() * 1500);
 
-  // Tier 2: Medium priority compute/network/AVI (every 30s)
-  const medTimer = setInterval(() => collectTier('medium'), 30000);
+  // Immediate initial run with slight jitter
+  setTimeout(() => collectTier('all'), jitter());
 
-  // Tier 3: Deep infrastructure storage/K8s/Docker (every 120s)
-  const lowTimer = setInterval(() => collectTier('low'), 120000);
+  // Tier 1: High priority app endpoints (every 10s + jitter)
+  const scheduleTier = (tierName, intervalMs) => {
+    const timer = setInterval(() => {
+      setTimeout(() => collectTier(tierName), jitter());
+    }, intervalMs);
+    timers.push(timer);
+  };
 
-  timers.push(highTimer, medTimer, lowTimer);
+  scheduleTier('high', 10000);
+  scheduleTier('medium', 30000);
+  scheduleTier('low', 120000);
 }
 
 function stop() {
@@ -120,5 +146,13 @@ module.exports = {
   isDemoActive: () => isDemoActive,
   getSimulations: simulations.getSimulations,
   triggerSimulation: simulations.triggerSimulation,
-  fetchDynatraceHostManagement: dynatraceCollector.fetchHostManagementMetrics
+  fetchDynatraceHostManagement: dynatraceCollector.fetchHostManagementMetrics,
+  isTargetAssignedToShard,
+  getShardStatus: () => ({
+    role: process.env.SENTINEL_ROLE || 'all',
+    shardIndex: SENTINEL_SHARD_INDEX,
+    shardTotal: SENTINEL_SHARD_TOTAL
+  }),
+  circuitBreaker
 };
+

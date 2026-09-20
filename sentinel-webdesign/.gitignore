@@ -6,6 +6,7 @@
 # Runtime databases & caches
 sentinel_db.json
 database/team_rota.json
+database/sentinel_users.json
 .runtime/
 
 # Logs & audit logs
@@ -21,3 +22,7 @@ apps/web/dist/
 dist/
 *.zip
 .tempmediaStorage/
+
+# Validation harness browser profile (98MB, never commit)
+tools/validation/chrome-profile/
+tools/validation/screenshots/

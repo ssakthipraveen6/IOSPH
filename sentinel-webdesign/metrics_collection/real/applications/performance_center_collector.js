@@ -1,27 +1,53 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/config.js.
-// Update the actual production/staging endpoints at:
-// - config/config.js: PROD_URLS.performance_center_api
-// - config/config.js: STG_URLS.performance_center_api
-// Purpose: Performance Center load testing platform REST API endpoint.
-// =========================================================================
-
 const config = require('@sentinel/config');
+const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * performance_center_collector.js (T2b.2 REMEDIATED)
+ * 
+ * Performance Center Load Testing Telemetry Collector.
+ * Metrics parsed from /api/status endpoint or null.
+ * Latency measured via fetch timer. Zero Math.random().
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    const targetConfig = config.PROD_URLS || config.STG_URLS;
+  collect: async (simulations, base = {}) => {
+    const targetConfig = config.ACTIVE_URLS || {};
     const url = targetConfig.performance_center_api;
-    console.log(`[REAL COLLECTOR] Querying Performance Center from: ${url}`);
+    const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
 
-    try {
-      // const res = await fetch(`${url}/api/status`);
-    } catch (_) {}
+    if (!url) {
+      if (isProd) throw new Error('Performance Center URL not configured for PROD');
+      return { activeTests: null, avgResponseTime: null, throughput: null };
+    }
+
+    const result = await fetchJsonWithFallback(
+      `${url}/api/status`,
+      { headers: { Accept: 'application/json' }, appId: 'performance_center' },
+      3500
+    );
+
+    if (result.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        activeTests: null,
+        avgResponseTime: null,
+        throughput: null
+      };
+    }
+
+    if (!result.success) {
+      return {
+        activeTests: null,
+        avgResponseTime: null,
+        throughput: null
+      };
+    }
 
     return {
-      activeTests: Math.max(0, base.activeTests + Math.floor((Math.random() - 0.5) * 2)),
-      avgResponseTime: base.avgResponseTime + Math.floor((Math.random() - 0.5) * 15),
-      throughput: Math.max(0, base.throughput + Math.floor((Math.random() - 0.5) * 5))
+      activeTests: typeof result.data?.activeTests === 'number' ? result.data.activeTests : null,
+      avgResponseTime: typeof result.data?.avgResponseTime === 'number' ? result.data.avgResponseTime : (result.latencyMs || null),
+      throughput: typeof result.data?.throughput === 'number' ? result.data.throughput : null
     };
   }
 };

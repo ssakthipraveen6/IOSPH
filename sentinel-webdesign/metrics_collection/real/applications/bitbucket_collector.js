@@ -1,38 +1,59 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/global_config.yaml.
-// Update the actual production/staging endpoints at:
-// - config/global_config.yaml: prod_urls.bitbucket_api
-// - config/global_config.yaml: stg_urls.bitbucket_api
-// Purpose: Bitbucket server API endpoint prefix.
-// =========================================================================
-
 const config = require('@sentinel/config');
+const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 const { runSeleniumCheck } = require('../python_checks/runner');
 
+/**
+ * bitbucket_collector.js (T2b.2 REMEDIATED)
+ * 
+ * Atlassian Bitbucket Server Telemetry Collector.
+ * Probes /status with real latency measurement and authentication detection.
+ * Zero Math.random(), zero synthetic fallback values.
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    // [FIX-8] Use ACTIVE_URLS (dynamic getter) instead of hardcoded STG_URLS
-    const url = config.ACTIVE_URLS.bitbucket_api;
+  collect: async (simulations, base = {}) => {
+    const url = config.ACTIVE_URLS?.bitbucket_api;
     const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
-
-    console.log(`[REAL COLLECTOR] Fetching Bitbucket health from: ${url}`);
 
     if (!url) {
       if (isProd) throw new Error('Bitbucket URL not configured for PROD');
-      return { responseTime: base.responseTime, successRate: base.successRate, requests: base.requests };
+      return { responseTime: null, successRate: null, requests: null };
+    }
+
+    const apiResult = await fetchJsonWithFallback(
+      `${url}/status`,
+      { headers: { Accept: 'application/json' }, appId: 'bitbucket' },
+      3500
+    );
+
+    if (apiResult.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        responseTime: null,
+        successRate: null,
+        requests: null
+      };
     }
 
     // Perform active Selenium browser load latency check
-    const browserCheck = await runSeleniumCheck(url);
+    let browserCheck = { latency_ms: null, login_success: null };
+    try {
+      browserCheck = await runSeleniumCheck(url);
+    } catch (_) {}
+
+    const measuredLatency = browserCheck.latency_ms || apiResult.latencyMs || null;
+    let successRate = null;
+    if (browserCheck.login_success !== null && browserCheck.login_success !== undefined) {
+      successRate = browserCheck.login_success ? 100.0 : 0.0;
+    } else if (apiResult.success) {
+      successRate = 100.0;
+    }
 
     return {
-      responseTime: browserCheck.latency_ms || (isProd ? null : base.responseTime),
-      successRate: browserCheck.login_success
-        ? parseFloat((base.successRate - Math.random() * 0.05).toFixed(2))
-        : (isProd ? null : 0.0),
-      requests: isProd
-        ? (browserCheck.latency_ms ? base.requests + Math.floor((Math.random() - 0.5) * 4) : null)
-        : base.requests + Math.floor((Math.random() - 0.5) * 4)
+      responseTime: measuredLatency,
+      successRate,
+      requests: null // Not exposed by Bitbucket status endpoint
     };
   }
 };

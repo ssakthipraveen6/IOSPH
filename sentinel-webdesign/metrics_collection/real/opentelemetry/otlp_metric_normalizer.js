@@ -51,14 +51,32 @@ function normalizeOtlpPayload(otlpPayload) {
   resourceMetrics.forEach(rm => {
     const attributes = rm.resource?.attributes || [];
     
-    // Resolve host and application IDs from resource attributes
-    const hostAttr = attributes.find(a => a.key === 'host.name')?.value?.stringValue || 
-                     attributes.find(a => a.key === 'service.name')?.value?.stringValue || 
-                     'unknown_host';
+    const rawHost = attributes.find(a => a.key === 'host.name')?.value?.stringValue || null;
+    const rawService = attributes.find(a => a.key === 'service.name')?.value?.stringValue || null;
+    const hostAttr = rawHost || rawService || 'unknown_host';
                      
     const appIdAttr = attributes.find(a => a.key === 'application.id')?.value?.stringValue || 
                       attributes.find(a => a.key === 'app.kubernetes.io/name')?.value?.stringValue || 
+                      rawService || 
                       hostAttr;
+
+    const rawEnv = attributes.find(a => 
+      a.key === 'deployment.environment' || 
+      a.key === 'environment' || 
+      a.key === 'env' || 
+      a.key === 'service.environment'
+    )?.value?.stringValue || null;
+
+    // Resolve deterministic entity_id (T1.7)
+    let entityId = null;
+    try {
+      const resolver = require('../../../inventory/entity_resolver');
+      if (rawHost) {
+        entityId = resolver.host(rawHost);
+      } else if (appIdAttr) {
+        entityId = resolver.app(appIdAttr);
+      }
+    } catch (_) {}
 
     (rm.scopeMetrics || []).forEach(sm => {
       (sm.metrics || []).forEach(m => {
@@ -89,8 +107,10 @@ function normalizeOtlpPayload(otlpPayload) {
           resultBatch.push({
             timestamp,
             component: appIdAttr.toLowerCase(),
+            entity_id: entityId,
             metricName: normalizedName,
-            value: typeof rawVal === 'number' ? parseFloat(rawVal.toFixed(2)) : rawVal
+            value: typeof rawVal === 'number' ? parseFloat(rawVal.toFixed(2)) : rawVal,
+            env: rawEnv ? rawEnv.toLowerCase() : undefined
           });
         });
       });

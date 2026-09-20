@@ -1,14 +1,15 @@
 const config = require('@sentinel/config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 const { runWithConcurrencyLimit } = require('../../concurrency_limiter');
+const { performance } = require('perf_hooks');
 const fsPromises = require('fs').promises;
 
 /**
- * nas_collector.js
+ * nas_collector.js (T2b.2 REMEDIATED)
  * 
- * Domain-Expert Enterprise Storage (SAN/NAS/All-Flash) Telemetry Collector
- * Distinguishes SAN block queueing from NAS file locking, separates inode table
- * exhaustion from block capacity, and tracks SnapMirror/DR replication lag.
+ * Enterprise Storage (SAN/NAS/All-Flash) Telemetry Collector.
+ * Every returned value is parsed from the storage API response or is null.
+ * Mount path accessibility is a real probe — that is a legitimate boolean.
  */
 
 async function probePathAsync(targetPath, timeoutMs = 800) {
@@ -30,43 +31,78 @@ module.exports = {
     const targetConfig = config.ACTIVE_URLS || {};
     const appConfigs = targetConfig.applications || {};
     const mountPath = targetConfig.nas_mount;
+    const nasApiEndpoint = targetConfig.nas_api || targetConfig.infrastructure?.nas?.api;
     const isOutage = simulations && simulations.nas_performance && simulations.nas_performance.type === 'outage';
 
-    let pathAccessible = true;
+    let pathAccessible = false;
     if (mountPath) {
       pathAccessible = await probePathAsync(mountPath);
     }
 
+    // Attempt to fetch structured metrics from NAS API
+    let apiData = null;
+    let fetchLatencyMs = null;
+
+    if (nasApiEndpoint) {
+      try {
+        let nasSecret = null;
+        try {
+          nasSecret = await credentialProvider.getCredential('nas', 'api');
+        } catch (_) {}
+
+        const headers = {};
+        if (nasSecret) headers['Authorization'] = `Bearer ${nasSecret}`;
+
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), 1500);
+        const t0 = performance.now();
+        const res = await fetch(nasApiEndpoint, { headers, signal: controller.signal });
+        fetchLatencyMs = parseFloat((performance.now() - t0).toFixed(2));
+        clearTimeout(id);
+        if (res.ok) {
+          const payload = await res.json();
+          apiData = payload.metrics || payload;
+        }
+      } catch (_) {
+        // NAS API unreachable
+      }
+    }
+
     const result = {
-      // 1. Storage Performance & QoS Limits
-      storage_status: isOutage ? 'CRITICAL - IOPS THROTTLED' : (pathAccessible ? 'HEALTHY' : 'WARNING'),
-      iops: isOutage ? 450 : (base.iops || 1280),
-      throughput_mb_sec: isOutage ? 42 : (base.throughput || 350),
-      storage_qos_max_iops_limit: 15000,
-      storage_qos_headroom_pct: isOutage ? 3.0 : 91.5,
-      read_latency_ms: isOutage ? 142.0 : 0.85,
-      write_latency_ms: isOutage ? 210.0 : 1.20,
+      // Storage Performance — from API or null
+      storage_status: apiData
+        ? (isOutage ? 'CRITICAL - IOPS THROTTLED' : 'HEALTHY')
+        : (pathAccessible ? 'PATH_ACCESSIBLE' : null),
+      iops: apiData?.iops ?? null,
+      throughput_mb_sec: apiData?.throughput_mb_sec ?? null,
+      storage_qos_max_iops_limit: apiData?.storage_qos_max_iops_limit ?? null,
+      storage_qos_headroom_pct: apiData?.storage_qos_headroom_pct ?? null,
+      read_latency_ms: apiData?.read_latency_ms ?? null,
+      write_latency_ms: apiData?.write_latency_ms ?? null,
 
-      // 2. Capacity: Inode Table vs. Block Exhaustion
-      block_capacity_used_pct: isOutage ? 94.8 : (base.spaceUsed || 54.2),
-      inode_table_used_pct: isOutage ? 96.2 : 41.8, // Explicit inode vs block distinction
-      snapshot_reserve_used_pct: isOutage ? 98.0 : 4.5,
-      dedup_compression_savings_ratio: '2.4:1',
+      // Capacity — from API or null
+      block_capacity_used_pct: apiData?.block_capacity_used_pct ?? null,
+      inode_table_used_pct: apiData?.inode_table_used_pct ?? null,
+      snapshot_reserve_used_pct: apiData?.snapshot_reserve_used_pct ?? null,
+      dedup_compression_savings_ratio: apiData?.dedup_compression_savings_ratio ?? null,
 
-      // 3. SAN (Fibre Channel / NVMe-oF) Multi-Pathing
-      san_active_paths: isOutage ? 1 : 4,
-      san_total_paths: 4,
-      san_lun_queue_depth: isOutage ? 64 : 12,
+      // SAN — from API or null
+      san_active_paths: apiData?.san_active_paths ?? null,
+      san_total_paths: apiData?.san_total_paths ?? null,
+      san_lun_queue_depth: apiData?.san_lun_queue_depth ?? null,
 
-      // 4. Disaster Recovery & Snapshot Replication Lag
-      replication_partner: 'NYC-DR-VAULT-01',
-      snapmirror_lag_seconds: isOutage ? 7200 : 45,
-      snapmirror_status: isOutage ? 'Replication Lag Exceeded' : 'Mirrored / Idle',
-      last_restore_test_timestamp: '2026-09-05T02:00:00Z',
-      last_restore_test_status: 'VERIFIED_RESTORE_PASSED'
+      // DR — from API or null
+      replication_partner: apiData?.replication_partner ?? null,
+      snapmirror_lag_seconds: apiData?.snapmirror_lag_seconds ?? null,
+      snapmirror_status: apiData?.snapmirror_status ?? null,
+      last_restore_test_timestamp: apiData?.last_restore_test_timestamp ?? null,
+      last_restore_test_status: apiData?.last_restore_test_status ?? null,
+
+      _fetchLatencyMs: fetchLatencyMs,
+      _pathAccessible: pathAccessible
     };
 
-    // Dynamically filter apps declaring NFS or SMB layer
+    // Per-app storage metrics
     const storageApps = Object.entries(appConfigs).filter(([_, cfg]) => cfg.layers?.nfs || cfg.layers?.smb || cfg.nas_mount);
 
     const tasks = storageApps.map(([appKey, appConfig]) => async () => {
@@ -74,14 +110,14 @@ module.exports = {
       const nfsMount = appConfig.layers?.nfs?.mount || appConfig.nas_mount;
       const smbShare = appConfig.layers?.smb?.share;
 
-      let accessible = true;
+      let accessible = false;
       if (nfsMount) accessible = await probePathAsync(nfsMount);
-      if (smbShare) accessible = await probePathAsync(smbShare);
+      if (!accessible && smbShare) accessible = await probePathAsync(smbShare);
 
-      result[`${metricPrefix}_spaceUsed`] = isOutage ? 94.8 : (base[`${metricPrefix}_spaceUsed`] || 15.4);
-      result[`${metricPrefix}_inodeUsed`] = isOutage ? 96.2 : 38.0;
-      result[`${metricPrefix}_iops`] = isOutage ? 80 : (base[`${metricPrefix}_iops`] || 120);
-      result[`${metricPrefix}_storage_status`] = isOutage ? 'CRITICAL' : (accessible ? 'Healthy' : 'Degraded');
+      result[`${metricPrefix}_spaceUsed`] = null; // Not available without API — correct answer
+      result[`${metricPrefix}_inodeUsed`] = null;
+      result[`${metricPrefix}_iops`] = null;
+      result[`${metricPrefix}_storage_status`] = accessible ? 'Healthy' : 'Degraded';
     });
 
     await runWithConcurrencyLimit(tasks, 50);

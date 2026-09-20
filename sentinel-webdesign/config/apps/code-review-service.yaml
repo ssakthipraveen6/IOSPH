@@ -1,0 +1,55 @@
+# =========================================================================
+# UNIFIED COLLECTION DEFINITION: AI Code Review Service (k8s)
+# =========================================================================
+id: "code_review_service"
+kind: "application"
+display_name: "AI Code Review Assistant"
+category: "ai_tooling"
+tier: "Tier-2 Operational"
+log_tag: "[AI-REVIEW]"
+regions: ["emea"]
+
+endpoints:
+  prod:
+    api: "https://code-review-prod.internal.corp/api/v1"
+  stg:
+    api: "https://code-review-stg.internal.corp/api/v1"
+
+auth:
+  scheme: "bearer_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
+topology:
+  build_clusters:
+    - { id: "k8s-ai-helpers", purpose: "ai_tooling", region: "emea" }
+
+lifecycle:
+  refweb_url: { url: "https://code-review.internal.corp", expiry: "2027-12-31" }
+  license: { type: "Internal Proprietary", expiry: "2029-01-01" }
+
+layers:
+  k8s:
+    api: "https://k8s-apiserver-prod.internal.corp:6443"
+    namespace: "ai-services"
+    credential_purpose: null
+
+metrics:
+  provider: "opentelemetry"
+  scrape_interval: "30s"
+
+metrics_baseline:
+  responseTime: 180
+  successRate: 99.1
+  requests: 40
+
+logs:
+  log_tag: "[AI-REVIEW]"
+  log_path: "d:\\production_shares\\nas_logs\\code_review.log"
+
+credentials:
+  safe: "SF-AI-HELPERS-PROD"
+  objects:
+    api_token: "AI-REVIEW-TOKEN"

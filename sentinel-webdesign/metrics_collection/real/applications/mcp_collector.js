@@ -1,27 +1,53 @@
 const config = require('@sentinel/config');
+const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * mcp_collector.js (T2b.2 REMEDIATED)
+ * 
+ * MCP Gateway / Microservices Platform Telemetry Collector.
+ * Metrics parsed from /status endpoint or null.
+ * Latency measured via fetch timer. Zero Math.random().
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    const url = config.STG_URLS.mcp_api;
-    console.log(`[REAL COLLECTOR] Fetching MCP replicas load from: ${url}`);
-    
-    try {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 1500);
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(id);
-      
-      if (res.ok) {
-        // Connected successfully
-      }
-    } catch (e) {
-      console.warn(`[REAL COLLECTOR] MCP Gateway check refused: ${e.message}. Using baseline.`);
+  collect: async (simulations, base = {}) => {
+    const targetConfig = config.ACTIVE_URLS || {};
+    const url = targetConfig.mcp_api;
+    const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
+
+    if (!url) {
+      if (isProd) throw new Error('MCP Gateway URL not configured for PROD');
+      return { cpu: null, latency: null, replicas: null };
+    }
+
+    const result = await fetchJsonWithFallback(
+      `${url}/status`,
+      { headers: { Accept: 'application/json' }, appId: 'mcp' },
+      3500
+    );
+
+    if (result.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        cpu: null,
+        latency: null,
+        replicas: null
+      };
+    }
+
+    if (!result.success) {
+      return {
+        cpu: null,
+        latency: null,
+        replicas: null
+      };
     }
 
     return {
-      cpu: parseFloat((base.cpu + (Math.random() - 0.5) * 3).toFixed(2)),
-      latency: base.latency + Math.floor((Math.random() - 0.5) * 4),
-      replicas: base.replicas
+      cpu: typeof result.data?.cpu === 'number' ? result.data.cpu : null,
+      latency: result.latencyMs || null,
+      replicas: typeof result.data?.replicas === 'number' ? result.data.replicas : null
     };
   }
 };

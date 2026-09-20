@@ -67,9 +67,21 @@ function calculateComponentStatuses({
     } else {
       if (currentEnv === 'prod' || currentEnv === 'staging') {
         if (db && typeof db.getMetrics === 'function') {
-          const recentCompMetrics = db.getMetrics(comp, 5, currentEnv);
-          const hasLiveFeed = recentCompMetrics.length > 0 && !recentCompMetrics.some(m => m.value === 'Data Not Available' || m.metricName === 'error' || m.value === null);
-          componentStatuses[comp] = hasLiveFeed ? SEVERITY.HEALTHY : SEVERITY.DATA_UNAVAILABLE;
+          const recentCompMetrics = db.getMetrics(comp, 10, currentEnv);
+          const isAuthFailed = recentCompMetrics.some(m => 
+            (m.metricName === 'status' && m.value === 'AUTH_FAILED') ||
+            (m.metricName === 'error' && m.value === 'AUTH_FAILED') ||
+            m.value === 'AUTH_FAILED'
+          );
+
+          if (isAuthFailed) {
+            componentStatuses[comp] = SEVERITY.AUTH_FAILED;
+          } else {
+            const hasLiveFeed = recentCompMetrics.length > 0 && 
+              recentCompMetrics.some(m => (typeof m.value === 'number' && !isNaN(m.value)) || (typeof m.value === 'string' && m.value !== 'Data Not Available' && m.value !== 'AUTH_FAILED')) &&
+              !recentCompMetrics.some(m => m.value === 'Data Not Available' || m.metricName === 'error');
+            componentStatuses[comp] = hasLiveFeed ? SEVERITY.HEALTHY : SEVERITY.DATA_UNAVAILABLE;
+          }
         } else {
           componentStatuses[comp] = SEVERITY.HEALTHY;
         }

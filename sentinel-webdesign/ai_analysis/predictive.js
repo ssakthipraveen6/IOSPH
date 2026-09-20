@@ -28,10 +28,11 @@ function calculateLinearRegression(points) {
   return { slope, intercept };
 }
 
-function checkPredictiveAlerts(component, metricName, threshold, alertMessageTemplate) {
-  // Get last 15 metric points for this component and metric (approx 2.5 minutes)
-  const allMetrics = db.getMetrics(component, 100);
-  const filtered = allMetrics.filter(m => m.metricName === metricName);
+function checkPredictiveAlerts(component, metricName, threshold, alertMessageTemplate, env = null) {
+  const targetEnv = env || global.runtimeEnvironment || 'staging';
+  // Get historical metric points for this component and metric with widened window
+  const allMetrics = db.getMetrics(component, 500, targetEnv);
+  const filtered = allMetrics.filter(m => (m.metricName === metricName || m.name === metricName));
   
   if (filtered.length < 8) return; // Wait for historical buffer
   
@@ -54,7 +55,7 @@ function checkPredictiveAlerts(component, metricName, threshold, alertMessageTem
     
     // If it will breach within 15 minutes (900 seconds)
     if (minutesToBreach > 0 && minutesToBreach <= 15) {
-      const activeAlerts = db.getAlerts().filter(
+      const activeAlerts = (db.getAlerts(targetEnv) || []).filter(
         a => a.component === component && a.status === 'Active' && a.severity === SEVERITY.PREDICTIVE_WARNING
       );
       
@@ -65,29 +66,31 @@ function checkPredictiveAlerts(component, metricName, threshold, alertMessageTem
           .replace('{time}', breachTimeStr)
           .replace('{thresh}', threshold);
         
-        db.addAlert(component, SEVERITY.PREDICTIVE_WARNING, msg);
-        writeNasLog('WARNING', 'PREDICTIVE', `[ANOMALY DETECTED] ${component} - ${msg}`);
+        db.addAlert(component, SEVERITY.PREDICTIVE_WARNING, msg, 'Active', targetEnv);
+        writeNasLog('WARNING', 'PREDICTIVE', `[ANOMALY DETECTED] [${targetEnv}] ${component} - ${msg}`);
       }
     }
   } else {
     // If slope is negative or flat, and we have an active predictive warning, resolve it
-    const activeAlerts = db.getAlerts().filter(
+    const activeAlerts = (db.getAlerts(targetEnv) || []).filter(
       a => a.component === component && a.status === 'Active' && a.severity === SEVERITY.PREDICTIVE_WARNING
     );
     if (activeAlerts.length > 0) {
-      db.resolveAlertsForComponent(component);
-      writeNasLog('INFO', 'PREDICTIVE', `[ANOMALY RESOLVED] ${component} metric ${metricName} stabilized. Predictive alerts cleared.`);
+      db.resolveAlertsForComponent(component, targetEnv);
+      writeNasLog('INFO', 'PREDICTIVE', `[ANOMALY RESOLVED] [${targetEnv}] ${component} metric ${metricName} stabilized. Predictive alerts cleared.`);
     }
   }
 }
 
-function runPredictiveAnalysis(currentMetrics) {
+function runPredictiveAnalysis(currentMetrics, env = null) {
+  const targetEnv = env || global.runtimeEnvironment || 'staging';
   // 1. Check Artifactory Heap Usage Trend (Simulated Heap Leak)
   checkPredictiveAlerts(
     'artifactory', 
     'heap', 
     90, 
-    'Predictive Alert: Heap memory is at {val}% and rising. Projected to breach JVM Heap Limit ({thresh}%) in {time} minutes.'
+    'Predictive Alert: Heap memory is at {val}% and rising. Projected to breach JVM Heap Limit ({thresh}%) in {time} minutes.',
+    targetEnv
   );
 
   // 2. Check Database CPU Trend
@@ -95,7 +98,8 @@ function runPredictiveAnalysis(currentMetrics) {
     'database', 
     'cpu', 
     90, 
-    'Predictive Alert: DB CPU utilization is at {val}% and rising. Projected to breach thread pool capacity ({thresh}%) in {time} minutes.'
+    'Predictive Alert: DB CPU utilization is at {val}% and rising. Projected to breach thread pool capacity ({thresh}%) in {time} minutes.',
+    targetEnv
   );
 
   // 3. Check NAS Storage Space Used Trend (Simulated Log Spill)
@@ -103,7 +107,8 @@ function runPredictiveAnalysis(currentMetrics) {
     'nas_performance', 
     'spaceUsed', 
     95, 
-    'Predictive Alert: NAS capacity is at {val}% and filling rapidly. Projected to exhaust storage capacity ({thresh}%) in {time} minutes.'
+    'Predictive Alert: NAS capacity is at {val}% and filling rapidly. Projected to exhaust storage capacity ({thresh}%) in {time} minutes.',
+    targetEnv
   );
 }
 

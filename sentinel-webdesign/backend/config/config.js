@@ -93,11 +93,26 @@ module.exports = {
   // via POST /api/environment take effect immediately for ALL collectors.
   // Previously ACTIVE_URLS was a static constant frozen at startup.
   get ACTIVE_URLS() {
-    const currentEnv = global.runtimeEnvironment || environment;
-    if (currentEnv === 'prod' || currentEnv === 'production') {
-      return prodUrls;
-    }
-    return stgUrls;
+    const currentEnv = global.collectorEnvironment || global.runtimeEnvironment || environment;
+    const isP = (currentEnv === 'prod' || currentEnv === 'production');
+    const base = isP ? prodUrls : stgUrls;
+    const prefix = isP ? 'PROD' : 'STG';
+    const dynamicUrls = { ...base };
+    Object.keys(base).forEach(k => {
+      if (typeof base[k] === 'string') {
+        const prefKey = `${prefix}_${k}`.toUpperCase();
+        const directKey = k.toUpperCase();
+        if (process.env[prefKey]) dynamicUrls[k] = process.env[prefKey];
+        else if (process.env[directKey]) dynamicUrls[k] = process.env[directKey];
+      }
+    });
+    Object.keys(process.env).forEach(envKey => {
+      if (envKey.startsWith(`${prefix}_`)) {
+        const key = envKey.substring(prefix.length + 1).toLowerCase();
+        dynamicUrls[key] = process.env[envKey];
+      }
+    });
+    return dynamicUrls;
   },
 
   PROD_URLS: prodUrls,

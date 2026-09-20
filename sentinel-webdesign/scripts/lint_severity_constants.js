@@ -76,6 +76,7 @@ TARGET_DIRS.forEach(scanDir);
 if (violationCount > 0) {
   console.log(`Found ${violationCount} potential inline severity literal pattern(s).`);
   console.log('Recommendation: Refactor to import { SEVERITY, SEVERITY_COLORS, normalizeSeverity } from "@sentinel/shared-constants".');
+  process.exitCode = 1;
 } else {
   console.log('100% Clean: Zero unshared severity literals detected in target paths.');
 }

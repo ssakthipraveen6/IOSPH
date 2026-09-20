@@ -1,0 +1,12 @@
+correlation:
+  weights:
+    fanout: 0.40
+    temporal_precedence: 0.25
+    graph_proximity: 0.20
+    change_proximity: 0.15
+  window_minutes:
+    before: 30
+    after: 5
+  thresholds:
+    min_hypothesis_confidence: 0.50
+    high_confidence: 0.75

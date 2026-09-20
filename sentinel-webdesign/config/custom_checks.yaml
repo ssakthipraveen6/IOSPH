@@ -1,0 +1,22 @@
+# Custom checks registry externalized from code (T0.20)
+checks:
+  - id: "check_jenkins_billing"
+    name: "Jenkins Pipeline: billing-service"
+    type: "jenkins_job"
+    endpoint: "https://jenkins-stg.internal.corp/job/billing-service"
+    expectedState: "SUCCESS"
+    description: "Monitors build status of billing-service pipeline in STG"
+
+  - id: "check_payment_gateway"
+    name: "Application API: payment-gateway"
+    type: "app_api"
+    endpoint: "https://stg-api.internal.corp/payment/health"
+    expectedState: "UP"
+    description: "Validates JSON response {status: UP} from payment-gateway microservice"
+
+  - id: "check_private_harbor"
+    name: "Registry: private-docker-harbor"
+    type: "container_registry"
+    endpoint: "https://harbor-stg.internal.corp/api/v2/health"
+    expectedState: "ONLINE"
+    description: "Pings Private Docker registry storage availability"

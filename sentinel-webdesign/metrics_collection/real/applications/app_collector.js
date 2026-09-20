@@ -21,6 +21,11 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
     const key = appKeys[i];
     const appDef = appsConfig[key];
 
+    // Skip alias entries; collection runs under canonical key and records to all aliases
+    if (appDef && appDef.id && key !== appDef.id) {
+      continue;
+    }
+
     // Check if application probe is disabled via applications_enabled in global_config.yaml
     if (typeof config.isApplicationEnabled === 'function' && !config.isApplicationEnabled(key)) {
       currentMetrics[key] = {
@@ -42,12 +47,21 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
       state = 'Critical';
     }
 
-    // Dynamic module resolution: look for <key>_collector.js or <key>.js
+    // Dynamic module resolution: look for <key>_collector.js, alias_collector.js, or <key>.js
+    const candidateKeys = [key];
+    if (Array.isArray(appDef.aliases)) candidateKeys.push(...appDef.aliases);
+    if (key.includes('_')) {
+      const parts = key.split('_');
+      candidateKeys.push(parts[parts.length - 1]);
+      candidateKeys.push(parts[0]);
+    }
+
     let collectorModule = null;
-    const posibles = [
-      path.join(collectorsDir, `${key}_collector.js`),
-      path.join(collectorsDir, `${key}.js`)
-    ];
+    const posibles = [];
+    for (const cand of candidateKeys) {
+      posibles.push(path.join(collectorsDir, `${cand}_collector.js`));
+      posibles.push(path.join(collectorsDir, `${cand}.js`));
+    }
 
     for (const p of posibles) {
       if (fs.existsSync(p)) {
@@ -65,8 +79,10 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
     if (collectorModule && typeof collectorModule.collect === 'function') {
       try {
         data = await collectorModule.collect(currentEnv === 'staging' ? simulations : {}, base);
-        // If in prod or staging and live feed fails or returns unavailable, mark unavailable
-        if (!data || data.error === 'Data Not Available' || Object.values(data).every(v => v === null)) {
+        if (data && (data.status === 'AUTH_FAILED' || data.error === 'AUTH_FAILED' || data.authFailed)) {
+          state = 'AUTH_FAILED';
+          data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'AUTH_FAILED' };
+        } else if (!data || data.error === 'Data Not Available' || Object.values(data).every(v => v === null)) {
           if (currentEnv === 'demo') {
             data = generateBaselineMetrics(base);
           } else {
@@ -92,12 +108,16 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
       }
     }
 
-    // Record metrics into DB tagged by current environment
-    Object.keys(data).forEach(mName => {
-      db.addMetric(key, mName, data[mName], currentEnv);
-    });
+    // Record metrics into DB tagged by current environment across canonical id and all aliases
+    const recordKeys = Array.from(new Set([key, appDef.id, ...(appDef.aliases || [])].filter(Boolean)));
 
-    currentMetrics[key] = { status: state, metrics: data };
+    recordKeys.forEach(k => {
+      Object.keys(data).forEach(mName => {
+        db.addMetric(k, mName, data[mName], currentEnv);
+      });
+      db.addMetric(k, 'status', state, currentEnv);
+      currentMetrics[k] = { status: state, metrics: data };
+    });
     if (state !== 'Healthy' && typeof writeNasLog === 'function') {
       const metricsStr = Object.keys(data).map(k => `${k}: ${data[k]}`).join(', ');
       writeNasLog('WARN', 'APP_REAL', `${key} [${currentEnv.toUpperCase()}] | Status: ${state} | Metrics: ${metricsStr}`);
@@ -110,13 +130,7 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
 function generateBaselineMetrics(base) {
   const result = {};
   Object.keys(base).forEach(k => {
-    const val = base[k];
-    if (typeof val === 'number') {
-      const variation = (Math.random() - 0.5) * (val * 0.1);
-      result[k] = parseFloat(Math.max(0, val + variation).toFixed(2));
-    } else {
-      result[k] = val;
-    }
+    result[k] = base[k];
   });
   return result;
 }

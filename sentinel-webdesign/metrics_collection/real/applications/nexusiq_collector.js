@@ -1,40 +1,52 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/global_config.yaml.
-// Update the actual production/staging endpoints at:
-// - config/global_config.yaml: prod_urls.nexusiq_api
-// - config/global_config.yaml: stg_urls.nexusiq_api
-// Purpose: Nexus IQ policy violation query endpoint prefix.
-// =========================================================================
-
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * nexusiq_collector.js (T2b.2 REMEDIATED)
+ * 
+ * Sonatype Nexus IQ Server Telemetry Collector.
+ * Probes /healthcheck with real latency measurement.
+ * Zero Math.random(), zero baseline fallbacks.
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    // [FIX-8] Use ACTIVE_URLS (dynamic getter) — was incorrectly preferring STG_URLS first
-    const url = config.ACTIVE_URLS.nexusiq_api;
+  collect: async (simulations, base = {}) => {
+    const url = config.ACTIVE_URLS?.nexusiq_api;
     const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
 
     if (!url) {
-      console.warn('[REAL COLLECTOR] No NexusIQ endpoint URL configured. Using baseline.');
       if (isProd) throw new Error('NexusIQ URL not configured for PROD');
-      return { scanQueue: base.scanQueue, violations: base.violations, responseTime: base.responseTime };
+      return { scanQueue: null, violations: null, responseTime: null };
     }
-
-    console.log(`[REAL COLLECTOR] Fetching NexusIQ vulnerabilities from: ${url}`);
 
     const healthResult = await fetchJsonWithFallback(
       `${url}/healthcheck`,
-      { headers: { Accept: 'application/json' } },
+      { headers: { Accept: 'application/json' }, appId: 'nexusiq' },
       3500
     );
 
-    const connected = healthResult.success;
+    if (healthResult.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        scanQueue: null,
+        violations: null,
+        responseTime: null
+      };
+    }
+
+    if (!healthResult.success) {
+      return {
+        scanQueue: null,
+        violations: null,
+        responseTime: null
+      };
+    }
 
     return {
-      scanQueue: connected ? Math.max(0, base.scanQueue + Math.floor((Math.random() - 0.5) * 2)) : (isProd ? null : Math.max(0, base.scanQueue + Math.floor((Math.random() - 0.5) * 2))),
-      violations: connected ? base.violations : (isProd ? null : base.violations),
-      responseTime: connected ? base.responseTime + Math.floor((Math.random() - 0.5) * 10) : (isProd ? null : base.responseTime + Math.floor((Math.random() - 0.5) * 10))
+      scanQueue: null, // /healthcheck exposes component booleans, not scan queue
+      violations: null,
+      responseTime: healthResult.latencyMs || null
     };
   }
 };

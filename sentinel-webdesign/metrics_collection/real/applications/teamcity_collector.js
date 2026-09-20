@@ -1,41 +1,74 @@
-// === PRODUCTION INTEGRATION REFERENCE HEADER ===
-// Configuration parameters for this file are defined in config/global_config.yaml.
-// Update the actual production/staging endpoints at:
-// - config/global_config.yaml: prod_urls.teamcity_api
-// - config/global_config.yaml: stg_urls.teamcity_api
-// Purpose: TeamCity build agent workload api endpoint prefix.
-// =========================================================================
-
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 
+/**
+ * teamcity_collector.js (T2b.2 REMEDIATED)
+ * 
+ * JetBrains TeamCity Build Server Telemetry Collector.
+ * Metrics parsed from live TeamCity REST API (/buildQueue, /agents) or null.
+ * Zero Math.random(), zero baseline fallbacks.
+ */
 module.exports = {
-  collect: async (simulations, base) => {
-    // [FIX-8] Use ACTIVE_URLS (dynamic getter) — was incorrectly preferring STG_URLS first
-    const url = config.ACTIVE_URLS.teamcity_api;
+  collect: async (simulations, base = {}) => {
+    const url = config.ACTIVE_URLS?.teamcity_api;
     const isProd = (global.runtimeEnvironment || config.ENVIRONMENT) === 'prod';
 
     if (!url) {
-      console.warn('[REAL COLLECTOR] No TeamCity endpoint URL configured. Using baseline.');
       if (isProd) throw new Error('TeamCity URL not configured for PROD');
-      return { activeBuilds: base.activeBuilds, agents: base.agents, load: base.load };
+      return { activeBuilds: null, agents: null, load: null, responseTime: null };
     }
 
-    console.log(`[REAL COLLECTOR] Fetching TeamCity build agents status from: ${url}`);
-
-    const result = await fetchJsonWithFallback(
+    const queueResult = await fetchJsonWithFallback(
       `${url}/buildQueue`,
-      { headers: { Accept: 'application/json', 'Content-Type': 'application/json' } },
+      { headers: { Accept: 'application/json' }, appId: 'jetbrains_teamcity' },
       3500
     );
 
-    const connected = result.success;
-    const buildCount = connected ? (result.data?.count || 0) : null;
+    if (queueResult.authFailed) {
+      return {
+        status: 'AUTH_FAILED',
+        error: 'AUTH_FAILED',
+        authFailed: true,
+        activeBuilds: null,
+        agents: null,
+        load: null,
+        responseTime: null
+      };
+    }
+
+    if (!queueResult.success) {
+      return {
+        activeBuilds: null,
+        agents: null,
+        load: null,
+        responseTime: null
+      };
+    }
+
+    const activeBuilds = typeof queueResult.data?.count === 'number'
+      ? queueResult.data.count
+      : (Array.isArray(queueResult.data?.build) ? queueResult.data.build.length : null);
+
+    // Attempt agent count lookup
+    let agents = null;
+    try {
+      const agentsResult = await fetchJsonWithFallback(
+        `${url}/agents`,
+        { headers: { Accept: 'application/json' }, appId: 'jetbrains_teamcity' },
+        2000
+      );
+      if (agentsResult.success && typeof agentsResult.data?.count === 'number') {
+        agents = agentsResult.data.count;
+      }
+    } catch (_) {}
+
+    const load = (activeBuilds !== null && agents) ? parseFloat((activeBuilds / agents).toFixed(2)) : 0;
 
     return {
-      activeBuilds: connected ? Math.max(0, buildCount) : (isProd ? null : Math.max(0, base.activeBuilds + Math.floor((Math.random() - 0.5) * 2))),
-      agents: connected ? base.agents : (isProd ? null : base.agents),
-      load: connected ? parseFloat((base.load + (Math.random() - 0.5) * 3).toFixed(2)) : (isProd ? null : parseFloat((base.load + (Math.random() - 0.5) * 3).toFixed(2)))
+      activeBuilds,
+      agents,
+      load,
+      responseTime: queueResult.latencyMs || 0
     };
   }
 };

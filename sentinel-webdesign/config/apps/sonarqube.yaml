@@ -14,6 +14,13 @@ endpoints:
   stg:
     api: "https://sonarqube-stg.internal.corp/api"
 
+auth:
+  scheme: "basic_token"
+  credential_purpose: "api_token"
+  cert_purpose: null
+  username_purpose: null
+  session: null
+
 layers:
   api_token:
     credential_purpose: "api_token"
