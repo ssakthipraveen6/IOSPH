@@ -172,11 +172,19 @@ module.exports = {
     return true;
   },
 
+  // Precedence, most specific first:
+  //   1. applications_enabled.<id> in global.yaml  -- operator override, flips
+  //      everything at once without touching 17 manifests
+  //   2. `enabled:` in the app's own manifest      -- the app declares itself,
+  //      so adding an application means adding ONE file
+  //   3. true                                      -- default for older manifests
   isApplicationEnabled: (appKey) => {
-    const apps = globalConfig.applications_enabled || {};
-    if (apps[appKey] !== undefined) {
-      return Boolean(apps[appKey]);
-    }
+    const override = (globalConfig.applications_enabled || {})[appKey];
+    if (override !== undefined) return Boolean(override);
+
+    const manifest = appsConfig[appKey];
+    if (manifest && manifest.enabled !== undefined) return Boolean(manifest.enabled);
+
     return true;
   },
 

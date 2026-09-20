@@ -1,0 +1,110 @@
+# =============================================================================
+# APPLICATION MANIFEST TEMPLATE
+#
+# To add a monitored application:
+#   1. Copy this file:  config/apps/<your-tool>.yaml
+#   2. Fill in the REQUIRED fields below.
+#   3. Run:  npm run config:check
+#   4. Restart the app.
+#
+# That is all. You do not need to edit any other file.
+# Files beginning with "_" are ignored by the loader, so this template is
+# never treated as a real application.
+#
+# To DELETE an application: delete its file, or set `enabled: false`.
+# To UPDATE one: edit its file and restart.
+# =============================================================================
+
+# ---- REQUIRED -------------------------------------------------------------
+
+# Unique identifier. Lowercase, underscores only -- no hyphens, no spaces.
+# This is how the app is referenced everywhere: metrics, alerts, runbooks.
+# It does NOT have to match the filename.
+id: "my_tool"
+
+# Always "application" for files in this folder.
+kind: "application"
+
+# Shown in the UI.
+display_name: "My Tool"
+
+# Turns collection on or off for this application.
+# An operator can override every app at once via `applications_enabled` in
+# config/global.yaml -- that override wins when present.
+enabled: true
+
+# Where to reach it, per environment. Leave a value empty ("") and nothing
+# will be contacted for that environment.
+endpoints:
+  prod:
+    api: "https://my-tool-prod.internal.corp/api"
+  stg:
+    api: "https://my-tool-stg.internal.corp/api"
+
+# ---- RECOMMENDED ----------------------------------------------------------
+
+category: "ci_cd"                      # scm | ci_cd | artifact_repository | security_scanner | observability
+tier: "Tier-2"                         # free text, shown in the UI
+log_tag: "[MYTOOL]"                    # prefix used to attribute log lines
+regions: ["emea"]                      # emea | apac | amer
+
+# How the collector authenticates. Most enterprise tools offer a token that
+# bypasses SAML for API calls -- prefer that over cookie_session.
+auth:
+  scheme: "bearer_token"               # bearer_token | basic_token | mtls | cookie_session | none
+  credential_purpose: "api_token"      # must match an object in config/cyberark.yaml
+  cert_purpose: null                   # mtls only
+
+# Secrets are never written here. This maps a purpose to a CyberArk object.
+credentials:
+  safe: "SF-MYTOOL-PROD"
+  objects:
+    api_token: "MYTOOL-API-TOKEN"
+
+# ---- OPTIONAL -------------------------------------------------------------
+
+# Older ids this app used to be known by. Metrics and runbooks referencing
+# them keep working.
+# aliases:
+#   - "my_tool_legacy"
+
+# Shared infrastructure this app depends on. Drives the correlation graph --
+# this is what lets Sentinel say "14 apps are down and they all share vol-03".
+# layers:
+#   db:
+#     jdbc: "jdbc:postgresql://db-prod.internal.corp:5432/mytool"
+#     credential_purpose: "db"
+#   k8s:
+#     api: "https://k8s-apiserver-prod.internal.corp:6443"
+#     namespace: "my-tool"
+#   avi:
+#     api: "https://avi-prod.internal.corp/api/v1/telemetry"
+
+# Fleet topology. `expected_count` is itself a health signal -- discovered
+# fewer agents than expected means something is wrong.
+# topology:
+#   agent_pools:
+#     - { id: "linux-build", os: "linux", expected_count: 50, discovery: "api" }
+
+# Baselines are for THRESHOLD COMPARISON and demo synthesis only.
+# They are never returned as a production metric value.
+# metrics_baseline:
+#   responseTime: 100
+#   successRate: 99.5
+
+# Log files to tail and how to parse them.
+# logs:
+#   log_tag: "[MYTOOL]"
+#   log_path: "d:\\production_shares\\nas_logs\\mytool.log"
+#   retention_days: 30
+
+# Certificate, licence and URL expiry tracking.
+# lifecycle:
+#   refweb_url: { url: "https://my-tool.internal.corp", expiry: "2027-03-31" }
+#   license:    { type: "My Tool Enterprise", expiry: "2027-01-15" }
+#   certificates:
+#     - { name: "ingress-tls", probe: "my-tool.internal.corp:443" }
+
+# Jenkins job dispatched when self-healing triggers for this app.
+# Scope the remediation token to named jobs only.
+# jenkins_remediation_job: "JOB_RESTART_MYTOOL"

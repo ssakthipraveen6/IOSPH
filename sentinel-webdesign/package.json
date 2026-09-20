@@ -37,7 +37,8 @@
     "prestart": "node scripts/bootstrap.js",
     "launch": "npm run bootstrap && npm run build && npm start",
     "verify:dist": "node scripts/verify_dist.js",
-    "serve": "node scripts/bootstrap.js && node scripts/verify_dist.js && node backend/server.js"
+    "serve": "node scripts/bootstrap.js && node scripts/verify_dist.js && node backend/server.js",
+    "config:check": "node scripts/config_check.js"
   },
   "dependencies": {
     "compression": "^1.8.1",

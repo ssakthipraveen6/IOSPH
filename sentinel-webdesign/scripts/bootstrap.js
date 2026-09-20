@@ -21,20 +21,33 @@ const path = require('path');
 const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '..');
-const ENV_FILE = path.join(ROOT, '.env');
+// Everything a user edits lives under config/. .env is written there when the
+// folder exists so operators have one place to look.
+const CONFIG_DIR = path.join(ROOT, 'config');
+const ENV_FILE = fs.existsSync(CONFIG_DIR)
+  ? path.join(CONFIG_DIR, '.env')
+  : path.join(ROOT, '.env');
 const RUNTIME_DIR = path.join(ROOT, '.runtime');
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 function log(msg) { console.log(`[BOOTSTRAP] ${msg}`); }
 function warn(msg) { console.warn(`[BOOTSTRAP] ${msg}`); }
 
+// Both locations are honoured so an existing root .env is never duplicated into
+// config/. New installs get config/.env; existing ones keep what they have.
+const ENV_CANDIDATES = [path.join(CONFIG_DIR, '.env'), path.join(ROOT, '.env')];
+
+function secretIn(file) {
+  if (!fs.existsSync(file)) return false;
+  const line = fs.readFileSync(file, 'utf8')
+    .split(/\r?\n/)
+    .find(l => l.trim().startsWith('SENTINEL_JWT_SECRET='));
+  return Boolean(line) && line.split('=').slice(1).join('=').trim().length >= 32;
+}
+
 function hasSecret() {
   if (process.env.SENTINEL_JWT_SECRET && process.env.SENTINEL_JWT_SECRET.length >= 32) return true;
-  if (!fs.existsSync(ENV_FILE)) return false;
-  const body = fs.readFileSync(ENV_FILE, 'utf8');
-  const line = body.split(/\r?\n/).find(l => l.trim().startsWith('SENTINEL_JWT_SECRET='));
-  if (!line) return false;
-  return line.split('=').slice(1).join('=').trim().length >= 32;
+  return ENV_CANDIDATES.some(secretIn);
 }
 
 function ensureSecret() {
@@ -65,7 +78,9 @@ function ensureSecret() {
     fs.appendFileSync(ENV_FILE, '\n' + block, 'utf8');
     log('Appended a development SENTINEL_JWT_SECRET to the existing .env.');
   } else {
-    const example = path.join(ROOT, '.env.example');
+    const example = fs.existsSync(path.join(CONFIG_DIR, '.env.example'))
+      ? path.join(CONFIG_DIR, '.env.example')
+      : path.join(ROOT, '.env.example');
     const seed = fs.existsSync(example)
       ? '# Seeded from .env.example - review before using beyond local development.\n\n'
       : '';

@@ -9,8 +9,6 @@ category: "source_control"
 tier: "Tier-1 Mission Critical"
 log_tag: "[BB-NET]"
 regions: ["emea", "apac", "amer"]
-aliases:
-  - "bitbucket_external"
 
 endpoints:
   prod:

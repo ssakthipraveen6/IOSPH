@@ -6,8 +6,10 @@ const path = require('path');
 if (!process.env.SENTINEL_JWT_SECRET) {
   try {
     const candidatePaths = [
+      path.resolve(__dirname, '../../config/.env'),
       path.resolve(__dirname, '../../../.env'),
       path.resolve(__dirname, '../../.env'),
+      path.resolve(process.cwd(), 'config', '.env'),
       path.resolve(process.cwd(), '.env')
     ];
     for (const envPath of candidatePaths) {

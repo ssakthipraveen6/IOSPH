@@ -597,6 +597,22 @@ app.get('/api/recovery', (req, res) => {
 });
 
 // Get current system settings
+// [UI-CONFIG] Serves config/ui.yaml so operators can change banners without a
+// rebuild or restart. Read-only and unauthenticated: it carries no secrets and
+// the SPA needs it before a session exists.
+app.get('/api/ui-config', (req, res) => {
+  try {
+    const uiPath = path.join(ROOT_DIR, 'config', 'ui.yaml');
+    if (!fs.existsSync(uiPath)) return res.json({});
+    const yamlLib = require('js-yaml');
+    res.set('Cache-Control', 'no-cache');
+    res.json(yamlLib.load(fs.readFileSync(uiPath, 'utf8')) || {});
+  } catch (err) {
+    console.warn('[UI-CONFIG] Could not read config/ui.yaml:', err.message);
+    res.json({});
+  }
+});
+
 app.get('/api/settings', (req, res) => {
   res.json(db.getSettings());
 });

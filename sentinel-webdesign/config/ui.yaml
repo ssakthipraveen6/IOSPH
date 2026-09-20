@@ -1,0 +1,34 @@
+# =============================================================================
+# UI CONFIGURATION
+#
+# Controls the maintenance banners and badges shown in the app.
+# Edit this file and refresh the browser -- no rebuild, no restart needed.
+#
+# For the Stage 1 demo deployment, set:
+#   showGlobalBanner: true
+#   globalNote: "DEMONSTRATION DATA - NOT LIVE TELEMETRY"
+# =============================================================================
+
+showGlobalBanner: true
+globalNote: Under Maintenance — Production live telemetry data pipeline integration & validation in progress.
+pages:
+  healthOverview: true
+  metricsDetail: true
+  commandCenter: true
+  powerBiDashboard: true
+  aiLogPerformance: true
+  unifiedHealthMatrix: true
+  rcaDashboard: true
+  yamlConfigManager: true
+  adminManagement: true
+tiles:
+  healthScoreTile: true
+  activeIncidentsTile: true
+  autonomousRecoveryTile: true
+  telemetryChartsTile: true
+  powerBiAnalyticsTile: true
+  rcaCorrelationTile: true
+  gitopsYamlTile: true
+  ssoEldapAuthTile: true
+  serviceNowTile: true
+serviceNowNote: Under Maintenance — ServiceNow ITSM REST API ticket synchronization in progress.

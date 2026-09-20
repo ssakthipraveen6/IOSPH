@@ -77,6 +77,8 @@ function loadAllApplications(forceReload = false) {
     if (!fs.existsSync(dir)) return;
     const files = fs.readdirSync(dir);
     files.forEach(file => {
+      // Files prefixed with "_" are templates or notes, never real manifests.
+      if (file.startsWith('_')) return;
       if (file.endsWith('.yaml') || file.endsWith('.yml')) {
         const filePath = path.join(dir, file);
         try {
