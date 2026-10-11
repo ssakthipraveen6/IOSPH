@@ -24,9 +24,19 @@ import PipelineOpsView from './components/ops/PipelineOpsView';
 import SloErrorBudget from './components/sre/SloErrorBudget';
 import ServiceNowPanel from './components/ops/ServiceNowPanel';
 import TraceExplorer from './components/correlation/TraceExplorer';
+import NocApmView from './components/apm/NocApmView';
+import KubernetesMeshView from './components/k8s/KubernetesMeshView';
+import EdgePerimeterView from './components/perimeter/EdgePerimeterView';
+import FlamegraphProfiler from './components/diagnostics/FlamegraphProfiler';
+import SodGovernanceBanner from './components/governance/SodGovernanceBanner';
 import './App.css';
 
 const ALL_NAV_TABS = [
+  { id: 'noc-apm', icon: '📊', label: 'BFSI APM & Transactions', tip: 'New Relic APM Overview, Deployments & Apdex' },
+  { id: 'k8s-mesh', icon: '🛰️', label: 'Kubernetes & Clusters', tip: 'Cluster Compute, Objects Matrix, Restarts & Honeycomb' },
+  { id: 'perimeter-logs', icon: '🌐', label: 'Perimeter & Edge Logs', tip: 'Cloudflare Ingress Bandwidth, Donut Charts & Live Request Stream' },
+  { id: 'flamegraph', icon: '🔥', label: 'Method Hotspots & Flamegraph', tip: 'Distributed Trace Waterfall & Database Lock Contention' },
+  { id: 'sod-gov', icon: '⚖️', label: 'SoD Dual-Sign Governance', tip: 'Four-Eyes Dual Signatures, ServiceNow Sync & WAL Audit' },
   { id: 'health', icon: '📊', label: 'NOC System Dashboard', tip: 'NOC System Dashboard & Multi-Node Topology' },
   { id: 'slo', icon: '🎯', label: 'SLO & Error Budget', tip: 'Service Level Objectives, Burn Rates & Error Budget Governance' },
   { id: 'metrics', icon: '🔍', label: 'Telemetry & Historical Analytics', tip: 'Live Golden Signals, Timeseries & Historical PowerBI Baseline Trends' },
@@ -55,7 +65,7 @@ function isTabEnabled(tabId) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('health'); // 'health' | 'metrics' | 'command' | 'pbi' | 'ailogs' | 'matrix'
+  const [activeTab, setActiveTab] = useState('noc-apm'); // 'noc-apm' | 'k8s-mesh' | 'perimeter-logs' | 'flamegraph' | 'sod-gov' | 'health' ...
   const enabledNavTabs = ALL_NAV_TABS.filter(tab => isTabEnabled(tab.id));
 
   // Automatic fallback if active tab is disabled by master configuration
@@ -694,6 +704,28 @@ export default function App() {
             <MaintenanceBanner message={MAINTENANCE_CONFIG.globalNote} />
           )}
 
+          {/* BFSI MNC TIER-0 OBSERVABILITY WORKSPACES */}
+          {activeTab === 'noc-apm' && (
+            <NocApmView environment={environment} />
+          )}
+
+          {activeTab === 'k8s-mesh' && (
+            <KubernetesMeshView environment={environment} />
+          )}
+
+          {activeTab === 'perimeter-logs' && (
+            <EdgePerimeterView onSelectTrace={(tid) => { setSelectedEntityId(tid); setActiveTab('traces'); }} />
+          )}
+
+          {activeTab === 'flamegraph' && (
+            <FlamegraphProfiler onProceedToSoD={() => setActiveTab('sod-gov')} />
+          )}
+
+          {activeTab === 'sod-gov' && (
+            <SodGovernanceBanner />
+          )}
+
+          {/* CANONICAL SENTINEL ENTERPRISE MODULES (100% PRESERVED) */}
           {activeTab === 'health' && (
             <HealthOverview 
               healthData={healthData} 
