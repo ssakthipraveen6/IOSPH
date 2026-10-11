@@ -441,6 +441,17 @@ app.get(['/api/healthz', '/health', '/api/ping', '/status'], (req, res) => {
   });
 });
 
+// BFSI MNC Domain Sub-Routers (APM, K8s Mesh, Perimeter Logs, Governance)
+const apmRoutes = require('./routes/apmRoutes');
+const k8sRoutes = require('./routes/k8sRoutes');
+const perimeterRoutes = require('./routes/perimeterRoutes');
+const governanceRoutes = require('./routes/governanceRoutes');
+
+app.use('/api/apm', apmRoutes);
+app.use('/api/k8s', k8sRoutes);
+app.use('/api/perimeter', perimeterRoutes);
+app.use('/api/governance', governanceRoutes);
+
 // Overall Health Status
 app.get('/api/health', (req, res) => {
   const env = resolveEnvironment(req);
