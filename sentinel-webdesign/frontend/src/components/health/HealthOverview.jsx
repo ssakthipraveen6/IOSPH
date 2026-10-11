@@ -13,13 +13,7 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
   const currentEnv = environment || healthData?.environment || 'staging';
 
   // ServiceNow open active incidents for assignment group "devops aps"
-  const [serviceNowIncidents, setServiceNowIncidents] = useState([
-    { id: 'INC0091823', priority: 'P1 - CRITICAL', short_description: 'Bitbucket git-lfs upload socket timeout on lon-bb-node-02', assignment_group: 'devops aps', state: 'Investigating', duration: '14m', assigned_to: 's.praveen', initials: 'SP', service: 'Bitbucket', component: 'bitbucket' },
-    { id: 'INC0091410', priority: 'P2 - HIGH', short_description: 'JFrog Artifactory binary replication lag > 150s (NFS cache sync)', assignment_group: 'devops aps', state: 'Work in Progress', duration: '32m', assigned_to: 'm.chen', initials: 'MC', service: 'Artifactory', component: 'artifactory' },
-    { id: 'INC0090884', priority: 'P2 - HIGH', short_description: 'CloudBees Jenkins build runner pod eviction warning on k8s-worker-04', assignment_group: 'devops aps', state: 'Work in Progress', duration: '48m', assigned_to: 'alex.k', initials: 'AK', service: 'Jenkins', component: 'jenkins' },
-    { id: 'INC0089921', priority: 'P3 - MODERATE', short_description: 'SonarQube analysis background task queue depth threshold alert', assignment_group: 'devops aps', state: 'Open', duration: '1h 15m', assigned_to: 'j.davies', initials: 'JD', service: 'SonarQube', component: 'sonarqube' },
-    { id: 'INC0088412', priority: 'P3 - MODERATE', short_description: 'OpenText Fortify SSC token renewal probe delayed response', assignment_group: 'devops aps', state: 'Resolved', duration: '2h 10m', assigned_to: 's.praveen', initials: 'SP', service: 'Fortify', component: 'fortify' }
-  ]);
+  const [serviceNowIncidents, setServiceNowIncidents] = useState([]);
 
   useEffect(() => {
     fetch(`/api/servicenow/active-incidents?group=devops+aps&environment=${encodeURIComponent(currentEnv)}`)
@@ -333,13 +327,16 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
     const compStatus = componentStatuses[compKey] || 'healthy';
     const sparkPoints = validMetrics.slice(-10).map(m => typeof m.value === 'number' ? m.value : parseFloat(m.value) || 0);
 
+    const normComp = normalizeSeverity(compStatus);
+    const resolvedCompStatus = normComp === SEVERITY.CRITICAL ? 'critical' : (normComp === SEVERITY.WARNING || normComp === SEVERITY.PREDICTIVE_WARNING) ? 'warn' : normComp;
+
     return {
       ...cfg,
       latency: latencyVal,
       errorRate: errorRateVal,
       throughput: throughputVal,
       saturation: saturationVal,
-      status: compStatus === 'Critical' ? 'critical' : compStatus === 'Warning' ? 'warn' : compStatus === 'DATA_UNAVAILABLE' ? 'DATA_UNAVAILABLE' : compStatus === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'healthy',
+      status: resolvedCompStatus,
       spark: sparkPoints.length > 1 ? sparkPoints : []
     };
   });
@@ -1217,11 +1214,19 @@ export default function HealthOverview({ healthData, historicalMetrics, onSelect
                     title={`Click to inspect ${app.name} topology in Service Map`}
                   >
                     <td>
-                      <StatusDot 
-                        status={app.status === 'warn' ? 'warning' : app.status === 'critical' ? 'critical' : app.status === 'DATA_UNAVAILABLE' ? 'info' : app.status === 'AUTH_FAILED' ? 'AUTH_FAILED' : 'healthy'} 
-                        pulse={app.status === 'warn' || app.status === 'critical'} 
-                        size={8} 
-                      />
+                      {(() => {
+                        const norm = normalizeSeverity(app.status);
+                        const isSevere = norm === SEVERITY.CRITICAL;
+                        const isDegraded = norm === SEVERITY.WARNING || norm === SEVERITY.PREDICTIVE_WARNING;
+                        const dotStatus = isDegraded ? 'warning' : isSevere ? 'critical' : norm === SEVERITY.DATA_UNAVAILABLE ? 'info' : norm === SEVERITY.AUTH_FAILED ? 'AUTH_FAILED' : 'healthy';
+                        return (
+                          <StatusDot 
+                            status={dotStatus} 
+                            pulse={isDegraded || isSevere} 
+                            size={8} 
+                          />
+                        );
+                      })()}
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>

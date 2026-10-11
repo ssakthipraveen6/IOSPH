@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getStatusColor } from '@sentinel/shared-constants';
+import CircuitBreakerWidget from './CircuitBreakerWidget';
 
 export default function SreEnterpriseControl({ environment = 'prod' }) {
   const [activePillar, setActivePillar] = useState('all'); // 'all' | 'devops' | 'auto'
@@ -109,6 +110,11 @@ export default function SreEnterpriseControl({ environment = 'prod' }) {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Jenkins Circuit Breaker Status Banner */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <CircuitBreakerWidget />
       </div>
 
       {/* ========================================================================= */}

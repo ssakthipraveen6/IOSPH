@@ -15,5 +15,10 @@ module.exports = {
   analyzeServerLogs: (logLines, writeNasLog, triggerRecoveryFunc, env = 'staging') => {
     return realAnalyzer.analyzeServerLogs(logLines, writeNasLog, triggerRecoveryFunc, env);
   },
+  analyzeMetricStream: (component, metricName, value, env = 'staging') => {
+    return realAnalyzer.analyzeMetricStream(component, metricName, value, env);
+  },
+  MetricBaselineStore: realAnalyzer.MetricBaselineStore,
+  defaultBaselineStore: realAnalyzer.defaultBaselineStore,
   runPredictiveAnalysis: predictive.runPredictiveAnalysis
 };

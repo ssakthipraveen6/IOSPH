@@ -28,10 +28,6 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
 
     // Check if application probe is disabled via applications_enabled in global_config.yaml
     if (typeof config.isApplicationEnabled === 'function' && !config.isApplicationEnabled(key)) {
-      currentMetrics[key] = {
-        status: 'DATA_UNAVAILABLE',
-        metrics: { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' }
-      };
       continue;
     }
     

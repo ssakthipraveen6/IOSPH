@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const yamlConfig = require('@sentinel/config/yaml_config');
+const config = require('@sentinel/config');
 
 /**
  * DYNAMIC SIMULATION APPLICATION METRICS COLLECTOR
@@ -12,6 +13,9 @@ function collectAppMetrics(simulations, db, writeNasLog) {
   const realCollectorsDir = path.join(__dirname, '../../real/applications');
 
   Object.keys(appsConfig).forEach(key => {
+    if (typeof config.isApplicationEnabled === 'function' && !config.isApplicationEnabled(key)) {
+      return;
+    }
     const appDef = appsConfig[key];
     const base = appDef.metrics_baseline || { responseTime: 85, successRate: 99.5, requests: 30 };
 

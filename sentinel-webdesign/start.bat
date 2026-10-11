@@ -26,7 +26,7 @@ if not exist "node_modules\" (
       )
 )
 
-:: Validate and link workspace symlinks (@sentinel/*)
+REM Validate and link workspace symlinks
 call node scripts\setup_symlinks.js
 
 if exist "frontend\dist\index.html" (
@@ -65,6 +65,6 @@ echo.
 call npm run start
 if %errorlevel% neq 0 (
     echo [ERROR] Observability daemon stopped unexpectedly.
-    pause
+    if "%1" neq "--daemon" pause
     exit /b 1
 )

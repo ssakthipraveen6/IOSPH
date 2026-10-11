@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getStatusColor } from '@sentinel/shared-constants';
 
 export default function FleetExplorerView({ environment = 'staging', onInspectEntity }) {
   const [entities, setEntities] = useState([]);
@@ -261,7 +262,7 @@ export default function FleetExplorerView({ environment = 'staging', onInspectEn
             <tbody>
               {filteredEntities.map(entity => {
                 const isExpanded = expandedNodes.has(entity.entity_id);
-                const statusColor = entity.status === 'CRITICAL' ? '#ef4444' : (entity.status === 'DEGRADED' || entity.status === 'warning' ? '#f59e0b' : '#10b981');
+                const statusColor = getStatusColor(entity.status);
                 const labels = entity.labels || {};
 
                 return (

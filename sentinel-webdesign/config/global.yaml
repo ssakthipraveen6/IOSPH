@@ -116,8 +116,29 @@ collectors:
     enabled: true                  # Toggle false in environments without python/selenium installed
 
 # =========================================================================
+# VIEW-WISE UI NAVIGATION TOGGLES
+# Controls which sidebar tabs and views are active in the portal.
+# If set to false, the tab is hidden from sidebar, command palette, and router.
+# =========================================================================
+views_enabled:
+  health: true          # NOC System Dashboard & Multi-Node Topology
+  metrics: true         # Telemetry & Historical Analytics
+  matrix: true          # Enterprise Health Matrix
+  logs: true            # Log Explorer
+  fleet: true           # Fleet & Topology Explorer
+  blast_radius: true    # Root Cause & Blast Radius
+  pipeline_ops: true    # Pipeline Operations & Health
+  command: true         # Autonomous Healing & Operations
+  sre: true             # SRE Platform & Toolchain Capacity
+  entities: true        # Universal Entity Explorer
+  timeline: true        # Correlation & RCA Timeline
+  yaml: true            # YAML Config Manager
+  admin: true           # DevSecOps Admin Control
+
+# =========================================================================
 # COMPONENT-WISE INFRASTRUCTURE TOGGLES
-# Allows operators to selectively enable/disable metrics collection per component in production
+# Allows operators to selectively enable/disable metrics collection per component in production.
+# Omitted / disabled components produce zero background polling and zero health deductions.
 # =========================================================================
 components_enabled:
   avi_load_balancer: true
@@ -134,7 +155,8 @@ components_enabled:
 
 # =========================================================================
 # APPLICATION-WISE DEVOPS TOOLCHAIN TOGGLES
-# Allows operators to enable/disable specific application probes in production
+# Allows operators to enable/disable specific application probes in production.
+# Unmonitored / disabled applications are omitted from health evaluations.
 # =========================================================================
 applications_enabled:
   bitbucket: true

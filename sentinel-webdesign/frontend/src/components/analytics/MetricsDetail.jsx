@@ -3,6 +3,7 @@ import CustomChart from './CustomChart';
 import PowerBiDashboard from './PowerBiDashboard';
 import { MAINTENANCE_CONFIG } from '../../maintenanceConfig';
 import { MaintenanceBadge, MaintenanceBanner } from '../shared/MaintenanceNotice';
+import AnomalyFeed from './AnomalyFeed';
 
 const componentMetadata = {
   // Infrastructure Layers
@@ -1251,6 +1252,11 @@ export default function MetricsDetail({ selectedComponent, onComponentChange, hi
       )}
         </>
       )}
+
+      {/* AI Statistical Anomaly Radar */}
+      <div style={{ marginTop: '1.5rem' }}>
+        <AnomalyFeed environment={environment} onSelectMetric={(comp) => onComponentChange && onComponentChange(comp)} />
+      </div>
 
       {/* 
         Colleague Integration Placeholder: MetricsDetail

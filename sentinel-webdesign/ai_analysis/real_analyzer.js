@@ -1,5 +1,111 @@
 const db = require('@sentinel/database');
 const { SEVERITY } = require('@sentinel/shared-constants');
+const crypto = require('crypto');
+
+let postgres;
+try {
+  postgres = require('@sentinel/database/postgres');
+} catch (_) {
+  try {
+    postgres = require('../database/postgres');
+  } catch (e) {
+    postgres = null;
+  }
+}
+
+class MetricBaselineStore {
+  constructor(windowSize = 60, zThreshold = 3.0) {
+    this.windowSize = windowSize;
+    this.zThreshold = zThreshold;
+    this.series = new Map(); // key `${component}:${metricName}` -> Array<number>
+  }
+
+  recordAndScore(component, metricName, value, env = 'staging') {
+    if (typeof value !== 'number' || isNaN(value)) return null;
+
+    const key = `${component}:${metricName}`;
+    let window = this.series.get(key);
+    if (!window) {
+      window = [];
+      this.series.set(key, window);
+    }
+
+    let scoreResult = null;
+    if (window.length >= 5) {
+      const mean = window.reduce((acc, v) => acc + v, 0) / window.length;
+      const variance = window.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / window.length;
+      const stddev = Math.sqrt(variance);
+
+      let zScore = 0;
+      if (stddev > 0.0001) {
+        zScore = Math.abs((value - mean) / stddev);
+      }
+
+      const isAnomaly = zScore >= this.zThreshold;
+      scoreResult = {
+        component,
+        metricName,
+        value,
+        mean: parseFloat(mean.toFixed(2)),
+        stddev: parseFloat(stddev.toFixed(2)),
+        zScore: parseFloat(zScore.toFixed(2)),
+        threshold: this.zThreshold,
+        isAnomaly
+      };
+
+      if (isAnomaly) {
+        const decisionId = 'DEC-' + crypto.randomUUID();
+        if (postgres && postgres.query) {
+          postgres.query(`
+            INSERT INTO model_decision (decision_id, timestamp, model_version, component, metric_name, value, mean, stddev, z_score, threshold, decision, environment)
+            VALUES ($1, now(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          `, [
+            decisionId,
+            'zscore-v1',
+            component,
+            metricName,
+            value,
+            scoreResult.mean,
+            scoreResult.stddev,
+            scoreResult.zScore,
+            this.zThreshold,
+            'ANOMALY_DETECTED',
+            env
+          ]).catch(() => {});
+        }
+
+        const alertMsg = `AI Statistical Anomaly: ${metricName} on ${component} reached ${value} (Z-Score: ${scoreResult.zScore}, Baseline Mean: ${scoreResult.mean} ± ${scoreResult.stddev})`;
+        db.addAlert(component, SEVERITY.CRITICAL, alertMsg, 'Active', env);
+      }
+    }
+
+    window.push(value);
+    if (window.length > this.windowSize) {
+      window.shift();
+    }
+
+    return scoreResult;
+  }
+
+  getBaseline(component, metricName) {
+    const key = `${component}:${metricName}`;
+    const window = this.series.get(key) || [];
+    if (window.length === 0) return null;
+    const mean = window.reduce((acc, v) => acc + v, 0) / window.length;
+    const variance = window.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / window.length;
+    return {
+      count: window.length,
+      mean: parseFloat(mean.toFixed(2)),
+      stddev: parseFloat(Math.sqrt(variance).toFixed(2))
+    };
+  }
+
+  reset() {
+    this.series.clear();
+  }
+}
+
+const defaultBaselineStore = new MetricBaselineStore();
 
 const ANOMALY_PATTERNS = [
   {
@@ -66,6 +172,13 @@ function analyzeServerLogs(logLines, writeNasLog, triggerRecoveryFunc, env = 'st
   });
 }
 
+function analyzeMetricStream(component, metricName, value, env = 'staging') {
+  return defaultBaselineStore.recordAndScore(component, metricName, value, env);
+}
+
 module.exports = {
-  analyzeServerLogs
+  analyzeServerLogs,
+  analyzeMetricStream,
+  MetricBaselineStore,
+  defaultBaselineStore
 };

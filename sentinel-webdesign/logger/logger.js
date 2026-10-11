@@ -30,9 +30,24 @@ const masterLogStream = rfs.createStream('windows_yaml_observability.log', {
   path: LOG_DIR
 });
 
-function writeNasLog(level, category, message) {
+function writeNasLog(level, category, message, meta = {}) {
   const timestamp = new Date().toISOString();
-  const logLine = `[${timestamp}] [${level}] [${category}] ${message}\n`;
+  const env = meta.environment || global.runtimeEnvironment || 'staging';
+  const traceId = meta.traceId || meta.trace_id || null;
+
+  const logPayload = {
+    timestamp,
+    level,
+    category,
+    message,
+    environment: env,
+    trace_id: traceId,
+    ...meta
+  };
+
+  const logLine = process.env.LOG_FORMAT === 'json'
+    ? `${JSON.stringify(logPayload)}\n`
+    : `[${timestamp}] [${level}] [${category}] ${traceId ? `[trace:${traceId}] ` : ''}${message}\n`;
 
   // Write to master rotating log stream with error resilience
   try {
@@ -43,11 +58,27 @@ function writeNasLog(level, category, message) {
 
   // Broadcast live log line to WebSockets UI
   if (global.broadcastLog) {
-    global.broadcastLog({ timestamp, level, category, message });
+    global.broadcastLog(logPayload);
   }
+}
+
+function writeStructuredLog(level, category, message, meta = {}) {
+  return writeNasLog(level, category, message, meta);
+}
+
+function createStructuredLogger(category) {
+  return {
+    info: (msg, meta) => writeNasLog('INFO', category, msg, meta),
+    warn: (msg, meta) => writeNasLog('WARNING', category, msg, meta),
+    error: (msg, meta) => writeNasLog('ERROR', category, msg, meta),
+    debug: (msg, meta) => writeNasLog('DEBUG', category, msg, meta),
+    critical: (msg, meta) => writeNasLog('CRITICAL', category, msg, meta)
+  };
 }
 
 module.exports = {
   writeNasLog,
+  writeStructuredLog,
+  createStructuredLogger,
   LOG_DIR
 };

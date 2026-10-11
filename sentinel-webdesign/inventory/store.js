@@ -21,6 +21,30 @@ const state = {
 let isSaving = false;
 let saveScheduled = false;
 
+// Canonical Demo Topology Seed Nodes
+const DEMO_ENTITIES = [
+  { entity_id: 'app:bitbucket', kind: 'application', name: 'Atlassian Bitbucket', app_id: 'bitbucket', environment: 'demo', region: 'EMEA', status: 'HEALTHY', parent_id: null },
+  { entity_id: 'app:jenkins', kind: 'application', name: 'CloudBees Jenkins', app_id: 'jenkins', environment: 'demo', region: 'EMEA', status: 'HEALTHY', parent_id: null },
+  { entity_id: 'app:artifactory', kind: 'application', name: 'JFrog Artifactory', app_id: 'artifactory', environment: 'demo', region: 'AMER', status: 'HEALTHY', parent_id: null },
+  { entity_id: 'app:argocd', kind: 'application', name: 'ArgoCD Hub', app_id: 'argocd', environment: 'demo', region: 'GLOBAL', status: 'HEALTHY', parent_id: null },
+  { entity_id: 'infra:avi_load_balancer', kind: 'infrastructure', name: 'AVI Load Balancer (VIP Grid)', app_id: 'avi', environment: 'demo', region: 'GLOBAL', status: 'HEALTHY', parent_id: null },
+  { entity_id: 'infra:database', kind: 'infrastructure', name: 'Primary PostgreSQL Database', app_id: 'database', environment: 'demo', region: 'GLOBAL', status: 'HEALTHY', parent_id: null },
+  { entity_id: 'infra:nas_performance', kind: 'infrastructure', name: 'Enterprise NAS Storage Pool', app_id: 'nas', environment: 'demo', region: 'GLOBAL', status: 'HEALTHY', parent_id: null },
+  { entity_id: 'host:lon-bb-01', kind: 'host', name: 'lon-bb-lnx-01 (Bitbucket Primary)', app_id: 'bitbucket', environment: 'demo', region: 'EMEA', status: 'HEALTHY', parent_id: 'app:bitbucket' },
+  { entity_id: 'host:lon-bb-02', kind: 'host', name: 'lon-bb-lnx-02 (Bitbucket Cluster)', app_id: 'bitbucket', environment: 'demo', region: 'EMEA', status: 'HEALTHY', parent_id: 'app:bitbucket' },
+  { entity_id: 'host:k8s-agent-01', kind: 'host', name: 'k8s-jenkins-agent-pool-01', app_id: 'jenkins', environment: 'demo', region: 'EMEA', status: 'HEALTHY', parent_id: 'app:jenkins' },
+  { entity_id: 'host:amer-art-01', kind: 'host', name: 'amer-jfrog-srv-01', app_id: 'artifactory', environment: 'demo', region: 'AMER', status: 'HEALTHY', parent_id: 'app:artifactory' }
+];
+
+const DEMO_EDGES = [
+  { from_entity: 'app:bitbucket', to_entity: 'infra:avi_load_balancer', edge_type: 'routes_traffic_to', confidence: 1.0, source: 'demo' },
+  { from_entity: 'app:bitbucket', to_entity: 'infra:database', edge_type: 'reads_writes', confidence: 1.0, source: 'demo' },
+  { from_entity: 'app:bitbucket', to_entity: 'infra:nas_performance', edge_type: 'mounts', confidence: 1.0, source: 'demo' },
+  { from_entity: 'host:lon-bb-01', to_entity: 'app:bitbucket', edge_type: 'belongs_to', confidence: 1.0, source: 'demo' },
+  { from_entity: 'app:jenkins', to_entity: 'infra:avi_load_balancer', edge_type: 'routes_traffic_to', confidence: 1.0, source: 'demo' },
+  { from_entity: 'app:artifactory', to_entity: 'infra:database', edge_type: 'reads_writes', confidence: 1.0, source: 'demo' }
+];
+
 function ensureRuntimeDir() {
   if (!fs.existsSync(RUNTIME_DIR)) {
     try { fs.mkdirSync(RUNTIME_DIR, { recursive: true }); } catch (_) {}
@@ -215,6 +239,13 @@ const inventoryStore = {
     offset = 0
   } = {}) {
     let list = Array.from(state.entities.values());
+
+    if (environment && environment.toLowerCase() === 'demo') {
+      const demoMatches = list.filter(e => e.environment && e.environment.toLowerCase() === 'demo');
+      if (demoMatches.length === 0) {
+        list = [...list, ...DEMO_ENTITIES];
+      }
+    }
 
     if (kind) {
       list = list.filter(e => e.kind.toLowerCase() === kind.toLowerCase());

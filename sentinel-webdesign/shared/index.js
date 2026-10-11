@@ -52,7 +52,7 @@ function normalizeSeverity(raw) {
   if (!raw) return SEVERITY.INFO;
   const s = String(raw).trim().toLowerCase();
   if (s === 'critical' || s === 'crit' || s === 'p1') return SEVERITY.CRITICAL;
-  if (s === 'warning' || s === 'warn' || s === 'p2') return SEVERITY.WARNING;
+  if (s === 'warning' || s === 'warn' || s === 'p2' || s === 'degraded') return SEVERITY.WARNING;
   if (s === 'predictive-warning' || s === 'predictive_warning') return SEVERITY.PREDICTIVE_WARNING;
   if (s === 'healthy' || s === 'ok' || s === 'optimal') return SEVERITY.HEALTHY;
   if (s === 'data_unavailable' || s === 'no_data' || s === 'data not available') return SEVERITY.DATA_UNAVAILABLE;

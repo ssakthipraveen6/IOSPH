@@ -1,0 +1,36 @@
+# =========================================================================
+# Service Level Objectives (SLOs) & Error Budget Configuration
+# Satisfies BFSI regulatory availability and SRE error budget tracking
+# =========================================================================
+
+version: "1.0"
+window_days: 30
+
+slos:
+  - id: sentinel_api_availability
+    name: "Sentinel Framework API Availability"
+    target_percentage: 99.9
+    sli_type: "availability"
+    description: "Percentage of successful non-5xx health checks over rolling 30-day window"
+    thresholds:
+      warning_burn_rate: 2.0
+      critical_burn_rate: 5.0
+
+  - id: alert_detection_latency
+    name: "Alert Detection Latency"
+    target_percentage: 95.0
+    sli_type: "latency"
+    target_p95_seconds: 30
+    description: "P95 latency between metric threshold violation and alert publication < 30s"
+    thresholds:
+      warning_burn_rate: 1.5
+      critical_burn_rate: 3.0
+
+  - id: autonomous_recovery_success_rate
+    name: "Autonomous Remediation Success Rate"
+    target_percentage: 95.0
+    sli_type: "success_rate"
+    description: "Percentage of initiated recovery runs that conclude in Success status"
+    thresholds:
+      warning_burn_rate: 1.5
+      critical_burn_rate: 4.0

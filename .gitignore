@@ -21,7 +21,6 @@ nas_logs/
 
 # Dependencies & build outputs
 node_modules/
-frontend/dist/
 apps/web/dist/
-dist/
+/dist/
 .tempmediaStorage/

@@ -21,14 +21,68 @@ import LogExplorerView from './components/logs/LogExplorerView';
 import FleetExplorerView from './components/fleet/FleetExplorerView';
 import BlastRadiusView from './components/correlation/BlastRadiusView';
 import PipelineOpsView from './components/ops/PipelineOpsView';
+import SloErrorBudget from './components/sre/SloErrorBudget';
+import ServiceNowPanel from './components/ops/ServiceNowPanel';
+import TraceExplorer from './components/correlation/TraceExplorer';
 import './App.css';
+
+const ALL_NAV_TABS = [
+  { id: 'health', icon: '📊', label: 'NOC System Dashboard', tip: 'NOC System Dashboard & Multi-Node Topology' },
+  { id: 'slo', icon: '🎯', label: 'SLO & Error Budget', tip: 'Service Level Objectives, Burn Rates & Error Budget Governance' },
+  { id: 'metrics', icon: '🔍', label: 'Telemetry & Historical Analytics', tip: 'Live Golden Signals, Timeseries & Historical PowerBI Baseline Trends' },
+  { id: 'matrix', icon: '🌍', label: 'Enterprise Health Matrix', tip: 'Multi-Cluster Global Infrastructure Grid' },
+  { id: 'logs', icon: '📋', label: 'Log Explorer', tip: 'Full-Text Log Search, Masked Clustering & Keyset Explorer' },
+  { id: 'fleet', icon: '🛰️', label: 'Fleet & Topology Explorer', tip: 'Hierarchical Multi-Tier Browse & Discovered Agent Verification' },
+  { id: 'blast-radius', icon: '💥', label: 'Root Cause & Blast Radius', tip: 'Causality Graph, Downstream Fan-Out & Operator Feedback Loop' },
+  { id: 'pipeline-ops', icon: '📈', label: 'Pipeline Operations & Health', tip: 'Queue Depth, Ingest Health, Cardinality & Circuit Breakers' },
+  { id: 'command', icon: '⚡', label: 'Autonomous Healing & Operations', tip: 'Self-Healing Orchestrator, Playbook Logs & Team Operations' },
+  { id: 'itsm', icon: '🎫', label: 'ServiceNow ITSM Tickets', tip: 'Live Dispatched Incidents, MTTR & Change Governance' },
+  { id: 'traces', icon: '🧬', label: 'Distributed Trace Explorer', tip: 'W3C Traceparent Waterfall & Latency Breakdown' },
+  { id: 'sre', icon: '🏛️', label: 'SRE Platform & Toolchain Capacity', tip: 'Platform Toolchain Saturation, Secret Expiry & Central Governance' },
+  { id: 'entities', icon: '🧭', label: 'Universal Entity Explorer', tip: 'Universal Asset & Topology Resolver' },
+  { id: 'timeline', icon: '⏱️', label: 'Correlation & RCA Timeline', tip: 'Chronological Causality, Config Drift & RCA Graph' },
+  { id: 'yaml', icon: '📄', label: 'YAML Config Manager', tip: 'Live Deployment Manifest Editor' },
+  { id: 'admin', icon: '🛡️', label: 'DevSecOps Admin Control', tip: 'RBAC, Audit Logs & Access Control' },
+];
+
+function isTabEnabled(tabId) {
+  const views = MAINTENANCE_CONFIG.views_enabled;
+  if (!views || Object.keys(views).length === 0) return true;
+  const normalized = tabId.replace(/-/g, '_');
+  if (views[tabId] !== undefined) return Boolean(views[tabId]);
+  if (views[normalized] !== undefined) return Boolean(views[normalized]);
+  return true;
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('health'); // 'health' | 'metrics' | 'command' | 'pbi' | 'ailogs' | 'matrix'
+  const enabledNavTabs = ALL_NAV_TABS.filter(tab => isTabEnabled(tab.id));
+
+  // Automatic fallback if active tab is disabled by master configuration
+  useEffect(() => {
+    if (!isTabEnabled(activeTab) && enabledNavTabs.length > 0) {
+      setActiveTab(enabledNavTabs[0].id);
+    }
+  }, [activeTab, enabledNavTabs]);
   const [selectedComponent, setSelectedComponent] = useState('database');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-  const [environment, setEnvironment] = useState('staging'); // 'prod' | 'staging' | 'demo'
+  const [environment, setEnvironment] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlEnv = params.get('env');
+      if (urlEnv && ['prod', 'staging', 'demo'].includes(urlEnv.toLowerCase())) {
+        return urlEnv.toLowerCase();
+      }
+      const savedEnv = localStorage.getItem('sentinel_environment');
+      if (savedEnv && ['prod', 'staging', 'demo'].includes(savedEnv)) {
+        return savedEnv;
+      }
+    } catch {
+      // ignore
+    }
+    return 'demo'; // Default to demo so executive presentations are fully populated
+  });
   const envRef = useRef(environment);
   const wsRef = useRef(null);
   useEffect(() => { envRef.current = environment; }, [environment]);
@@ -369,6 +423,7 @@ export default function App() {
   const handleEnvironmentSwitch = async (newEnv) => {
     if (newEnv === environment) return;
     try {
+      localStorage.setItem('sentinel_environment', newEnv);
       setEnvironment(newEnv);
       envRef.current = newEnv;
 
@@ -431,21 +486,7 @@ export default function App() {
 
         {/* Vertical Navigation Links Track (All Canonical Enterprise Views) */}
         <nav className="sidebar-links" id="main-nav-tabs">
-          {[
-            { id: 'health', icon: '📊', label: 'NOC System Dashboard', tip: 'NOC System Dashboard & Multi-Node Topology' },
-            { id: 'metrics', icon: '🔍', label: 'Telemetry & Historical Analytics', tip: 'Live Golden Signals, Timeseries & Historical PowerBI Baseline Trends' },
-            { id: 'matrix', icon: '🌍', label: 'Enterprise Health Matrix', tip: 'Multi-Cluster Global Infrastructure Grid' },
-            { id: 'logs', icon: '📋', label: 'Log Explorer', tip: 'Full-Text Log Search, Masked Clustering & Keyset Explorer' },
-            { id: 'fleet', icon: '🛰️', label: 'Fleet & Topology Explorer', tip: 'Hierarchical Multi-Tier Browse & Discovered Agent Verification' },
-            { id: 'blast-radius', icon: '💥', label: 'Root Cause & Blast Radius', tip: 'Causality Graph, Downstream Fan-Out & Operator Feedback Loop' },
-            { id: 'pipeline-ops', icon: '📈', label: 'Pipeline Operations & Health', tip: 'Queue Depth, Ingest Health, Cardinality & Circuit Breakers' },
-            { id: 'command', icon: '⚡', label: 'Autonomous Healing & Operations', tip: 'Self-Healing Orchestrator, Playbook Logs & Team Operations' },
-            { id: 'sre', icon: '🏛️', label: 'SRE Platform & Toolchain Capacity', tip: 'Platform Toolchain Saturation, Secret Expiry & Central Governance' },
-            { id: 'entities', icon: '🧭', label: 'Universal Entity Explorer', tip: 'Universal Asset & Topology Resolver' },
-            { id: 'timeline', icon: '⏱️', label: 'Correlation & RCA Timeline', tip: 'Chronological Causality, Config Drift & RCA Graph' },
-            { id: 'yaml', icon: '📄', label: 'YAML Config Manager', tip: 'Live Deployment Manifest Editor' },
-            { id: 'admin', icon: '🛡️', label: 'DevSecOps Admin Control', tip: 'RBAC, Audit Logs & Access Control' },
-          ].map(tab => (
+          {enabledNavTabs.map(tab => (
             <button 
               key={tab.id}
               className={`nav-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
@@ -786,6 +827,18 @@ export default function App() {
             <SreEnterpriseControl environment={environment} />
           )}
 
+          {activeTab === 'slo' && (
+            <SloErrorBudget environment={environment} />
+          )}
+
+          {activeTab === 'itsm' && (
+            <ServiceNowPanel environment={environment} />
+          )}
+
+          {activeTab === 'traces' && (
+            <TraceExplorer />
+          )}
+
           {activeTab === 'yaml' && (
             <YamlConfigManager environment={environment} />
           )}
@@ -903,6 +956,7 @@ export default function App() {
                 { id: 'pbi', label: 'Historical PowerBI Baseline Trends (Sub-Tab)', icon: '📈', category: 'Telemetry Sub-Tab', action: () => { setActiveTab('pbi'); setIsCommandPaletteOpen(false); } },
                 { id: 'rca', label: 'Root Cause Analytics (RCA Graph)', icon: '🧠', category: 'Diagnostics', action: () => { setActiveTab('rca'); setIsCommandPaletteOpen(false); } }
               ]
+              .filter(item => isTabEnabled(item.id))
               .filter(item => item.label.toLowerCase().includes(paletteQuery.toLowerCase()) || item.category.toLowerCase().includes(paletteQuery.toLowerCase()))
               .map(item => (
                 <div

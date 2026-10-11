@@ -1,0 +1,90 @@
+/* Anomaly Feed CSS */
+
+.anomaly-feed-container {
+  background: var(--bg-card, #141c2b);
+  border: 1px solid var(--border-light, #223249);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.anomaly-feed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light, #223249);
+  padding-bottom: 10px;
+}
+
+.anomaly-feed-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.anomaly-count-pill {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.anomaly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.anomaly-card-item {
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 4px solid #ef4444;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+
+.anomaly-card-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.anomaly-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.anomaly-component-tag {
+  font-weight: 700;
+  color: var(--primary, #38bdf8);
+}
+
+.anomaly-zscore-badge {
+  background: #ef4444;
+  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.anomaly-details-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted, #7e8da0);
+}

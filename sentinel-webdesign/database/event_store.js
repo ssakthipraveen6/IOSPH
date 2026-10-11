@@ -232,7 +232,7 @@ async function saveHypothesis(hypothesis) {
  * Retrieves hypotheses for an environment.
  */
 async function getHypotheses(filters = {}) {
-  const { environment, status, limit = 50 } = filters;
+  const { environment, status, from, to, limit = 50 } = filters;
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
 
   try {
@@ -250,6 +250,16 @@ async function getHypotheses(filters = {}) {
       if (status) {
         conditions.push(`status = $${pIdx}`);
         params.push(status);
+        pIdx++;
+      }
+      if (from) {
+        conditions.push(`created_at >= $${pIdx}`);
+        params.push(new Date(from));
+        pIdx++;
+      }
+      if (to) {
+        conditions.push(`created_at <= $${pIdx}`);
+        params.push(new Date(to));
         pIdx++;
       }
 
@@ -275,8 +285,30 @@ async function getHypotheses(filters = {}) {
   let results = inMemoryHypotheses.filter(h => {
     if (environment && h.environment !== environment.toLowerCase()) return false;
     if (status && h.status !== status) return false;
+    if (from && new Date(h.created_at) < new Date(from)) return false;
+    if (to && new Date(h.created_at) > new Date(to)) return false;
     return true;
   });
+
+  if (environment && environment.toLowerCase() === 'demo' && results.length === 0) {
+    results = [
+      {
+        hypothesis_id: 'hyp-demo-nas-01',
+        created_at: new Date().toISOString(),
+        trigger_event_id: 'evt-demo-01',
+        suspect_entity_id: 'infra:nas_performance',
+        confidence: 0.94,
+        blast_radius: 4,
+        rationale: [
+          { claim: 'Shared NAS storage queue saturation detected on /mnt/production_shares.' },
+          { observation: 'Correlated latency spike across Bitbucket git-pack and Artifactory binary upload within 3 minutes.' }
+        ],
+        environment: 'demo',
+        status: 'open',
+        verdicts: []
+      }
+    ];
+  }
 
   results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   return results.slice(0, parsedLimit);
@@ -303,6 +335,24 @@ async function getHypothesisById(id) {
       }
     }
   } catch (_) {}
+
+  if (id === 'hyp-demo-nas-01') {
+    return {
+      hypothesis_id: 'hyp-demo-nas-01',
+      created_at: new Date().toISOString(),
+      trigger_event_id: 'evt-demo-01',
+      suspect_entity_id: 'infra:nas_performance',
+      confidence: 0.94,
+      blast_radius: 4,
+      rationale: [
+        { claim: 'Shared NAS storage queue saturation detected on /mnt/production_shares.' },
+        { observation: 'Correlated latency spike across Bitbucket git-pack and Artifactory binary upload within 3 minutes.' }
+      ],
+      environment: 'demo',
+      status: 'open',
+      verdicts: []
+    };
+  }
 
   return null;
 }

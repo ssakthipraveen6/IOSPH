@@ -14,6 +14,34 @@ function encodeCursor(ts, id) {
   return Buffer.from(JSON.stringify({ ts, id })).toString('base64');
 }
 
+function generateDemoLogs() {
+  const now = Date.now();
+  const sampleMessages = [
+    { app: 'bitbucket', level: 'INFO', msg: 'HTTP 200 GET /rest/api/1.0/projects/CORE/repos/sentinel/commits duration=42ms' },
+    { app: 'bitbucket', level: 'WARN', msg: 'Git packfile concurrency threshold reached 80% on lon-bb-node-02' },
+    { app: 'jenkins', level: 'INFO', msg: 'Build pipeline #1842 finished successfully on k8s-agent-pod-9b' },
+    { app: 'jenkins', level: 'WARN', msg: 'Executor provisioning queue delayed by 18s waiting for cluster capacity' },
+    { app: 'artifactory', level: 'INFO', msg: 'Artifact docker-local/sentinel:v1.4.2 SHA256 verified successfully' },
+    { app: 'artifactory', level: 'ERROR', msg: 'Storage quota warning: S3 primary bucket fill rate reached 78%' },
+    { app: 'database', level: 'INFO', msg: 'Vacuum analyze completed on table metric (duration=120ms)' },
+    { app: 'avi_load_balancer', level: 'INFO', msg: 'VirtualService vip-bitbucket healthy: 4/4 pool members up' },
+    { app: 'sonarqube', level: 'INFO', msg: 'Quality Gate passed for project sentinel-core (coverage 88.4%)' },
+    { app: 'argocd', level: 'INFO', msg: 'Application sync completed: 14 resources synchronized to k8s cluster' }
+  ];
+  return sampleMessages.map((sm, idx) => ({
+    id: 9000 + idx,
+    ts: new Date(now - (idx + 1) * 60000).toISOString(),
+    app_id: sm.app,
+    entity_id: `app:${sm.app}`,
+    environment: 'demo',
+    level: sm.level,
+    logger: `${sm.app}.service`,
+    message: `[DEMO] ${sm.msg}`,
+    fields: { host: `${sm.app}-demo-01.internal`, env: 'demo' },
+    fingerprint: `fp-${sm.app}-${sm.level.toLowerCase()}`
+  }));
+}
+
 /**
  * Decodes base64 keyset cursor to { ts, id }
  */
@@ -237,12 +265,26 @@ async function searchLogs(filters = {}) {
 
     if (qTerms.length > 0) {
       const haystack = `${log.message} ${log.logger} ${log.app_id} ${JSON.stringify(log.fields || {})}`.toLowerCase();
-      for (const term of qTerms) {
-        if (!haystack.includes(term)) return false;
-      }
     }
     return true;
   });
+
+  if (environment && environment.toLowerCase() === 'demo' && matched.length === 0) {
+    const demoLogs = generateDemoLogs();
+    matched = demoLogs.filter(log => {
+      if (app_id && log.app_id !== app_id) return false;
+      if (entity_id && log.entity_id !== entity_id) return false;
+      if (level && (log.level || '').toUpperCase() !== level.toUpperCase()) return false;
+      if (fingerprint && log.fingerprint !== fingerprint) return false;
+      if (qTerms.length > 0) {
+        const haystack = `${log.message} ${log.logger} ${log.app_id}`.toLowerCase();
+        for (const term of qTerms) {
+          if (!haystack.includes(term)) return false;
+        }
+      }
+      return true;
+    });
+  }
 
   // Sort descending by ts and id
   matched.sort((a, b) => {

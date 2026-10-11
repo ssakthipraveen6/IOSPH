@@ -1,0 +1,95 @@
+/* Trace Explorer CSS */
+
+.trace-explorer-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  color: var(--text-main, #e0e6ed);
+}
+
+.trace-search-bar {
+  background: var(--bg-card, #141c2b);
+  border: 1px solid var(--border-light, #223249);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.trace-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light, #223249);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.trace-btn {
+  background: var(--primary, #38bdf8);
+  color: #0f172a;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trace-waterfall-card {
+  background: var(--bg-card, #141c2b);
+  border: 1px solid var(--border-light, #223249);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trace-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-light, #223249);
+  padding-bottom: 12px;
+}
+
+.span-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.span-label {
+  width: 220px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.span-track-container {
+  flex: 1;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.span-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 40px;
+}

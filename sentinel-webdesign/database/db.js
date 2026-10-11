@@ -577,6 +577,25 @@ const dbManager = {
     } else {
       targetEnv = env || global.runtimeEnvironment || 'staging';
     }
+    // [P1-03] 5-minute Alert Deduplication Window
+    const DEDUP_WINDOW_MS = 5 * 60 * 1000;
+    const nowMs = Date.now();
+    const existing = db.alerts.find(a =>
+      a.status === 'Active' &&
+      a.component === component &&
+      a.severity === severity &&
+      a.message === message &&
+      a.env === targetEnv &&
+      (nowMs - new Date(a.last_seen || a.timestamp).getTime()) < DEDUP_WINDOW_MS
+    );
+
+    if (existing) {
+      existing.count = (existing.count || 1) + 1;
+      existing.last_seen = new Date(nowMs).toISOString();
+      saveDB();
+      return existing;
+    }
+
     const alertId = 'ALT-' + crypto.randomUUID().substring(0, 8).toUpperCase();
     const alert = {
       id: alertId,
@@ -586,7 +605,9 @@ const dbManager = {
       message,
       status: targetStatus,
       resolvedAt: null,
-      env: targetEnv
+      env: targetEnv,
+      count: 1,
+      last_seen: new Date(nowMs).toISOString()
     };
     
     db.alerts.push(alert);
@@ -625,6 +646,30 @@ const dbManager = {
       }
     }).catch(() => {});
 
+    // [P1-04] Direct persistence to PostgreSQL alert table
+    try {
+      postgres.query(`
+        INSERT INTO alert (id, timestamp, component, severity, message, status, resolved_at, env, count, last_seen)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT (id) DO UPDATE SET
+          count = EXCLUDED.count,
+          last_seen = EXCLUDED.last_seen,
+          status = EXCLUDED.status,
+          resolved_at = EXCLUDED.resolved_at;
+      `, [
+        alert.id,
+        new Date(alert.timestamp),
+        alert.component,
+        alert.severity,
+        alert.message,
+        alert.status,
+        alert.resolvedAt ? new Date(alert.resolvedAt) : null,
+        alert.env,
+        alert.count || 1,
+        new Date(alert.last_seen || alert.timestamp)
+      ]).catch(() => {});
+    } catch (_) {}
+
     return alert;
   },
 
@@ -640,6 +685,13 @@ const dbManager = {
     });
     if (resolvedCount > 0) {
       saveDB();
+      try {
+        postgres.query(`
+          UPDATE alert
+          SET status = 'Resolved', resolved_at = now()
+          WHERE component = $1 AND env = $2 AND status = 'Active';
+        `, [component, targetEnv]).catch(() => {});
+      } catch (_) {}
     }
     return resolvedCount;
   },
@@ -672,8 +724,9 @@ const dbManager = {
     return db.recovery.filter(r => r.env === 'staging');
   },
 
-  addRecoveryRun(component, action, triggerReason, env = null) {
-    const targetEnv = env || global.runtimeEnvironment || 'staging';
+  addRecoveryRun(component, action, triggerReason, env = null, initiatedBy = null) {
+    const targetEnv = (typeof env === 'string' ? env : (env && env.env)) || global.runtimeEnvironment || 'staging';
+    const initiator = initiatedBy || (typeof env === 'object' && env !== null ? env.initiatedBy : null) || null;
     const runId = 'REC-' + crypto.randomUUID().substring(0, 8).toUpperCase();
     const run = {
       id: runId,
@@ -685,7 +738,8 @@ const dbManager = {
       steps: [`[${new Date().toLocaleTimeString()}] Triggered recovery action: ${action}`],
       duration: 0,
       approvals: [],
-      env: targetEnv
+      env: targetEnv,
+      initiated_by: initiator
     };
     db.recovery.push(run);
     saveDB();
@@ -706,6 +760,31 @@ const dbManager = {
       source: 'recovery'
     }).catch(() => {});
 
+    // [P1-04] Direct persistence to PostgreSQL recovery_run table
+    try {
+      postgres.query(`
+        INSERT INTO recovery_run (id, timestamp, component, action, trigger_reason, status, steps, duration, approvals, env, initiated_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id) DO UPDATE SET
+          status = EXCLUDED.status,
+          steps = EXCLUDED.steps,
+          duration = EXCLUDED.duration,
+          approvals = EXCLUDED.approvals;
+      `, [
+        run.id,
+        new Date(run.timestamp),
+        run.component,
+        run.action,
+        run.triggerReason,
+        run.status,
+        JSON.stringify(run.steps || []),
+        run.duration || 0,
+        JSON.stringify(run.approvals || []),
+        run.env,
+        run.initiated_by
+      ]).catch(() => {});
+    } catch (_) {}
+
     return run;
   },
 
@@ -725,6 +804,19 @@ const dbManager = {
         run.approvals = updates.approvals;
       }
       saveDB();
+      try {
+        postgres.query(`
+          UPDATE recovery_run
+          SET status = $2, steps = $3, duration = $4, approvals = $5
+          WHERE id = $1;
+        `, [
+          id,
+          run.status,
+          JSON.stringify(run.steps || []),
+          run.duration || 0,
+          JSON.stringify(run.approvals || [])
+        ]).catch(() => {});
+      } catch (_) {}
       return run;
     }
     return null;
@@ -756,7 +848,17 @@ const dbManager = {
   },
 
   // Export synchronous flush for graceful shutdown
-  saveDBSync
+  saveDBSync,
+
+  async drainQueue() {
+    clearInterval(flushIntervalTimer);
+    let attempts = 0;
+    while (writeQueue.length > 0 && attempts < 20) {
+      await flushQueue();
+      attempts++;
+    }
+    saveDBSync();
+  }
 };
 
 module.exports = dbManager;

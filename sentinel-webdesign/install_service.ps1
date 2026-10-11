@@ -6,10 +6,11 @@
 # Run this script as Administrator.
 # ====================================================================
 
-# Ensure execution context is Administrator
+# Ensure execution context is Administrator; auto-elevate if not
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
-    Write-Warning "This script requires Administrator permissions. Please run PowerShell as Administrator."
+    Write-Host "[ELEVATION REQUIRED] Launching with Administrator privileges..." -ForegroundColor Cyan
+    Start-Process powershell.exe -ArgumentList ("-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"") -Verb RunAs
     Exit
 }
 
@@ -21,43 +22,85 @@ Write-Host "     Project Sentinel: Background Service Setup" -ForegroundColor Gr
 Write-Host "========================================================" -ForegroundColor Green
 Write-Host "Configuring Project Sentinel to run natively on startup..."
 Write-Host "Target Executable: $batFile"
-Write-Host.
+Write-Host ""
 
-# Option A: Register as a Native Scheduled Task triggered at System Boot (Recommended & Native)
 $taskName = "ProjectSentinelDaemon"
 $taskExists = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
 
 if ($taskExists) {
-    Write-Host "[INFO] Scheduled Task '$taskName' already exists. Re-creating task to sync path..."
+    Write-Host "[INFO] Service Task '$taskName' already exists. Stopping and updating..." -ForegroundColor Yellow
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 }
 
-# Define scheduled task parameters
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$batFile`"" -WorkingDirectory $scriptPath
-$trigger = New-ScheduledTaskTrigger -AtStartup
-# Run as SYSTEM user to ensure it starts without active user logins and has adequate rights
-$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+# Service Account Configuration (CIS Benchmark Hardening: Least Privilege)
+param(
+    [string]$ServiceAccount = $env:SENTINEL_SERVICE_ACCOUNT
+)
 
-# Setup settings (e.g. restart task if it fails, don't stop if it runs longer than 3 days)
+if (-not $ServiceAccount) {
+    # Default to least-privilege NetworkService instead of SYSTEM
+    $ServiceAccount = "NT AUTHORITY\NetworkService"
+}
+
+Write-Host "Configuring Project Sentinel service with Least-Privilege Principal: $ServiceAccount" -ForegroundColor Cyan
+
+$logDir = Join-Path -Path $scriptPath -ChildPath "logs"
+if (-not (Test-Path $logDir)) {
+    New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+}
+$stdoutLog = Join-Path -Path $logDir -ChildPath "windows_service_stdout.log"
+$stderrLog = Join-Path -Path $logDir -ChildPath "windows_service_stderr.log"
+
+# Define scheduled task parameters: Runs silently via cmd /c start.bat --daemon with redirected logs
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$batFile`" --daemon > `"$stdoutLog`" 2> `"$stderrLog`"" -WorkingDirectory $scriptPath
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$principal = New-ScheduledTaskPrincipal -UserId $ServiceAccount -LogonType ServiceAccount -RunLevel Limited
+
+# Setup settings (3 restart attempts with 1-min interval, alert if exhausted)
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit (New-TimeSpan -Days 365)
 
 $task = New-ScheduledTask -Action $action -Trigger $trigger -Principal $principal -Settings $settings
 
 Register-ScheduledTask -TaskName $taskName -InputObject $task | Out-Null
 
-Write-Host "[SUCCESS] Scheduled Task registered successfully!" -ForegroundColor Green
-Write-Host "Project Sentinel will now start automatically at boot (running in the background as SYSTEM)."
-Write-Host "You can manually trigger it now by running: Start-ScheduledTask -TaskName '$taskName'"
-Write-Host.
+Write-Host "[SUCCESS] Scheduled Service Task registered successfully!" -ForegroundColor Green
+Write-Host "Starting service task now..." -ForegroundColor Cyan
+Start-ScheduledTask -TaskName $taskName
 
-# Option B: NSSM Instructions (Non-Sucking Service Manager)
-Write-Host "--------------------------------------------------------"
-Write-Host "Alternative: True NT Service Installation via NSSM"
-Write-Host "--------------------------------------------------------"
-Write-Host "If your corporate security policy requires a native Windows NT Service (visible in services.msc):"
-Write-Host "1. Download NSSM from https://nssm.cc"
-Write-Host "2. From an elevated command prompt, run:"
-Write-Host "   nssm install ProjectSentinel `"$batFile`""
-Write-Host "3. Start the service:"
-Write-Host "   Start-Service ProjectSentinel"
+# Verify health
+Write-Host "Verifying service availability at http://localhost:3001 ..."
+$healthy = $false
+for ($i = 0; $i -lt 15; $i++) {
+    Start-Sleep -Seconds 1
+    try {
+        $res = Invoke-RestMethod -Uri "http://localhost:3001/api/health" -Method Get -TimeoutSec 2 -ErrorAction Stop
+        if ($res) {
+            $healthy = $true
+            break
+        }
+    } catch {
+        # Initializing
+    }
+}
+
+Write-Host ""
+if ($healthy) {
+    Write-Host "========================================================" -ForegroundColor Green
+    Write-Host "  ✅ Project Sentinel is ONLINE and Healthy!" -ForegroundColor Green
+    Write-Host "  Dashboard URL: http://localhost:3001" -ForegroundColor Cyan
+    Write-Host "  Demo URL:      http://localhost:3001/?env=demo" -ForegroundColor Cyan
+    Write-Host "========================================================" -ForegroundColor Green
+} else {
+    Write-Host "========================================================" -ForegroundColor Yellow
+    Write-Host "  Service Task registered. Process initializing..." -ForegroundColor Yellow
+    Write-Host "  Dashboard URL: http://localhost:3001" -ForegroundColor Cyan
+    Write-Host "========================================================" -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "Useful Commands:" -ForegroundColor White
+Write-Host "  - Check Status: powershell ./status_service.ps1"
+Write-Host "  - Stop Service: powershell ./stop_service.bat"
+Write-Host "  - Uninstall:    powershell ./uninstall_service.ps1"
 Write-Host "========================================================"

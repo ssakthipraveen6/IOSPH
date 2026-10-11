@@ -26,6 +26,7 @@ try {
 function auditLog(req, action, detail = {}) {
   const entry = {
     timestamp: new Date().toISOString(),
+    trace_id: req.traceId || (req.headers ? req.headers['x-trace-id'] : null) || null,
     action,
     user: req.user ? req.user.username : 'UNAUTHENTICATED',
     role: req.user ? req.user.role : 'NONE',
@@ -51,10 +52,10 @@ function auditLog(req, action, detail = {}) {
   // [T0.16] Mirror into the append-only audit_event table. The file write above is the
   // durable local WAL; this makes the trail queryable. Never throws into the request path.
   postgres.query(
-    `INSERT INTO audit_event (ts, actor, actor_role, action, target, detail, ip, user_agent, http_path, http_method)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    `INSERT INTO audit_event (ts, actor, actor_role, action, target, detail, ip, user_agent, http_path, http_method, trace_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [entry.timestamp, entry.user, entry.role, entry.action, detail && detail.target ? String(detail.target) : null,
-     JSON.stringify(detail || {}), entry.ip, entry.userAgent, entry.path, entry.method]
+     JSON.stringify(detail || {}), entry.ip, entry.userAgent, entry.path, entry.method, entry.trace_id]
   ).catch(err => {
     console.warn('[AUDIT] audit_event insert failed (file WAL retains the entry):', err.message);
   });

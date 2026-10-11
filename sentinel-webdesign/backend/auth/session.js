@@ -30,19 +30,45 @@ if (!process.env.SENTINEL_JWT_SECRET) {
   } catch (e) {}
 }
 
-// [SEC-01 REMEDIATED] — CWE-321: Hard-coded Cryptographic Key
-// JWT secret MUST be provided via environment variable. No fallback string is permitted.
-// Startup is aborted if the secret is absent, preventing accidental insecure deployments.
-const JWT_SECRET = process.env.SENTINEL_JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('[FATAL] [SEC-01] SENTINEL_JWT_SECRET environment variable is not set.');
-  console.error('[FATAL] Refusing to start. Set SENTINEL_JWT_SECRET to a strong random secret (min 64 chars).');
-  process.exit(1);
+// [SEC-01 REMEDIATED] — Cryptographic Key Management via CyberArk / Environment
+// Key is resolved through CyberArk Central Credential Provider with strict fallback.
+let JWT_SECRET = process.env.SENTINEL_JWT_SECRET || null;
+
+async function bootstrapJwtSecret() {
+  if (JWT_SECRET && JWT_SECRET.length >= 32) {
+    return JWT_SECRET;
+  }
+  try {
+    const credProvider = require('../config/cyberark/credential_provider');
+    const secret = await credProvider.getCredential('sentinel_platform', 'jwt_signing_key');
+    if (secret && secret.length >= 32) {
+      JWT_SECRET = secret;
+      return JWT_SECRET;
+    }
+  } catch (err) {
+    if (process.env.SENTINEL_JWT_SECRET && process.env.SENTINEL_JWT_SECRET.length >= 32) {
+      JWT_SECRET = process.env.SENTINEL_JWT_SECRET;
+      console.warn(`[AUTH] CyberArk JWT resolution fell back to SENTINEL_JWT_SECRET: ${err.message}`);
+      return JWT_SECRET;
+    }
+    throw new Error(`[FATAL] [SEC-01] Failed to bootstrap JWT secret from CyberArk or environment: ${err.message}`);
+  }
+
+  if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error('[FATAL] [SEC-01] SENTINEL_JWT_SECRET is absent or too short (minimum 32 characters required for HS256).');
+  }
+  return JWT_SECRET;
 }
 
-if (JWT_SECRET.length < 32) {
-  console.error('[FATAL] [SEC-01] SENTINEL_JWT_SECRET is too short (minimum 32 characters required for HS256).');
-  process.exit(1);
+function getJwtSecret() {
+  return JWT_SECRET;
+}
+
+function setJwtSecret(secret) {
+  if (!secret || secret.length < 32) {
+    throw new Error('[FATAL] [SEC-01] JWT secret must be at least 32 characters.');
+  }
+  JWT_SECRET = secret;
 }
 
 // [T0.7] Key rotation support — active key and previous key for smooth migration
@@ -205,6 +231,9 @@ function revokeToken(jti, reason) {
 }
 
 module.exports = {
+  bootstrapJwtSecret,
+  getJwtSecret,
+  setJwtSecret,
   generateToken,
   verifyToken,
   revokeToken

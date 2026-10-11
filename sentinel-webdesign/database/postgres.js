@@ -190,6 +190,15 @@ async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLi
   return dataset;
 }
 
+async function closePool() {
+  if (pool) {
+    try {
+      await pool.end();
+    } catch (_) {}
+    pool = null;
+  }
+}
+
 async function query(text, params) {
   const p = await getPool();
   if (!p) return null;
@@ -198,6 +207,7 @@ async function query(text, params) {
 
 module.exports = {
   getPool,
+  closePool,
   query,
   saveMetricToPostgres,
   saveMetricBatchToPostgres,

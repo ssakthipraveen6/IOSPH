@@ -44,6 +44,17 @@ assert.strictEqual(runAfter2.status, 'In-Progress', `Status must transition to I
 assert.strictEqual(runAfter2.approvals.length, 2, 'Must have 2 distinct approvals recorded');
 console.log('✔ Test 4 Passed: Second distinct approver completes 2 of 2 signatures -> In-Progress.');
 
+// Test 5: Segregation of Duties (SOD) — Initiator cannot approve their own recovery
+const sodRun = triggerRecovery('jenkins_k8s', 'Manual failover requested', { manual: false, env: 'prod', initiatedBy: 'initiator.user@enterprise.corp' });
+assert.ok(sodRun, 'SOD test run must be created');
+assert.strictEqual(sodRun.initiated_by, 'initiator.user@enterprise.corp', 'Initiator must be recorded on run');
+
+const initiatorApprover = { username: 'initiator.user@enterprise.corp', role: 'Super Admin' };
+const sodResult = approveRecovery(sodRun.id, initiatorApprover);
+assert.ok(sodResult && typeof sodResult === 'object' && sodResult.error, 'Initiator approval must be rejected with SOD error');
+assert.ok(sodResult.error.includes('SOD violation'), 'Error message must specify SOD violation');
+console.log('✔ Test 5 Passed: Segregation of Duties strictly enforced (initiator cannot approve).');
+
 console.log('======================================================');
 console.log('✅ ALL FOUR-EYES RECOVERY TESTS PASSED!');
 console.log('======================================================\n');

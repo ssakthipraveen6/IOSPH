@@ -114,4 +114,8 @@ infrastructure:
     safe: "SF-INFRA-OTEL"
     objects:
       api_token: "OTEL-INGEST-TOKEN"
+  sentinel_platform:
+    safe: "SF-INFRA-SENTINEL"
+    objects:
+      jwt_signing_key: "SENTINEL-JWT-SIGNING-KEY"
 

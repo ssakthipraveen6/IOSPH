@@ -197,6 +197,27 @@ module.exports = {
       return Boolean(globalConfig.collectors.python_metrics.enabled);
     }
     return true;
+  },
+
+  isViewEnabled: (viewKey) => {
+    if (!viewKey) return true;
+    const views = globalConfig.views_enabled || {};
+    const normalizedKey = String(viewKey).replace(/-/g, '_');
+    if (views[viewKey] !== undefined) return Boolean(views[viewKey]);
+    if (views[normalizedKey] !== undefined) return Boolean(views[normalizedKey]);
+    return true;
+  },
+
+  isLayerEnabled: (appKey, layerKey) => {
+    if (!appKey || !layerKey) return true;
+    const manifest = appsConfig[appKey];
+    if (manifest && manifest.layers && manifest.layers[layerKey]) {
+      const layerDef = manifest.layers[layerKey];
+      if (layerDef.enabled !== undefined) {
+        return Boolean(layerDef.enabled);
+      }
+    }
+    return true;
   }
 };
 

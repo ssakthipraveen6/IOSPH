@@ -13,6 +13,12 @@ The project's architectural and operational documentation is consolidated into a
 | Document | File Link | Description |
 | :--- | :--- | :--- |
 | **Master Architecture & Reference** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | **Definitive Single Source of Truth**: End-to-end topology, Mermaid sequence & state diagrams, module reference, OpenTelemetry pipeline, and SLAs. |
+| **Team Onboarding & Operations** | [`docs/ONBOARDING.md`](./docs/ONBOARDING.md) | **Quickstart & Handbook**: Day-1 onboarding, directory tour, test execution, and daily SRE routines. |
+| **Operational Runbooks Catalog** | [`docs/runbooks/`](./docs/runbooks/) | **SRE Incident Runbooks (RB-001 to RB-008)**: Step-by-step triage for service outages, SLO error budget depletion, circuit breakers, CyberArk, etc. |
+| **REST & WebSocket API Reference** | [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md) | **API Contract**: Complete schemas for telemetry push, SLO status, anomalies, ServiceNow tickets, traces, and circuit breakers. |
+| **Security & Compliance Addendum** | [`docs/SECURITY_COMPLIANCE.md`](./docs/SECURITY_COMPLIANCE.md) | **Regulatory Mapping**: PCI-DSS v4.0, RBI IT Governance, SEBI Cyber Resilience, and HMAC-SHA256 audit trails. |
+| **Architecture Decision Records** | [`docs/adr/`](./docs/adr/) | **Decisions (ADR-001 to ADR-006)**: Rationale for CyberArk, Circuit Breakers, Z-Score Anomaly Engine, W3C Tracing, and ServiceNow. |
+| **External Grafana Export Spec** | [`docs/GRAFANA_INTEGRATION.md`](./docs/GRAFANA_INTEGRATION.md) | **Prometheus & Alertmanager**: Scrape endpoints, metric definitions, and Alertmanager routing rules. |
 | **Production Integration Guide** | [`docs/PRODUCTION_GUIDE.md`](./docs/PRODUCTION_GUIDE.md) | **Rollout & Operations Manual**: Windows Server / IIS hosting, TimescaleDB SQL DDL, CyberArk CCP registry, and operational checklists. |
 | **Security Policy & Compliance** | [`docs/SECURITY.md`](./docs/SECURITY.md) | CyberArk vault scoping, RBAC governance, vulnerability disclosure SLA, and audit standards. |
 
@@ -209,29 +215,26 @@ When host or management-level visibility is needed from Dynatrace, Sentinel incl
 
 ---
 
-## 🧪 Automated QA Test Suite (12/12 Passed)
+## 🧪 Automated QA Test Suite (28/28 Passed)
 
 Run the full automated regression suite:
 ```powershell
-node scratch/run_all_tests.js
+npm test
 ```
 
 ```
-[1/12] tests/cyberark_provider.test.js...             ✅ PASSED
-[2/12] tests/auth_lockdown.test.js...                 ✅ PASSED
-[3/12] tests/schema_validation.test.js...             ✅ PASSED
-[4/12] tests/telemetry_selector.test.js...            ✅ PASSED
-[5/12] tests/otlp_normalizer.test.js...               ✅ PASSED
-[6/12] tests/datastore_migration.test.js...           ✅ PASSED
-[7/12] tests/misc_operations.test.js...               ✅ PASSED
-[8/12] tests/prod_data_availability.test.js...        ✅ PASSED
-[9/12] tests/data_availability_segregation.test.js...   ✅ PASSED
-[10/12] tests/env_strict_value_not_available.test.js... ✅ PASSED
-[11/12] tests/load_test_200.js...                      ✅ PASSED
-[12/12] tests/e2e_qa_suite.test.js...                  ✅ PASSED
-
 =============================================
-AUTOMATED REGRESSION SUITE: 12/12 PASSED (100% GREEN)
+AUTOMATED REGRESSION SUITE: 28/28 PASSED (100% GREEN)
+- Core Data Availability & Isolation
+- CyberArk CCP Dynamic Credential Provider
+- OpenTelemetry OTLP Ingest & Semantic Normalizer
+- Segregation of Duties (Four-Eyes Dual Control)
+- Jenkins Circuit Breaker & Safe Recovery
+- Streaming Z-Score Statistical Anomaly Engine
+- Service Level Objectives & Error Budget Evaluation
+- ServiceNow ITSM Incident Dispatching & Resolution
+- W3C Distributed Tracing & Cryptographic Audit Trails
+- Dashboard Uplift API Endpoints (SLO, Anomaly, ITSM, Traces)
 =============================================
 ```
 

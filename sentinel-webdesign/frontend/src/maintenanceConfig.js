@@ -40,6 +40,11 @@ export const MAINTENANCE_CONFIG = {
     serviceNowTile: true
   },
 
+  // Dynamic master toggles from config/global.yaml
+  views_enabled: {},
+  components_enabled: {},
+  applications_enabled: {},
+
   serviceNowNote: "Under Maintenance — ServiceNow ITSM REST API ticket synchronization in progress."
 };
 
@@ -57,6 +62,9 @@ export async function hydrateUiConfig() {
       Object.assign(MAINTENANCE_CONFIG, remote);
       if (remote.pages) MAINTENANCE_CONFIG.pages = { ...MAINTENANCE_CONFIG.pages, ...remote.pages };
       if (remote.tiles) MAINTENANCE_CONFIG.tiles = { ...MAINTENANCE_CONFIG.tiles, ...remote.tiles };
+      if (remote.views_enabled) MAINTENANCE_CONFIG.views_enabled = { ...remote.views_enabled };
+      if (remote.components_enabled) MAINTENANCE_CONFIG.components_enabled = { ...remote.components_enabled };
+      if (remote.applications_enabled) MAINTENANCE_CONFIG.applications_enabled = { ...remote.applications_enabled };
     }
   } catch (e) {
     console.warn('[UI-CONFIG] Could not load config/ui.yaml, using built-in defaults:', e.message);

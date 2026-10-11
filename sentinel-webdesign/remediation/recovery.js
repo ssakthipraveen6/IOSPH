@@ -105,6 +105,27 @@ function getActiveRecoveries() {
   return activeRecoveries;
 }
 
+// [P1-02] Jenkins Circuit Breaker State & Timeout Configuration
+const jenkinsCircuitBreaker = {
+  consecutiveFailures: 0,
+  maxFailures: 3,
+  state: 'CLOSED', // 'CLOSED', 'OPEN', 'HALF-OPEN'
+  lastTripped: null,
+  cooldownMs: 5 * 60 * 1000 // 5 minutes cooldown
+};
+
+const RECOVERY_TIMEOUT_MS = parseInt(process.env.RECOVERY_TIMEOUT_MS, 10) || (30 * 60 * 1000); // 30 minutes default
+
+function getCircuitBreakerStatus() {
+  return { ...jenkinsCircuitBreaker };
+}
+
+function resetCircuitBreaker() {
+  jenkinsCircuitBreaker.consecutiveFailures = 0;
+  jenkinsCircuitBreaker.state = 'CLOSED';
+  jenkinsCircuitBreaker.lastTripped = null;
+}
+
 // Function to run the recovery workflow step-by-step
 function executeRecoveryWorkflow(runId, component) {
   const workflow = resolveWorkflow(component);
@@ -117,52 +138,128 @@ function executeRecoveryWorkflow(runId, component) {
   const startTime = Date.now();
   const { writeNasLog } = require('@sentinel/logger');
   const config = require('@sentinel/config');
+
+  // [P1-02] Check Circuit Breaker before executing Jenkins remediation
+  const now = Date.now();
+  if (jenkinsCircuitBreaker.state === 'OPEN') {
+    if (jenkinsCircuitBreaker.lastTripped && (now - jenkinsCircuitBreaker.lastTripped) > jenkinsCircuitBreaker.cooldownMs) {
+      jenkinsCircuitBreaker.state = 'HALF-OPEN';
+      writeNasLog('WARNING', 'RECOVERY', `[CIRCUIT BREAKER] Jenkins cooldown elapsed. Entering HALF-OPEN state.`);
+    } else {
+      const remainingSec = Math.ceil((jenkinsCircuitBreaker.cooldownMs - (now - (jenkinsCircuitBreaker.lastTripped || now))) / 1000);
+      const breakerMsg = `Jenkins Circuit Breaker is OPEN (${jenkinsCircuitBreaker.consecutiveFailures} consecutive failures). Recovery blocked for ${remainingSec}s. Escalated to on-call SRE. Runbook: https://runbooks.enterprise.corp/${component}`;
+      db.updateRecoveryRun(runId, {
+        status: 'Failed',
+        duration: 0,
+        step: breakerMsg
+      });
+      activeRecoveries.delete(component);
+      try {
+        db.addAlert(component, 'Critical', breakerMsg, 'Active');
+      } catch (_) {}
+      return;
+    }
+  }
+
   const mode = config.USE_SIMULATED_COLLECTORS ? 'simulation' : 'real';
   const { triggerJenkinsSelfHealingJob } = require(`./${mode}/jenkins/jenkins_trigger`);
   
   writeNasLog('INFO', 'RECOVERY', `[START] Triggering self-healing Jenkins Job for ${component}`);
   
   const jobName = workflow.jobName || 'generic-rollout';
+
+  let isDone = false;
+  // [P1-02] Enforce execution timeout
+  const timeoutTimer = setTimeout(() => {
+    if (isDone) return;
+    isDone = true;
+    const duration = parseFloat(((Date.now() - startTime) / 1000).toFixed(1));
+    jenkinsCircuitBreaker.consecutiveFailures++;
+    if (jenkinsCircuitBreaker.consecutiveFailures >= jenkinsCircuitBreaker.maxFailures) {
+      jenkinsCircuitBreaker.state = 'OPEN';
+      jenkinsCircuitBreaker.lastTripped = Date.now();
+      writeNasLog('CRITICAL', 'RECOVERY', `[CIRCUIT BREAKER] Trip: 3 consecutive failures reached. Breaker OPEN.`);
+    }
+    const timeoutMsg = `Recovery workflow timed out after ${duration}s. Manual runbook intervention required: https://runbooks.enterprise.corp/${component}`;
+    db.updateRecoveryRun(runId, {
+      status: 'Failed',
+      duration,
+      step: timeoutMsg
+    });
+    try {
+      db.addAlert(component, 'Critical', timeoutMsg, 'Active');
+    } catch (_) {}
+    activeRecoveries.delete(component);
+    if (global.broadcastStateChange) {
+      global.broadcastStateChange();
+    }
+  }, RECOVERY_TIMEOUT_MS);
+  if (timeoutTimer.unref) timeoutTimer.unref();
   
-  triggerJenkinsSelfHealingJob(
-    component,
-    jobName,
-    writeNasLog,
-    (progressStep) => {
-      // Clean prefix for UI rendering
-      const stepText = progressStep.replace('[JENKINS BUILDLOG] ', '');
-      db.updateRecoveryRun(runId, { step: stepText });
-      
-      if (global.broadcastStateChange) {
-        global.broadcastStateChange();
+  try {
+    triggerJenkinsSelfHealingJob(
+      component,
+      jobName,
+      writeNasLog,
+      (progressStep) => {
+        if (isDone) return;
+        // Clean prefix for UI rendering
+        const stepText = progressStep.replace('[JENKINS BUILDLOG] ', '');
+        db.updateRecoveryRun(runId, { step: stepText });
+        
+        if (global.broadcastStateChange) {
+          global.broadcastStateChange();
+        }
+      },
+      () => {
+        if (isDone) return;
+        isDone = true;
+        clearTimeout(timeoutTimer);
+
+        jenkinsCircuitBreaker.consecutiveFailures = 0;
+        jenkinsCircuitBreaker.state = 'CLOSED';
+
+        const duration = parseFloat(((Date.now() - startTime) / 1000).toFixed(1));
+        
+        // Update DB run
+        db.updateRecoveryRun(runId, {
+          status: 'Success',
+          duration,
+          step: `Jenkins job ${jobName} build completed successfully in ${duration}s.`
+        });
+        
+        // Clear simulation in the simulations manager
+        const { triggerSimulation } = require('@sentinel/config/simulations');
+        triggerSimulation(component, 'clear');
+        
+        // Resolve Dynatrace Alert and ServiceNow Tickets
+        db.resolveAlertsForComponent(component);
+        
+        writeNasLog('INFO', 'RECOVERY', `[SUCCESS] Jenkins Remediation Completed for ${component} in ${duration}s.`);
+        
+        if (global.broadcastStateChange) {
+          global.broadcastStateChange();
+        }
+        
+        activeRecoveries.delete(component);
       }
-    },
-    () => {
-      const duration = parseFloat(((Date.now() - startTime) / 1000).toFixed(1));
-      
-      // Update DB run
+    );
+  } catch (err) {
+    if (!isDone) {
+      isDone = true;
+      clearTimeout(timeoutTimer);
+      jenkinsCircuitBreaker.consecutiveFailures++;
+      if (jenkinsCircuitBreaker.consecutiveFailures >= jenkinsCircuitBreaker.maxFailures) {
+        jenkinsCircuitBreaker.state = 'OPEN';
+        jenkinsCircuitBreaker.lastTripped = Date.now();
+      }
       db.updateRecoveryRun(runId, {
-        status: 'Success',
-        duration,
-        step: `Jenkins job ${jobName} build completed successfully in ${duration}s.`
+        status: 'Failed',
+        step: `Jenkins invocation failed: ${err.message}`
       });
-      
-      // Clear simulation in the simulations manager
-      const { triggerSimulation } = require('@sentinel/config/simulations');
-      triggerSimulation(component, 'clear');
-      
-      // Resolve Dynatrace Alert and ServiceNow Tickets
-      db.resolveAlertsForComponent(component);
-      
-      writeNasLog('INFO', 'RECOVERY', `[SUCCESS] Jenkins Remediation Completed for ${component} in ${duration}s.`);
-      
-      if (global.broadcastStateChange) {
-        global.broadcastStateChange();
-      }
-      
       activeRecoveries.delete(component);
     }
-  );
+  }
 }
 
 // Manual trigger or automated initiation of a pending action
@@ -170,12 +267,14 @@ function triggerRecovery(component, triggerReason, options = {}) {
   // [T0.1 REMEDIATED] Options object { manual: false, env } prevents environment string from bypassing four-eyes queue
   let isManualTrigger = false;
   let env = null;
+  let initiatedBy = null;
 
   if (typeof options === 'boolean') {
     isManualTrigger = options;
   } else if (typeof options === 'object' && options !== null) {
     isManualTrigger = !!options.manual;
     env = options.env || null;
+    initiatedBy = options.initiatedBy || null;
   }
 
   const workflow = resolveWorkflow(component);
@@ -187,7 +286,7 @@ function triggerRecovery(component, triggerReason, options = {}) {
   }
   
   const settings = db.getSettings();
-  const run = db.addRecoveryRun(component, workflow.actionName, triggerReason, env);
+  const run = db.addRecoveryRun(component, workflow.actionName, triggerReason, env, initiatedBy);
   
   activeRecoveries.set(component, run);
   
@@ -201,6 +300,12 @@ function triggerRecovery(component, triggerReason, options = {}) {
       step: `Awaiting administrator approval (0 of 2 signatures) to execute: "${workflow.actionName}"`
     });
     
+    // [P3-06] Auto-dispatch ServiceNow Incident & tag active On-Call engineer
+    try {
+      const { createIncidentForRecovery } = require('./integrations/servicenow_client');
+      createIncidentForRecovery(run).catch(() => {});
+    } catch (_) {}
+
     const { writeNasLog } = require('@sentinel/logger');
     writeNasLog('WARNING', 'RECOVERY', `[PENDING APPROVAL] Self-healing action for ${component} requires Four-Eyes approval.`);
   }
@@ -232,6 +337,18 @@ function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', r
   const run = allLogs.find(r => r.id === runId);
   if (!run || run.status !== 'Awaiting-Approval') {
     return false;
+  }
+
+  // [SEC-SOD] Segregation of Duties: Initiator cannot approve their own recovery action
+  if (run.initiated_by && userIdentifier === run.initiated_by) {
+    try {
+      const { writeNasLog } = require('@sentinel/logger');
+      writeNasLog('SECURITY', 'RECOVERY', `[SOD VIOLATION] User '${userIdentifier}' attempted to approve recovery '${runId}' which they initiated.`);
+    } catch (_) {}
+    return {
+      success: false,
+      error: `SOD violation: initiator (${userIdentifier}) cannot approve their own recovery.`
+    };
   }
 
   run.approvals = run.approvals || [];
@@ -297,7 +414,8 @@ function runSelfHealingOrchestrator(currentMetrics, env = 'staging') {
         db.addAlert(component, SEVERITY.CRITICAL, `Outage/Critical event detected on component: ${component}. System offline or threshold breached.`, 'Active', env);
         
         // Also log to the simulated ServiceNow ticket queue
-        const ticketId = 'INC-' + Math.floor(100000 + Math.random() * 900000);
+        const ticketNum = crypto.randomInt ? crypto.randomInt(100000, 999999) : (100000 + (Date.now() % 900000));
+        const ticketId = 'INC-' + ticketNum;
         db.addAlert('servicenow', SEVERITY.WARNING, `Ticket ${ticketId} created in ServiceNow for ${component} critical failure.`, 'Active', env);
       }
       
@@ -316,5 +434,7 @@ module.exports = {
   executeRecoveryWorkflow,
   triggerRecovery,
   approveRecovery,
-  runSelfHealingOrchestrator
+  runSelfHealingOrchestrator,
+  getCircuitBreakerStatus,
+  resetCircuitBreaker
 };

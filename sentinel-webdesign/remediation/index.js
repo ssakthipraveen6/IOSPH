@@ -12,5 +12,7 @@ module.exports = {
   executeRecoveryWorkflow: recovery.executeRecoveryWorkflow,
   triggerRecovery: recovery.triggerRecovery,
   approveRecovery: recovery.approveRecovery,
-  runSelfHealingOrchestrator: recovery.runSelfHealingOrchestrator
+  runSelfHealingOrchestrator: recovery.runSelfHealingOrchestrator,
+  getCircuitBreakerStatus: recovery.getCircuitBreakerStatus,
+  resetCircuitBreaker: recovery.resetCircuitBreaker
 };
