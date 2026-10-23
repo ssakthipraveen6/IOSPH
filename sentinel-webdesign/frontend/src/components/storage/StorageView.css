@@ -1,0 +1,79 @@
+/* Observe › Storage. Builds on TelemetryView.css; tokens only. */
+
+.storage-view__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.storage-view__title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.storage-view__window {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+}
+
+.storage-view__select {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-sm);
+}
+
+.storage-view__p95 {
+  color: var(--text-muted);
+}
+
+.storage-view__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.storage-view__tag {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+}
+
+.storage-view__pill {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--sev-unavailable-border);
+  border-radius: var(--radius-full);
+  background: var(--sev-unavailable-bg);
+  color: var(--sev-unavailable);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.storage-view__pill--up,
+.storage-view__pill--ok {
+  border-color: var(--sev-healthy-border);
+  background: var(--sev-healthy-bg);
+  color: var(--sev-healthy);
+}
+
+.storage-view__pill--down,
+.storage-view__pill--failed {
+  border-color: var(--sev-critical-border);
+  background: var(--sev-critical-bg);
+  color: var(--sev-critical);
+}

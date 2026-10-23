@@ -1,3 +1,6 @@
+/**
+ * Test: operational safety regression suite (phase 1).
+ */
 const assert = require('assert');
 const db = require('../database/db');
 const { triggerRecovery, executeRecoveryWorkflow, getCircuitBreakerStatus, resetCircuitBreaker } = require('../remediation/recovery');

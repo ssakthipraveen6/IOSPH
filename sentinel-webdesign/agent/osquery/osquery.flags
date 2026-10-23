@@ -1,0 +1,8 @@
+--config_path=/etc/sentinel/osquery/osquery.conf
+--logger_path=/var/log/osquery
+--pidfile=/var/run/sentinel-osqueryd.pid
+--database_path=/var/lib/sentinel/osquery.db
+--disable_events=false
+--enable_file_events=true
+--disable_audit=true
+--host_identifier=hostname

@@ -1,3 +1,8 @@
+/**
+ * Sign-in against LDAP / eLDAP: binds as the user, reads group membership and maps it to a
+ * Sentinel role. Outside production (or with SENTINEL_ALLOW_SIMULATED_LOGIN=true) the staging test
+ * users are used instead.
+ */
 const ldap = require('ldapjs');
 const yamlConfig = require('@sentinel/config/yaml_config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
@@ -18,7 +23,7 @@ const LDAP_GROUP_ROLE_MAP = {
 const STAGING_TEST_USERS = {
   'admin_sentinel':             'Super Admin',
   'admin_user':                 'Super Admin',
-  'admin_user@enterprise.corp': 'Super Admin',
+  'admin_user@enterprise.corp': 'Super Admin', // sample-data-ok
   'sre_lead_test':              'SRE Lead',
   'noc_operator':               'NOC Operator',
   'viewer_readonly':            'Viewer'
@@ -210,7 +215,10 @@ async function authenticate(username, password) {
     infraLayers = yamlConfig.loadAllInfrastructureLayers() || {};
   } catch (_) {}
 
-  const isProduction = process.env.NODE_ENV === 'production' && config.ENVIRONMENT === 'prod';
+  // The real LDAP bind is used whenever NODE_ENV=production. The simulated login (any user, any
+  // password) used to be reachable on a production server whose config said environment: staging,
+  // because one server serves both the PRD and STG views. It now needs an explicit opt-in.
+  const isProduction = process.env.NODE_ENV === 'production' && process.env.SENTINEL_ALLOW_SIMULATED_LOGIN !== 'true';
 
   // =========================================================================
   // PRODUCTION PATH — Real LDAP Bind via ldapjs (T0.6)
@@ -254,6 +262,9 @@ async function authenticate(username, password) {
   const role = STAGING_TEST_USERS[lowerUser] || 'Operator';
   const email = username.includes('@') ? username : `${username}@enterprise.corp`;
 
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[LDAP] [SECURITY] Simulated login is ON in a production process (SENTINEL_ALLOW_SIMULATED_LOGIN=true). Anyone can sign in. Use only on a staging server.');
+  }
   console.info(`[LDAP] [STAGING] Authenticated user: ${username} with role: ${role}`);
 
   return {

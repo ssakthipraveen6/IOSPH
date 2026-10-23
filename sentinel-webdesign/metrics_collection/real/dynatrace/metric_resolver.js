@@ -14,6 +14,7 @@ const { SEVERITY } = require('@sentinel/shared-constants');
 let aliasConfig = null;
 let resolvedSelectors = new Map(); // canonicalName -> activeSelector
 
+// Loads config/dynatrace_metric_aliases.yaml.
 function loadAliases() {
   if (aliasConfig) return aliasConfig;
   const cfgPath = path.resolve(__dirname, '../../../config/dynatrace_metric_aliases.yaml');
@@ -79,6 +80,7 @@ function resolveDescriptors(availableDescriptors = [], db = null, env = 'staging
   return resolved;
 }
 
+// Dynatrace selector for a Sentinel metric name.
 function getActiveSelector(canonicalName) {
   if (resolvedSelectors.has(canonicalName)) {
     return resolvedSelectors.get(canonicalName);

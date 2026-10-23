@@ -1,3 +1,6 @@
+/**
+ * Test: production views say data is not available when nothing was received.
+ */
 const assert = require('assert');
 const config = require('../backend/config/config');
 const appCollector = require('../metrics_collection/real/applications/app_collector');

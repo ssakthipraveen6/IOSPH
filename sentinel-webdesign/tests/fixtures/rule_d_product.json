@@ -1,0 +1,31 @@
+{
+  "description": "SYNTHETIC TEST FIXTURE: Rule (d) Single product slow across all internal steps",
+  "environment": "staging",
+  "events": [],
+  "journeys": [
+    {
+      "id": "fortify_scan_journey",
+      "productId": "fortify",
+      "status": "FAILED",
+      "steps": [
+        {
+          "id": "auth_token",
+          "name": "Auth",
+          "layer": "app",
+          "status": "FAILED",
+          "duration_ms": 2800
+        },
+        {
+          "id": "queue_status",
+          "name": "Scan Queue",
+          "layer": "app",
+          "status": "FAILED",
+          "duration_ms": 3100
+        }
+      ]
+    }
+  ],
+  "metrics": [],
+  "expectedLayer": "product",
+  "expectedRuleId": "rule_product_isolated"
+}

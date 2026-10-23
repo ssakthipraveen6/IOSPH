@@ -31,3 +31,36 @@ credentials:
   safe: "SF-INFRA-SSO"
   objects:
     bind: "ELDAP-BIND-SVC"
+
+journeys:
+  - id: "sso_bind_probe"
+    name: "eLDAP Service Account Bind & Token Probe"
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: "bind"
+    steps:
+      - id: "bind_check"
+        name: "eLDAP Bind Health Check"
+        type: "http"
+        layer: "network"
+        url: "/health"
+        assert:
+          status: 200
+          max_ms: 1500
+  - id: "sso_search_probe"
+    name: "eLDAP Directory Search Flow"
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: "bind"
+    steps:
+      - id: "user_search"
+        name: "Directory Query Service Account"
+        type: "http"
+        layer: "db"
+        url: "/search?base=ou=Users,dc=enterprise,dc=corp"
+        assert:
+          status: 200
+          max_ms: 2500
+

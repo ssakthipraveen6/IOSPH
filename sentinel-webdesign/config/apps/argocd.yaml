@@ -1,66 +1,133 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: ArgoCD GitOps Operator
-# =========================================================================
-id: "argocd"
-kind: "application"
-display_name: "ArgoCD GitOps Operator"
-category: "gitops"
-tier: "Tier-1 Mission Critical"
-log_tag: "[ARGOCD]"
+id: argocd
+kind: application
+display_name: ArgoCD GitOps Operator
+category: gitops
+tier: Tier-1 Mission Critical
+log_tag: '[ARGOCD]'
 aliases:
-  - "argocd_k8s"
-
+  - argocd_k8s
 endpoints:
   prod:
-    api: "https://argocd-prod.internal.corp/api/v1"
+    api: https://argocd-prod.internal.corp/api/v1
+    vip: https://argocd-prod.internal.corp
   stg:
-    api: "https://argocd-stg.internal.corp/api/v1"
-
+    api: https://argocd-stg.internal.corp/api/v1
+    vip: https://argocd-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://argocd-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "argocd-prod.internal.corp:443" }
 layers:
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   sso:
-    api: "https://sso-auth-prod-argocd.internal.corp/oauth2/token"
-    credential_purpose: "sso"
+    api: https://sso-auth-prod-argocd.internal.corp/oauth2/token
+    credential_purpose: sso
   k8s:
-    api: "https://k8s-apiserver-prod.internal.corp:6443"
-    namespace: "argocd"
+    api: https://k8s-apiserver-prod.internal.corp:6443
+    namespace: argocd
     credential_purpose: null
-
+  vip: https://argocd-prod.internal.corp
+  hosts:
+    - argocd-node-01.internal.corp
+    - argocd-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/argocd
+  databases:
+    - jdbc:postgresql://db-prod-argocd.internal.corp:5432/argocd_db
+  clusters:
+    - k8s-prod-argocd
 servers:
   unix:
-    - node: "argocd-server-1"
-      api: "https://linux-compute-prod-argocd-1.internal.corp/api/v1/metrics"
+    - node: argocd-server-1
+      api: https://linux-compute-prod-argocd-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
+  provider: opentelemetry
+  scrape_interval: 30s
   health_thresholds:
     sync_failed_count_critical: 1
     api_latency_warn_ms: 800
-
 metrics_baseline:
   responseTime: 75
   successRate: 99.9
   requests: 150
-
 logs:
-  log_tag: "[ARGOCD]"
-  log_path: "d:\\production_shares\\nas_logs\\argocd.log"
+  log_tag: '[ARGOCD]'
+  log_path: d:\production_shares\nas_logs\argocd.log
   retention_days: 30
-
 credentials:
-  safe: "SF-ARGOCD-PROD"
+  safe: SF-ARGOCD-PROD
   objects:
-    api_token: "ARGOCD-API-TOKEN"
-    sso: "ARGOCD-SSO-SVC"
+    api_token: ARGOCD-API-TOKEN
+    sso: ARGOCD-SSO-SVC
+jenkins_remediation_job: JOB_RESTART_ARGOCD_PODS
+journeys:
+  - id: argocd_clusters_read
+    name: ArgoCD Version & Managed Clusters
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: version_check
+        name: ArgoCD Server Version
+        type: http
+        layer: network
+        url: /version
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: clusters_list
+        name: Managed K8s Clusters
+        type: http
+        layer: app
+        url: /clusters
+        assert:
+          status: 200
+          max_ms: 2000
+  - id: argocd_app_sync_flow
+    name: ArgoCD Application Status & Repositories
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: apps_overview
+        name: Applications Sync Overview
+        type: http
+        layer: app
+        url: /applications
+        assert:
+          status: 200
+          max_ms: 2500
+      - id: repos_health
+        name: Configured Git Repositories Status
+        type: http
+        layer: storage
+        url: /repositories
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_ARGOCD_PODS"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/etc/argocd/%%"
+    - "/opt/argocd/conf/%%"
+  windows: []

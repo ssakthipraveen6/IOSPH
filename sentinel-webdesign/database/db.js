@@ -1,8 +1,23 @@
+/**
+ * Main data store used by the app: alerts, metrics, recoveries and settings, kept in memory, saved
+ * to .runtime/sentinel_db.json and, when configured, written to PostgreSQL and ClickHouse.
+ */
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const postgres = require('./postgres');
 const eventStore = require('./event_store');
+const clickhouse = require('./clickhouse');
+
+// [M1.12] Source arbitration lives with ingest; loaded lazily to keep this module standalone.
+let sourceArbiter = null;
+// True when the source arbiter accepts this metric (avoids duplicates from two sources).
+function arbiterAccepts(entry) {
+  if (sourceArbiter === null) {
+    try { sourceArbiter = require('../metrics_collection/source_arbiter'); } catch (_) { sourceArbiter = false; }
+  }
+  return sourceArbiter ? sourceArbiter.accept(entry) : true;
+}
 
 let writeNasLog;
 try {
@@ -17,7 +32,8 @@ try {
   }
 }
 
-const runtimeDir = path.resolve(__dirname, '../.runtime');
+// SENTINEL_RUNTIME_DIR lets tests (scripts/run_tests.js) use a throwaway folder instead of the real .runtime.
+const runtimeDir = process.env.SENTINEL_RUNTIME_DIR ? path.resolve(process.env.SENTINEL_RUNTIME_DIR) : path.resolve(__dirname, '../.runtime');
 const DB_FILE = fs.existsSync(runtimeDir)
   ? path.join(runtimeDir, 'sentinel_db.json')
   : path.join(__dirname, 'sentinel_db.json');
@@ -101,6 +117,7 @@ setInterval(() => {
   recentIngestCount = 0;
 }, 1000).unref();
 
+// Writes queued metrics to PostgreSQL.
 async function flushQueue() {
   if (isFlushing || writeQueue.length === 0) return;
   isFlushing = true;
@@ -110,7 +127,12 @@ async function flushQueue() {
     if (batch.length === 0) return;
 
     const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-    await executeWithRetry(() => postgres.saveMetricBatchToPostgres(batch, writeNasLog), `flushMetricBatch(${batch.length})`);
+    // [M1.8] ClickHouse is the metrics store when configured; Postgres/Timescale otherwise.
+    if (clickhouse.isConfigured()) {
+      await executeWithRetry(() => clickhouse.insertMetrics(batch), `flushMetricBatchClickHouse(${batch.length})`);
+    } else {
+      await executeWithRetry(() => postgres.saveMetricBatchToPostgres(batch, writeNasLog), `flushMetricBatch(${batch.length})`);
+    }
     const elapsed = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
 
     flushLatencies.push(elapsed);
@@ -135,6 +157,7 @@ flushIntervalTimer.unref();
 let isSaving = false;
 let saveScheduled = false;
 
+// Loads the JSON state file.
 function loadDB() {
   try {
     if (fs.existsSync(DB_FILE)) {
@@ -161,14 +184,22 @@ function loadDB() {
   }
 }
 
+// The local file keeps control state only. Metrics live in the write queue and the
+// metrics store; writing 20k points on every alert change was pure overhead.
+function serializeControlState() {
+  return JSON.stringify({ ...db, metrics: [] }, null, 2);
+}
+
+// Saves the JSON state file now.
 function saveDBSync() {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+    fs.writeFileSync(DB_FILE, serializeControlState(), 'utf8');
   } catch (error) {
     console.error('[DB] Synchronous save failed:', error.message);
   }
 }
 
+// Saves the JSON state file (debounced).
 function saveDB() {
   if (isSaving) {
     saveScheduled = true;
@@ -176,7 +207,7 @@ function saveDB() {
   }
   
   isSaving = true;
-  fs.writeFile(DB_FILE, JSON.stringify(db, null, 2), 'utf8', (err) => {
+  fs.writeFile(DB_FILE, serializeControlState(), 'utf8', (err) => {
     isSaving = false;
     if (err) {
       console.error('[DB] Asynchronous save failed:', err);
@@ -191,6 +222,155 @@ function saveDB() {
 
 // Auto load DB cache on module require
 loadDB();
+
+// [M1.10] Shared state across the two app nodes. Postgres holds alerts, recovery
+// runs and token revocations; each node merges them into memory periodically so
+// an alert or approval made on one node is visible on the other.
+const SHARED_SYNC_INTERVAL_MS = 15 * 1000;
+
+// ISO date or null.
+function toIso(v) {
+  if (!v) return null;
+  return v instanceof Date ? v.toISOString() : String(v);
+}
+
+// Array from an array or JSON text.
+function parseJsonArray(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') {
+    try { const parsed = JSON.parse(v); return Array.isArray(parsed) ? parsed : []; } catch (_) { return []; }
+  }
+  return [];
+}
+
+// Alert from a PostgreSQL row.
+function mergeAlertRow(r) {
+  const row = {
+    id: r.id,
+    timestamp: toIso(r.timestamp),
+    component: r.component,
+    severity: r.severity,
+    message: r.message,
+    status: r.status,
+    resolvedAt: toIso(r.resolved_at),
+    env: r.env,
+    count: r.count || 1,
+    last_seen: toIso(r.last_seen) || toIso(r.timestamp)
+  };
+  const existing = db.alerts.find(a => a.id === row.id);
+  if (!existing) {
+    db.alerts.push(row);
+    return true;
+  }
+  let changed = false;
+  if (row.status === 'Resolved' && existing.status !== 'Resolved') {
+    existing.status = 'Resolved';
+    existing.resolvedAt = row.resolvedAt || new Date().toISOString();
+    changed = true;
+  }
+  if ((row.count || 1) > (existing.count || 1)) {
+    existing.count = row.count;
+    existing.last_seen = row.last_seen;
+    changed = true;
+  }
+  return changed;
+}
+
+// Approver name.
+function approverName(a) {
+  return typeof a === 'string' ? a : (a && (a.username || a.email));
+}
+
+// Recovery run from a PostgreSQL row.
+function mergeRecoveryRow(r) {
+  const row = {
+    id: r.id,
+    timestamp: toIso(r.timestamp),
+    component: r.component,
+    action: r.action,
+    triggerReason: r.trigger_reason,
+    status: r.status,
+    steps: parseJsonArray(r.steps),
+    duration: r.duration || 0,
+    approvals: parseJsonArray(r.approvals),
+    env: r.env,
+    initiated_by: r.initiated_by || null
+  };
+  const existing = db.recovery.find(x => x.id === row.id);
+  if (!existing) {
+    db.recovery.push(row);
+    return row;
+  }
+  // Approvals are a union by approver; the copy with more steps is the more recent one.
+  const names = new Set((existing.approvals || []).map(approverName));
+  row.approvals.forEach(a => {
+    if (!names.has(approverName(a))) {
+      existing.approvals = existing.approvals || [];
+      existing.approvals.push(a);
+      names.add(approverName(a));
+    }
+  });
+  if ((row.steps || []).length > (existing.steps || []).length) {
+    existing.steps = row.steps;
+    existing.status = row.status;
+    existing.duration = row.duration;
+  }
+  return existing;
+}
+
+let lastSharedSyncError = null;
+let lastSharedSyncAt = null;
+
+// Loads shared alerts and recoveries from PostgreSQL (both nodes see the same state).
+async function syncSharedStateFromPostgres() {
+  try {
+    const alertRes = await postgres.query(
+      `SELECT id, timestamp, component, severity, message, status, resolved_at, env, count, last_seen
+         FROM alert
+        WHERE status = 'Active' OR timestamp > now() - interval '24 hours'
+        ORDER BY timestamp DESC LIMIT 500`
+    );
+    if (!alertRes) return false; // no database configured
+    let changed = false;
+    alertRes.rows.forEach(r => { if (mergeAlertRow(r)) changed = true; });
+
+    const runRes = await postgres.query(
+      `SELECT id, timestamp, component, action, trigger_reason, status, steps, duration, approvals, env, initiated_by
+         FROM recovery_run
+        WHERE status IN ('Awaiting-Approval', 'In-Progress') OR timestamp > now() - interval '24 hours'
+        ORDER BY timestamp DESC LIMIT 500`
+    );
+    if (runRes) runRes.rows.forEach(r => { mergeRecoveryRow(r); });
+
+    try {
+      const tokRes = await postgres.query(
+        `SELECT jti, revoked_at, reason FROM revoked_token WHERE revoked_at > now() - interval '24 hours'`
+      );
+      if (tokRes) {
+        db.revokedTokens = db.revokedTokens || [];
+        const known = new Set(db.revokedTokens.map(t => t.jti));
+        tokRes.rows.forEach(t => {
+          if (!known.has(t.jti)) db.revokedTokens.push({ jti: t.jti, revokedAt: toIso(t.revoked_at), reason: t.reason });
+        });
+      }
+    } catch (_) { /* migration 011 not applied yet */ }
+
+    db.alerts = db.alerts.slice(-500);
+    db.recovery = db.recovery.slice(-500);
+    lastSharedSyncAt = new Date().toISOString();
+    lastSharedSyncError = null;
+    if (changed && global.broadcastStateChange) global.broadcastStateChange();
+    return true;
+  } catch (err) {
+    lastSharedSyncError = err.message;
+    return false;
+  }
+}
+
+// Repeats the PostgreSQL sync in the background.
+const sharedSyncTimer = setInterval(() => { syncSharedStateFromPostgres(); }, SHARED_SYNC_INTERVAL_MS);
+sharedSyncTimer.unref();
+setImmediate(() => { syncSharedStateFromPostgres(); });
 
 // Demo mode synthetic generators for pristine demonstration walkthroughs
 function generateDemoMetrics(component, limit = 60) {
@@ -410,9 +590,37 @@ const dbManager = {
     return filtered.slice(-limit);
   },
 
-  addMetric(component, metricName, value, env = null, entity_id = null) {
+  /**
+   * [M1.8] History reads for charts and APIs. Reads the metrics store (ClickHouse,
+   * else Postgres/Timescale) so both app nodes see the same data; falls back to
+   * the in-memory ring buffer. Demo keeps its synthesized series.
+   */
+  async queryMetrics({ component = null, metricName = null, env = 'staging', sinceMs = null, untilMs = null, limit = 2000, stepSeconds = 0 } = {}) {
+    if (env === 'demo') return this.getMetrics(component, limit, env);
+    if (clickhouse.isConfigured()) {
+      try {
+        const rows = await clickhouse.queryMetrics({ component, metricName, env, sinceMs, untilMs, limit, stepSeconds });
+        if (Array.isArray(rows)) return rows;
+      } catch (err) {
+        persistenceState.lastError = `ClickHouse read failed: ${err.message}`;
+      }
+    }
+    let rows = db.metrics.filter(m => m.env === env);
+    if (component) rows = rows.filter(m => m.component === component);
+    if (metricName) rows = rows.filter(m => m.metricName === metricName);
+    if (sinceMs) rows = rows.filter(m => new Date(m.timestamp).getTime() >= sinceMs);
+    if (untilMs) rows = rows.filter(m => new Date(m.timestamp).getTime() <= untilMs);
+    return rows.slice(-limit);
+  },
+
+  addMetric(component, metricName, value, env = null, entity_id = null, source = 'probe') {
     const targetEnv = env || global.runtimeEnvironment || 'staging';
     const resolvedEntityId = entity_id || `app:${component}`;
+
+    // [M1.12] Drop lower-priority duplicates while a preferred source is fresh.
+    if (!arbiterAccepts({ env: targetEnv, entity_id: resolvedEntityId, component, metricName, source })) {
+      return null;
+    }
 
     // [T2.3] Cardinality Guard: Cap distinct entity_id x metric_name series
     const seriesKey = `${resolvedEntityId}::${metricName}`;
@@ -436,7 +644,8 @@ const dbManager = {
       entity_id: resolvedEntityId,
       metricName,
       value: typeof value === 'number' ? parseFloat(value.toFixed(2)) : value,
-      env: targetEnv
+      env: targetEnv,
+      source
     };
     
     // In-memory ring buffer for low latency dashboard lookups
@@ -468,6 +677,13 @@ const dbManager = {
       const comp = m.component || 'system';
       const metricName = m.metricName || m.name;
       const resolvedEntityId = m.entity_id || m.entityId || `app:${comp}`;
+      const pointEnv = m.env || targetEnv;
+      const source = m.source || 'probe';
+
+      // [M1.12] Source arbitration
+      if (!arbiterAccepts({ env: pointEnv, entity_id: resolvedEntityId, component: comp, metricName, source })) {
+        continue;
+      }
 
       // [T2.3] Cardinality Guard
       const seriesKey = `${resolvedEntityId}::${metricName}`;
@@ -491,8 +707,10 @@ const dbManager = {
         entity_id: resolvedEntityId,
         metricName,
         value: typeof m.value === 'number' ? parseFloat(m.value.toFixed(2)) : m.value,
-        env: m.env || targetEnv
+        env: pointEnv,
+        source
       };
+      if (m.attributes && typeof m.attributes === 'object') entry.attributes = m.attributes;
 
       db.metrics.push(entry);
       writeQueue.push(entry);
@@ -547,7 +765,7 @@ const dbManager = {
 
   // --- Alerts / Incidents Methods ---
   getAlerts(env = null) {
-    const targetEnv = env || global.runtimeEnvironment || 'staging';
+    const targetEnv = (env || global.runtimeEnvironment || 'staging').toLowerCase();
     if (targetEnv === 'demo') {
       return [
         {
@@ -562,10 +780,15 @@ const dbManager = {
         }
       ];
     }
-    if (targetEnv === 'prod') {
-      return db.alerts.filter(a => a.env === 'prod');
+    if (targetEnv === 'prod' || targetEnv === 'production') {
+      return db.alerts.filter(a => a.env === 'prod' || a.env === 'production');
     }
     return db.alerts.filter(a => a.env === 'staging');
+  },
+
+  getAlertById(id) {
+    if (!id || !Array.isArray(db.alerts)) return null;
+    return db.alerts.find(a => a.id === id) || null;
   },
 
   addAlert(component, severity, message, status = 'Active', env = null) {
@@ -671,6 +894,35 @@ const dbManager = {
     } catch (_) {}
 
     return alert;
+  },
+
+  /**
+   * Persists lifecycle changes made to an alert object (ack, snooze, resolve,
+   * rule/problem linkage) to the local cache and the Postgres `alert` table.
+   */
+  persistAlert(alert) {
+    if (!alert || !alert.id) return;
+    saveDB();
+    try {
+      postgres.query(`
+        UPDATE alert SET
+          status = $2, resolved_at = $3, rule_id = $4, acked_by = $5, acked_at = $6,
+          snoozed_until = $7, resolved_by = $8, problem_id = $9, count = $10, last_seen = $11
+        WHERE id = $1;
+      `, [
+        alert.id,
+        alert.status,
+        alert.resolvedAt || alert.resolved_at ? new Date(alert.resolvedAt || alert.resolved_at) : null,
+        alert.rule_id || null,
+        alert.acked_by || null,
+        alert.acked_at ? new Date(alert.acked_at) : null,
+        alert.snoozed_until ? new Date(alert.snoozed_until) : null,
+        alert.resolved_by || null,
+        alert.problem_id || null,
+        alert.count || 1,
+        new Date(alert.last_seen || alert.timestamp)
+      ]).catch(() => {});
+    } catch (_) {}
   },
 
   resolveAlertsForComponent(component, env = null) {
@@ -822,9 +1074,30 @@ const dbManager = {
     return null;
   },
 
+  /**
+   * [M1.10] Loads the latest copy of a recovery run from Postgres (approvals made on
+   * the other node included) before it is approved. Returns the in-memory run or null.
+   */
+  async refreshRecoveryRun(runId) {
+    try {
+      const res = await postgres.query(
+        `SELECT id, timestamp, component, action, trigger_reason, status, steps, duration, approvals, env, initiated_by
+           FROM recovery_run WHERE id = $1`, [runId]
+      );
+      if (res && res.rows && res.rows[0]) return mergeRecoveryRow(res.rows[0]);
+    } catch (_) { /* database unreachable: use the in-memory copy */ }
+    return db.recovery.find(r => r.id === runId) || null;
+  },
+
+  syncSharedStateFromPostgres,
+
   // Operational health status of database persistence
   getPersistenceStatus() {
-    return { ...persistenceState };
+    return {
+      ...persistenceState,
+      metricsStore: clickhouse.isConfigured() ? 'clickhouse' : 'postgres',
+      sharedStateSync: { lastSyncAt: lastSharedSyncAt, lastError: lastSharedSyncError }
+    };
   },
 
   // Token revocation management (T0.7)
@@ -838,6 +1111,13 @@ const dbManager = {
         reason
       });
       saveDB();
+      // [M1.10] Shared with the other node through Postgres.
+      try {
+        postgres.query(
+          'INSERT INTO revoked_token (jti, reason) VALUES ($1, $2) ON CONFLICT (jti) DO NOTHING',
+          [jti, reason]
+        ).catch(() => {});
+      } catch (_) {}
     }
     return true;
   },
@@ -852,6 +1132,7 @@ const dbManager = {
 
   async drainQueue() {
     clearInterval(flushIntervalTimer);
+    clearInterval(sharedSyncTimer);
     let attempts = 0;
     while (writeQueue.length > 0 && attempts < 20) {
       await flushQueue();

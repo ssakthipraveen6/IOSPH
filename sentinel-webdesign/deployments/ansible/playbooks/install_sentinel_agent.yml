@@ -1,0 +1,71 @@
+---
+# Install the SENTINEL agent on Linux and Windows hosts in one run.
+#
+#   cd deployments/ansible
+#   cp group_vars/all.yml.example group_vars/all.yml          # fill in, then: ansible-vault encrypt group_vars/all.yml
+#   ansible-playbook -i inventory.ini playbooks/install_sentinel_agent.yml --check --diff     # dry run
+#   ansible-playbook -i inventory.ini playbooks/install_sentinel_agent.yml --limit pilot       # a few hosts first
+#   ansible-playbook -i inventory.ini playbooks/install_sentinel_agent.yml                     # everything
+#
+# One ingest key per environment decides where the data lands (prod key -> prod views). Use a separate
+# inventory and group_vars for prod and staging. Waves for a large fleet: playbooks/deploy_sentinel_agent.yml.
+
+- name: Check the variables before touching any host
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Required variables are set
+      ansible.builtin.assert:
+        that:
+          - sentinel_api_url is defined and sentinel_api_url | length > 0
+          - sentinel_ingest_key is defined and sentinel_ingest_key | length > 20
+          - sentinel_gateway_url is defined and sentinel_gateway_url | length > 0
+          - sentinel_gateway_token is defined and sentinel_gateway_token | length > 0
+        fail_msg: "Set sentinel_api_url, sentinel_ingest_key, sentinel_gateway_url and sentinel_gateway_token in group_vars/all.yml (vault)."
+        quiet: true
+      run_once: true
+      delegate_to: localhost
+
+    - name: Sentinel is reachable from the Ansible controller
+      ansible.builtin.uri:
+        url: "{{ sentinel_api_url }}/api/healthz"
+        validate_certs: "{{ sentinel_validate_certs | default(true) }}"
+        timeout: 10
+      run_once: true
+      delegate_to: localhost
+
+- name: Install on Linux
+  hosts: linux_servers
+  become: true
+  serial: "{{ sentinel_batch | default('25%') }}"
+  roles:
+    - sentinel_agent_linux
+  post_tasks:
+    - name: Collect service state
+      ansible.builtin.service_facts:
+    - name: The agent services are running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['sentinel-agent.service'].state == 'running'
+          - ansible_facts.services['sentinel-probe.service'].state == 'running'
+        fail_msg: "A SENTINEL service is not running on {{ inventory_hostname }}: journalctl -u sentinel-agent -u sentinel-probe"
+        quiet: true
+      when: sentinel_agent_enabled | default(true)
+
+- name: Install on Windows
+  hosts: windows_servers
+  serial: "{{ sentinel_batch | default('25%') }}"
+  roles:
+    - sentinel_agent_windows
+  post_tasks:
+    - name: Read service state
+      ansible.windows.win_service_info:
+        name: SentinelAgent
+      register: svc
+      when: sentinel_agent_enabled | default(true)
+    - name: The agent service is running
+      ansible.builtin.assert:
+        that: svc.services | length == 1 and svc.services[0].state == 'started'
+        fail_msg: "SentinelAgent is not running on {{ inventory_hostname }}: Get-EventLog -LogName Application -Source SentinelAgent -Newest 20"
+        quiet: true
+      when: sentinel_agent_enabled | default(true)

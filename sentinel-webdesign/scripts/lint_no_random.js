@@ -12,6 +12,7 @@ const TARGET_DIRS = [
 
 let violationCount = 0;
 
+// Fails on Math.random in production code.
 function scanDir(dir) {
   if (!fs.existsSync(dir)) return;
   const entries = fs.readdirSync(dir, { withFileTypes: true });

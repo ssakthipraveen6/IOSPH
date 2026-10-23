@@ -1,0 +1,27 @@
+---
+# deployments/ansible/playbooks/rollback_sentinel_agent.yml
+# Emergency rollback playbook to stop and deactivate SENTINEL Agent across nodes
+
+- name: Emergency Rollback of SENTINEL Agent
+  hosts: all
+  serial: "50%"
+  tasks:
+    - name: Stop and disable Linux agent service
+      ansible.builtin.systemd:
+        name: sentinel-agent
+        state: stopped
+        enabled: false
+      when: ansible_os_family != "Windows"
+      ignore_errors: true
+
+    - name: Stop and disable Windows agent service
+      ansible.windows.win_service:
+        name: SentinelAgent
+        state: stopped
+        start_mode: disabled
+      when: ansible_os_family == "Windows"
+      ignore_errors: true
+
+    - name: Confirm agent service rollback
+      ansible.builtin.debug:
+        msg: "SENTINEL Agent safely stopped and disabled on {{ inventory_hostname }}"

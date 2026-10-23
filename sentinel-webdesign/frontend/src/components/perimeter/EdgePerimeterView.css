@@ -1,0 +1,263 @@
+/* EdgePerimeterView + LiveLogsStreamTable (perimeter folder) */
+
+/* ---- Layout ---- */
+.edge-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.edge-grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-5);
+}
+
+.edge-card {
+  background: var(--bg-glass-card);
+  padding: var(--space-5);
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.edge-span-2 { grid-column: span 2; }
+.edge-span-3 { grid-column: span 3; }
+.edge-span-4 { grid-column: span 4; }
+
+/* ---- Card header ---- */
+.edge-card-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.edge-card-head--lg {
+  margin-bottom: var(--space-3);
+}
+
+.edge-card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.edge-card-title--lg {
+  font-size: 0.95rem;
+}
+
+.edge-card-sub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.edge-stream-caption {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--healthy);
+}
+
+/* ---- KPI tiles ---- */
+.edge-kpi-value {
+  font-size: 2.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--primary);
+  line-height: 1.1;
+}
+
+.edge-kpi-value--healthy { color: var(--healthy); }
+.edge-kpi-value--warning { color: var(--warning); }
+
+.edge-kpi-unit {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.edge-kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+  font-weight: 600;
+}
+
+.edge-kpi-foot {
+  font-size: 0.72rem;
+  color: var(--healthy);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.edge-kpi-foot--warning { color: var(--warning); }
+
+.edge-kpi-foot--subtle {
+  color: var(--text-subtle);
+  font-weight: inherit;
+}
+
+.edge-empty-note {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 10px 0;
+}
+
+/* ---- Worst latency VIP cards ---- */
+.edge-worst-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.edge-worst-card {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+}
+
+.edge-worst-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.edge-worst-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-main);
+}
+
+.edge-worst-total {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--warning);
+}
+
+.edge-worst-total--critical { color: var(--critical); }
+
+.edge-worst-url {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: var(--space-2);
+}
+
+.edge-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+}
+
+.edge-stage-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Categorical stage colours (chart palette, not severity) */
+.edge-stage--dns { color: #06b6d4; }
+.edge-stage--tcp { color: #3b82f6; }
+.edge-stage--tls { color: #8b5cf6; }
+.edge-stage--ttfb { color: #f59e0b; }
+
+/* ---- Tables (shared with LiveLogsStreamTable) ---- */
+.edge-table-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.edge-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+}
+
+.edge-th {
+  text-align: left;
+  color: var(--text-subtle);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.edge-right { text-align: right; }
+.edge-center { text-align: center; }
+
+.edge-tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.edge-td {
+  padding: var(--space-2) 10px;
+}
+
+.edge-td--empty {
+  padding: var(--space-3);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.edge-td--bold { font-weight: 700; }
+
+.edge-c-main { color: var(--text-main); }
+.edge-c-muted { color: var(--text-muted); }
+.edge-c-subtle { color: var(--text-subtle); }
+.edge-c-healthy { color: var(--healthy); }
+.edge-c-warning { color: var(--warning); }
+.edge-c-critical { color: var(--critical); }
+
+/* ---- Status badges ---- */
+.edge-badge {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.7rem;
+  background: var(--healthy-glass);
+  color: var(--healthy);
+  border: 1px solid var(--healthy);
+}
+
+.edge-badge--critical {
+  background: var(--critical-glass);
+  color: var(--critical);
+  border-color: var(--critical);
+}
+
+.edge-badge--warning {
+  background: var(--warning-glass);
+  color: var(--warning);
+  border-color: var(--warning);
+}
+
+/* ---- LiveLogsStreamTable ---- */
+.llog-empty {
+  padding: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.llog-td {
+  padding: 7px 10px;
+}
+
+.llog-badge {
+  padding: 2px 7px;
+}
+
+.llog-trace {
+  color: var(--primary);
+  cursor: default;
+}
+
+.llog-trace--clickable {
+  cursor: pointer;
+}

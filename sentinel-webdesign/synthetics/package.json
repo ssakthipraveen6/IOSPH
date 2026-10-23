@@ -1,0 +1,6 @@
+{
+  "name": "@sentinel/synthetics",
+  "version": "1.0.0",
+  "description": "Project Sentinel Golden Journey Synthetics Engine",
+  "main": "index.js"
+}

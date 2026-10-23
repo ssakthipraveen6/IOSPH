@@ -1,3 +1,7 @@
+/**
+ * Log and metric anomaly detection: rolling baselines with z-scores, and error-pattern detection
+ * in server logs.
+ */
 const db = require('@sentinel/database');
 const { SEVERITY } = require('@sentinel/shared-constants');
 const crypto = require('crypto');
@@ -13,17 +17,73 @@ try {
   }
 }
 
+const baselines = require('./baselines');
+
+// Rolling window per metric; scores new values against mean and deviation.
 class MetricBaselineStore {
+  // Creates the store (window size, z threshold).
   constructor(windowSize = 60, zThreshold = 3.0) {
     this.windowSize = windowSize;
     this.zThreshold = zThreshold;
-    this.series = new Map(); // key `${component}:${metricName}` -> Array<number>
+    this.series = new Map(); // key `${env}:${component}:${metricName}` -> Array<number>
   }
 
-  recordAndScore(component, metricName, value, env = 'staging') {
+  // Adds a value and returns its anomaly score.
+  recordAndScore(component, metricName, value, env = 'staging', timestamp = new Date()) {
     if (typeof value !== 'number' || isNaN(value)) return null;
 
-    const key = `${component}:${metricName}`;
+    // [M5 Task 5.1] Hour-of-Week Baselines (Median + MAD) Check
+    const howScore = baselines.scoreObservation({
+      env,
+      entityId: component,
+      metricName,
+      value,
+      timestamp,
+      zThreshold: this.zThreshold,
+      consecutiveN: 3
+    });
+
+    if (howScore && howScore.evaluated) {
+      if (howScore.isAnomaly) {
+        const decisionId = 'DEC-' + crypto.randomUUID();
+        if (postgres && postgres.query) {
+          postgres.query(`
+            INSERT INTO model_decision (decision_id, timestamp, model_version, component, metric_name, value, mean, stddev, z_score, threshold, decision, environment)
+            VALUES ($1, now(), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          `, [
+            decisionId,
+            'how-baseline-v1',
+            component,
+            metricName,
+            value,
+            howScore.median,
+            howScore.mad,
+            howScore.robustZ,
+            this.zThreshold,
+            'ANOMALY_DETECTED',
+            env
+          ]).catch(() => {});
+        }
+
+        const alertMsg = `AI Statistical Anomaly: ${metricName} on ${component} reached ${value} (Robust Z: ${howScore.robustZ}, Median: ${howScore.median} ± MAD: ${howScore.mad})`;
+        db.addAlert(component, SEVERITY.CRITICAL, alertMsg, 'Active', env);
+      }
+
+      return {
+        component,
+        metricName,
+        value,
+        mean: howScore.median,
+        stddev: howScore.mad,
+        zScore: howScore.robustZ,
+        threshold: this.zThreshold,
+        isAnomaly: howScore.isAnomaly,
+        baselineType: 'hour_of_week'
+      };
+    }
+
+    // Fallback: Rolling window z-score when hour-of-week samples are not yet collected
+    const key = `${env}:${component}:${metricName}`;
     let window = this.series.get(key);
     if (!window) {
       window = [];
@@ -87,8 +147,9 @@ class MetricBaselineStore {
     return scoreResult;
   }
 
-  getBaseline(component, metricName) {
-    const key = `${component}:${metricName}`;
+  // Mean and deviation of a metric's window.
+  getBaseline(component, metricName, env = 'staging') {
+    const key = `${env}:${component}:${metricName}`;
     const window = this.series.get(key) || [];
     if (window.length === 0) return null;
     const mean = window.reduce((acc, v) => acc + v, 0) / window.length;
@@ -142,6 +203,7 @@ const ANOMALY_PATTERNS = [
   }
 ];
 
+// Scans log lines for error patterns and triggers recovery when configured.
 function analyzeServerLogs(logLines, writeNasLog, triggerRecoveryFunc, env = 'staging') {
   if (!logLines || logLines.length === 0) return;
   
@@ -172,6 +234,7 @@ function analyzeServerLogs(logLines, writeNasLog, triggerRecoveryFunc, env = 'st
   });
 }
 
+// Scores one metric value against its baseline.
 function analyzeMetricStream(component, metricName, value, env = 'staging') {
   return defaultBaselineStore.recordAndScore(component, metricName, value, env);
 }

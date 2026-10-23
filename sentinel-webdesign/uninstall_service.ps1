@@ -1,4 +1,5 @@
-﻿# Auto-elevate to Administrator if not already elevated
+﻿# Stops and removes the ProjectSentinelDaemon scheduled task created by install_service.ps1.
+# Auto-elevate to Administrator if not already elevated
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Host "[ELEVATION REQUIRED] Launching with Administrator privileges..." -ForegroundColor Cyan

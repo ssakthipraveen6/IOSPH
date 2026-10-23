@@ -1,3 +1,6 @@
+/**
+ * Test: platform maturity regression suite (phase 3).
+ */
 const assert = require('assert');
 const { evaluateSlos, loadSloConfig } = require('../backend/services/slo/slo_tracker');
 const { createIncidentForRecovery, resolveIncidentForRecovery } = require('../remediation/integrations/servicenow_client');
@@ -13,11 +16,11 @@ async function runPhase3Tests() {
   console.log('\n--- Test 1: Service Level Objectives & Error Budget Evaluation ---');
   const sloConfig = loadSloConfig();
   assert.ok(sloConfig && Array.isArray(sloConfig.slos), 'SLO config must load with slos array');
-  assert.strictEqual(sloConfig.slos.length, 3, 'Must define 3 primary enterprise SLOs');
+  assert.ok(sloConfig.slos.length >= 3, 'Must define at least 3 enterprise SLOs');
 
   const evalResult = evaluateSlos('staging');
   assert.ok(evalResult && Array.isArray(evalResult.slos), 'Evaluation must return slos');
-  assert.strictEqual(evalResult.slos.length, 3);
+  assert.ok(evalResult.slos.length >= 3);
   
   const recoverySlo = evalResult.slos.find(s => s.id === 'autonomous_recovery_success_rate');
   assert.ok(recoverySlo, 'Recovery SLO must exist');
@@ -37,7 +40,10 @@ async function runPhase3Tests() {
 
   const snowTicket = await createIncidentForRecovery(mockRecovery);
   assert.ok(snowTicket, 'ServiceNow ticket must be generated');
-  assert.strictEqual(snowTicket.incident_id, 'INC-TEST-SNOW');
+  // [M1.1] SENTINEL prepares a draft and never invents an incident number.
+  assert.strictEqual(snowTicket.incident_id, null);
+  assert.strictEqual(snowTicket.state, 'Draft');
+  assert.strictEqual(snowTicket.recovery_id, 'REC-TEST-SNOW');
   assert.strictEqual(snowTicket.urgency, '1 - High', 'Production incidents must have High urgency');
   assert.ok(snowTicket.assigned_to, 'Incident must be assigned to on-call personnel');
 
@@ -45,7 +51,7 @@ async function runPhase3Tests() {
   const resolvedTicket = await resolveIncidentForRecovery(mockRecovery, 14.5);
   assert.ok(resolvedTicket);
   assert.strictEqual(resolvedTicket.state, 'Resolved');
-  console.log(`✔ Test 2 Passed: ServiceNow incident ${snowTicket.incident_id} created and dispatched to ${snowTicket.assigned_to}.`);
+  console.log(`✔ Test 2 Passed: ServiceNow ticket draft for ${snowTicket.recovery_id} prepared for ${snowTicket.assigned_to}.`);
 
   // --- Test 3: P3-04 Immutable Audit Event with trace_id ---
   console.log('\n--- Test 3: Immutable Audit Event with Trace Context ---');

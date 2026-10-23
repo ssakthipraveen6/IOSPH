@@ -3,6 +3,19 @@ const credentialProvider = require('@sentinel/config/cyberark/credential_provide
 const { SEVERITY } = require('@sentinel/shared-constants');
 
 const tokenProvider = require('./token_provider');
+const metricResolver = require('./metric_resolver');
+
+/**
+ * The Dynatrace API address for an environment: PROD_DYNATRACE_API_ENDPOINT / STG_DYNATRACE_API_ENDPOINT
+ * (like every other URL override), else prod_urls / stg_urls in config/global.yaml. The collector read only
+ * the static yaml values before, so setting the variable on the server had no effect.
+ */
+function endpointFor(env, urls) {
+  const prefix = env === 'prod' ? 'PROD' : 'STG';
+  const fromEnv = process.env[`${prefix}_DYNATRACE_API_ENDPOINT`];
+  const value = (fromEnv && fromEnv.trim()) || (urls && urls.dynatrace_api_endpoint) || '';
+  return String(value).replace(/\/+$/, '') || undefined;
+}
 
 // [T5.1 REMEDIATED] Token resolution through short-lived (30s) token provider with single-flight lock
 async function resolveApiToken(forceRefresh = false) {
@@ -22,45 +35,27 @@ async function collectDynatraceAlerts(db, writeNasLog, targetEnv = null) {
 
   const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
   const targetConfig = (currentEnv === 'prod' ? config.PROD_URLS : config.STG_URLS) || config.ACTIVE_URLS || {};
-  const baseUrl = targetConfig.dynatrace_api_endpoint;
-  if (!baseUrl && currentEnv !== 'demo') {
+  const baseUrl = endpointFor(currentEnv, targetConfig);
+  if (!baseUrl) {
     return { status: 'DATA_UNAVAILABLE', metrics: { alertCount: null, error: 'dynatrace_api_endpoint not configured' } };
-  }
-
-  if (currentEnv === 'demo') {
-    return {
-      status: 'Healthy',
-      metrics: { alertCount: 0, host_cpu_avg_pct: 18.2, host_mem_avg_pct: 35.4, jvm_heap_used_mb: 850 }
-    };
   }
 
   // In production without token, report DATA_UNAVAILABLE
   const token = await resolveApiToken();
+  // [M1.1] No token means no data in staging as in prod; the source arbiter then
+  // falls back to SENTINEL's own agents and probes.
   if (!token) {
-    if (currentEnv === 'prod') {
-      if (writeNasLog) {
-        writeNasLog('WARN', 'DYNATRACE_REAL', 'No Dynatrace API token configured in PROD. Status: DATA_UNAVAILABLE');
-      }
-      return { status: 'DATA_UNAVAILABLE', metrics: { alertCount: 0, error: 'Data Not Available' } };
+    if (writeNasLog) {
+      writeNasLog('WARN', 'DYNATRACE_REAL', `No Dynatrace API token configured in ${String(currentEnv).toUpperCase()}. Status: DATA_UNAVAILABLE`);
     }
-    // In staging fallback:
-    const data = {
-      alertCount: 2,
-      events: 4,
-      host_cpu_avg_pct: 24.5,
-      host_mem_avg_pct: 48.2,
-      jvm_heap_used_mb: 1420
-    };
-    Object.keys(data).forEach(mName => {
-      db.addMetric('dynatrace', mName, data[mName], currentEnv);
-    });
-    return { status: 'Warning', metrics: data };
+    return { status: 'DATA_UNAVAILABLE', metrics: { alertCount: 0, error: 'Data Not Available' } };
   }
 
   let problemCount = 0;
-  let jvmHeapUsedMb = 1420;
-  let hostCpuAvgPct = 24.5;
-  let hostMemAvgPct = 48.2;
+  let problemsOk = false;
+  let jvmHeapUsedMb = null;
+  let hostCpuAvgPct = null;
+  let hostMemAvgPct = null;
 
   // 1. Query Dynatrace API v2 Problems Feed
   try {
@@ -81,6 +76,7 @@ async function collectDynatraceAlerts(db, writeNasLog, targetEnv = null) {
       const payload = await res.json();
       const openProblems = payload.problems || [];
       problemCount = payload.totalCount || openProblems.length;
+      problemsOk = true;
 
       // Sync active critical problems as Sentinel alerts
       openProblems.forEach(prob => {
@@ -93,33 +89,56 @@ async function collectDynatraceAlerts(db, writeNasLog, targetEnv = null) {
   }
 
   // 2. Query Dynatrace API v2 Metrics Query Feed (Bulk Host + JVM stats)
+  // Metric keys drift between Dynatrace versions, so each canonical metric is resolved against
+  // the descriptors this tenant actually has (config/dynatrace_metric_aliases.yaml). A metric that
+  // matches none of its candidates raises a DYNATRACE-DRIFT alert and stays null.
+  const CANONICAL = ['host_cpu_avg_pct', 'host_mem_avg_pct', 'jvm_heap_used_mb'];
+  const aliases = metricResolver.loadAliases();
+  let available = [];
   try {
-    const metricsUrl = `${baseUrl}/api/v2/metrics/query?metricSelector=builtin:host.cpu.usage:avg,builtin:host.mem.usage:avg,builtin:jvm.memory.heap.used:avg&resolution=1m`;
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 1500);
-
-    const res = await fetch(metricsUrl, {
-      headers: {
-        'Authorization': `Api-Token ${token}`
-      },
-      signal: controller.signal
-    });
-    clearTimeout(id);
-
-    if (res.ok) {
-      const payload = await res.json();
-      const resultList = payload.result || [];
-      resultList.forEach(r => {
-        const val = r.data?.[0]?.values?.[0];
-        if (val !== undefined && val !== null) {
-          if (r.metricId.includes('cpu.usage')) hostCpuAvgPct = parseFloat(val.toFixed(2));
-          if (r.metricId.includes('mem.usage')) hostMemAvgPct = parseFloat(val.toFixed(2));
-          if (r.metricId.includes('heap.used')) jvmHeapUsedMb = Math.round(val / (1024 * 1024));
-        }
+    const candidates = CANONICAL.flatMap(c => aliases[c]?.candidates || []);
+    if (candidates.length) {
+      const dRes = await fetch(`${baseUrl}/api/v2/metrics?metricSelector=${encodeURIComponent(candidates.join(','))}&fields=metricId&pageSize=100`, {
+        headers: { 'Authorization': `Api-Token ${token}` },
+        signal: AbortSignal.timeout(1500)
       });
+      if (dRes.ok) available = ((await dRes.json()).metrics || []).map(m => m.metricId).filter(Boolean);
     }
   } catch (e) {
-    console.debug(`[DYNATRACE] Metrics query endpoint unreachable (${baseUrl}): ${e.message}`);
+    console.debug(`[DYNATRACE] Metric descriptor lookup failed (${baseUrl}): ${e.message}`);
+  }
+  // Empty `available` (lookup failed) => resolver falls back to each metric's primary candidate.
+  const resolved = metricResolver.resolveDescriptors(available, db, currentEnv);
+  const selectorFor = (canonical) => resolved.get(canonical) || null;
+  const selectors = CANONICAL.map(c => ({ canonical: c, selector: selectorFor(c) })).filter(x => x.selector);
+
+  if (selectors.length) {
+    try {
+      const metricSelector = selectors.map(x => `${x.selector}:avg`).join(',');
+      const metricsUrl = `${baseUrl}/api/v2/metrics/query?metricSelector=${encodeURIComponent(metricSelector)}&resolution=1m`;
+      const res = await fetch(metricsUrl, {
+        headers: { 'Authorization': `Api-Token ${token}` },
+        signal: AbortSignal.timeout(1500)
+      });
+
+      if (res.ok) {
+        const payload = await res.json();
+        (payload.result || []).forEach(r => {
+          const val = r.data?.[0]?.values?.[0];
+          if (val === undefined || val === null) return;
+          const match = selectors.find(x => String(r.metricId).startsWith(x.selector));
+          if (!match) return;
+          // Some candidates report the inverse (idle / available %): convert to "used %".
+          const inverse = /idle|available/.test(match.selector);
+          const pct = (v) => parseFloat((inverse ? 100 - v : v).toFixed(2));
+          if (match.canonical === 'host_cpu_avg_pct') hostCpuAvgPct = pct(val);
+          if (match.canonical === 'host_mem_avg_pct') hostMemAvgPct = pct(val);
+          if (match.canonical === 'jvm_heap_used_mb') jvmHeapUsedMb = Math.round(val / (1024 * 1024));
+        });
+      }
+    } catch (e) {
+      console.debug(`[DYNATRACE] Metrics query endpoint unreachable (${baseUrl}): ${e.message}`);
+    }
   }
 
   const activeAlerts = db.getAlerts(currentEnv).filter(a => a.status === 'Active' && a.severity === 'Critical');
@@ -127,14 +146,17 @@ async function collectDynatraceAlerts(db, writeNasLog, targetEnv = null) {
 
   const data = {
     alertCount: totalAlerts,
-    events: 4,
     host_cpu_avg_pct: hostCpuAvgPct,
     host_mem_avg_pct: hostMemAvgPct,
     jvm_heap_used_mb: jvmHeapUsedMb
   };
 
+  // Only values Dynatrace actually returned are stored, labelled with their source.
   Object.keys(data).forEach(mName => {
-    db.addMetric('dynatrace', mName, data[mName], currentEnv);
+    if (mName === 'alertCount' && !problemsOk) return;
+    if (typeof data[mName] === 'number') {
+      db.addMetric('dynatrace', mName, data[mName], currentEnv, null, 'dynatrace');
+    }
   });
 
   if (writeNasLog) {
@@ -147,121 +169,43 @@ async function collectDynatraceAlerts(db, writeNasLog, targetEnv = null) {
   };
 }
 
+// Open Dynatrace problems for the environment.
 async function getActiveProblems(env = null) {
   const currentEnv = env || global.runtimeEnvironment || 'staging';
 
-  // 1. DEMO MODE: return pristine demo problems
-  if (currentEnv === 'demo') {
-    return [
-      {
-        problemId: "P-DEMO-001",
-        displayId: "DAVIS-1001",
-        title: "Davis AI Proactive Anomaly Detection: Thread Contention on Bitbucket Node 2",
-        severityLevel: "RESOURCE_CONTENTION",
-        status: "OPEN",
-        impactLevel: "SERVICE",
-        managementZone: "Production CI/CD Cluster (Demo)",
-        startTime: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-        affectedEntities: [
-          { name: "bitbucket-core-srv02.internal.corp", entityId: "HOST-DEMO-01" },
-          { name: "jvm-bitbucket-prod", entityId: "PROCESS-DEMO-01" }
-        ],
-        rootCauseEntity: {
-          name: "Thread saturation during scheduled repository re-indexing",
-          entityId: "PROCESS_GROUP-BITBUCKET"
-        },
-        davisAiSummary: "Davis AI isolated root cause to JVM thread lock contention. Autonomous self-healing playbook auto-triggered successfully.",
-        remediationUrl: "https://dynatrace.internal.corp/#problems/demo"
-      }
-    ];
-  }
+  // 1. PROD MODE: strictly query live Dynatrace API v2 endpoint
+  const targetConfig = (currentEnv === 'prod' ? config.PROD_URLS : config.STG_URLS) || config.ACTIVE_URLS || {};
+  const baseUrl = endpointFor(currentEnv, targetConfig);
+  if (!baseUrl) return [];
+  const token = await resolveApiToken();
 
-  // 2. PROD MODE: strictly query live Dynatrace API v2 endpoint
-  if (currentEnv === 'prod') {
-    const targetConfig = config.ACTIVE_URLS || {};
-    const baseUrl = targetConfig.dynatrace_api_endpoint;
-    if (!baseUrl) return [];
-    const token = await resolveApiToken();
-
-    if (!token) {
-      console.debug('[DYNATRACE] No live token in PROD — returning empty live problem list.');
-      return [];
-    }
-
-    try {
-      const problemsUrl = `${baseUrl}/api/v2/problems?problemSelector=status("OPEN")&pageSize=20`;
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 1500);
-
-      const res = await fetch(problemsUrl, {
-        headers: {
-          'Authorization': `Api-Token ${token}`,
-          'Content-Type': 'application/json'
-        },
-        signal: controller.signal
-      });
-      clearTimeout(id);
-
-      if (res.ok) {
-        const payload = await res.json();
-        return payload.problems || [];
-      }
-    } catch (err) {
-      console.debug(`[DYNATRACE] Live prod endpoint unreachable: ${err.message}`);
-    }
-
+  if (!token) {
     return [];
   }
 
-  // 3. STAGING MODE: return staging mock problems
-  return getStagingProblems();
-}
+  try {
+    const problemsUrl = `${baseUrl}/api/v2/problems?problemSelector=status("OPEN")&pageSize=20`;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 1500);
 
-/**
- * Staging fallback data for getActiveProblems.
- */
-function getStagingProblems() {
-  return [
-    {
-      problemId: "P-260830-001",
-      displayId: "DAVIS-9821",
-      title: "Memory Saturation & GC Pause Spike on Bitbucket Node 2",
-      severityLevel: "RESOURCE_CONTENTION",
-      status: "OPEN",
-      impactLevel: "INFRASTRUCTURE",
-      managementZone: "Enterprise CI/CD Core",
-      startTime: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-      affectedEntities: [
-        { name: "bitbucket-core-srv02.internal.corp", entityId: "HOST-891A90B" },
-        { name: "jvm-bitbucket-prod", entityId: "PROCESS_GROUP_INSTANCE-771B" }
-      ],
-      rootCauseEntity: {
-        name: "Heap Allocation Rate Spike during concurrent git index sweeps",
-        entityId: "PROCESS_GROUP-BITBUCKET"
+    const res = await fetch(problemsUrl, {
+      headers: {
+        'Authorization': `Api-Token ${token}`,
+        'Content-Type': 'application/json'
       },
-      davisAiSummary: "Davis AI identified 94% JVM Old Gen heap saturation causing 1.8s GC stop-the-world pauses.",
-      remediationUrl: "https://dynatrace.internal.corp/#problems/problemdetails;pid=P-260830-001"
-    },
-    {
-      problemId: "P-260830-002",
-      displayId: "DAVIS-9822",
-      title: "Elevated Failure Rate on Artifactory Docker Image Registry V2",
-      severityLevel: "ERROR",
-      status: "OPEN",
-      impactLevel: "SERVICE",
-      managementZone: "Artifactory Fleet",
-      startTime: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
-      affectedEntities: [
-        { name: "service:artifactory-docker-v2", entityId: "SERVICE-112A44" }
-      ],
-      rootCauseEntity: {
-        name: "Connection pool timeout to backend metadata storage",
-        entityId: "STORAGE-POOL-NFS01"
-      },
-      davisAiSummary: "Davis AI detected 8.2% 504 Gateway Timeouts caused by shared NAS file lock contention.",
-      remediationUrl: "https://dynatrace.internal.corp/#problems/problemdetails;pid=P-260830-002"
+      signal: controller.signal
+    });
+    clearTimeout(id);
+
+    if (res.ok) {
+      const payload = await res.json();
+      return payload.problems || [];
     }
-  ];
+  } catch (err) {
+    console.debug(`[DYNATRACE] Endpoint unreachable: ${err.message}`);
+  }
+
+  return [];
 }
 
 /**
@@ -274,8 +218,8 @@ function getStagingProblems() {
 async function fetchHostManagementMetrics(db = null, writeNasLog = null, targetEnv = null) {
   const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
   const targetConfig = (currentEnv === 'prod' ? config.PROD_URLS : config.STG_URLS) || config.ACTIVE_URLS || {};
-  const baseUrl = targetConfig.dynatrace_api_endpoint;
-  if (!baseUrl && currentEnv !== 'demo') {
+  const baseUrl = endpointFor(currentEnv, targetConfig);
+  if (!baseUrl) {
     return {
       status: 'DATA_UNAVAILABLE',
       enabled: false,
@@ -299,87 +243,20 @@ async function fetchHostManagementMetrics(db = null, writeNasLog = null, targetE
     };
   }
 
-  // 2. DEMO MODE
-  if (currentEnv === 'demo') {
-    const demoData = {
-      status: 'Healthy',
-      enabled: true,
-      managementZones: [
-        { id: 'MZ-01', name: 'Production CI/CD Cluster', entityCount: 14 },
-        { id: 'MZ-02', name: 'Enterprise Core Banking Gateway', entityCount: 8 }
-      ],
-      hosts: [
-        {
-          entityId: 'HOST-DEMO-01',
-          displayName: 'bitbucket-core-srv01.internal.corp',
-          osType: 'LINUX',
-          state: 'RUNNING',
-          cpuUsagePct: 22.4,
-          memoryUsagePct: 48.2,
-          diskUsagePct: 61.0
-        },
-        {
-          entityId: 'HOST-DEMO-02',
-          displayName: 'jenkins-master-srv01.internal.corp',
-          osType: 'LINUX',
-          state: 'RUNNING',
-          cpuUsagePct: 35.1,
-          memoryUsagePct: 58.6,
-          diskUsagePct: 52.4
-        }
-      ],
-      summary: { totalHosts: 2, healthyHosts: 2, avgCpuPct: 28.75, avgMemPct: 53.4 }
-    };
-
-    if (db && typeof db.addMetric === 'function') {
-      db.addMetric('dynatrace_hosts', 'host_count', demoData.summary.totalHosts, currentEnv);
-      db.addMetric('dynatrace_hosts', 'avg_cpu_pct', demoData.summary.avgCpuPct, currentEnv);
-      db.addMetric('dynatrace_hosts', 'avg_mem_pct', demoData.summary.avgMemPct, currentEnv);
-    }
-    return demoData;
-  }
-
-  // 3. Resolve API Token
+  // 2. Resolve API Token
   const token = await resolveApiToken();
+  // [M1.1] No token means no data, in staging as in prod: nothing is synthesized.
   if (!token) {
-    if (currentEnv === 'prod') {
-      if (writeNasLog) {
-        writeNasLog('WARN', 'DYNATRACE_MANAGEMENT', 'No Dynatrace API token in PROD for host management query. Status: DATA_UNAVAILABLE');
-      }
-      return {
-        status: 'DATA_UNAVAILABLE',
-        enabled: true,
-        managementZones: [],
-        hosts: [],
-        summary: { totalHosts: 0, healthyHosts: 0, avgCpuPct: null, avgMemPct: null, error: 'Data Not Available' }
-      };
+    if (writeNasLog) {
+      writeNasLog('WARN', 'DYNATRACE_MANAGEMENT', `No Dynatrace API token in ${String(currentEnv).toUpperCase()} for host management query. Status: DATA_UNAVAILABLE`);
     }
-    // Staging baseline fallback
-    const stagingData = {
-      status: 'Healthy',
+    return {
+      status: 'DATA_UNAVAILABLE',
       enabled: true,
-      managementZones: [
-        { id: 'MZ-STG-01', name: 'Staging CI/CD Services', entityCount: 8 }
-      ],
-      hosts: [
-        {
-          entityId: 'HOST-STG-01',
-          displayName: 'staging-build-agent-01.internal.corp',
-          osType: 'LINUX',
-          state: 'RUNNING',
-          cpuUsagePct: 18.5,
-          memoryUsagePct: 42.0,
-          diskUsagePct: 45.8
-        }
-      ],
-      summary: { totalHosts: 1, healthyHosts: 1, avgCpuPct: 18.5, avgMemPct: 42.0 }
+      managementZones: [],
+      hosts: [],
+      summary: { totalHosts: 0, healthyHosts: 0, avgCpuPct: null, avgMemPct: null, error: 'Data Not Available' }
     };
-    if (db && typeof db.addMetric === 'function') {
-      db.addMetric('dynatrace_hosts', 'host_count', 1, currentEnv);
-      db.addMetric('dynatrace_hosts', 'avg_cpu_pct', 18.5, currentEnv);
-      db.addMetric('dynatrace_hosts', 'avg_mem_pct', 42.0, currentEnv);
-    }
-    return stagingData;
   }
 
   // 4. Live API v2 Query: Management Zones & Host Entities
@@ -439,8 +316,8 @@ async function fetchHostManagementMetrics(db = null, writeNasLog = null, targetE
   };
 
   if (db && typeof db.addMetric === 'function') {
-    db.addMetric('dynatrace_hosts', 'host_count', hosts.length, currentEnv);
-    db.addMetric('dynatrace_hosts', 'mz_count', managementZones.length, currentEnv);
+    db.addMetric('dynatrace_hosts', 'host_count', hosts.length, currentEnv, null, 'dynatrace');
+    db.addMetric('dynatrace_hosts', 'mz_count', managementZones.length, currentEnv, null, 'dynatrace');
   }
 
   if (writeNasLog) {

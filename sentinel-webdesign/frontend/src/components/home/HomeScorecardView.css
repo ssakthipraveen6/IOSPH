@@ -1,0 +1,130 @@
+/* HomeScorecardView — co-located styles (U4). */
+.home-scorecard-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.home-product-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-text-primary { color: var(--text-primary); }
+
+.home-product-id {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.home-mono { font-family: var(--font-mono); }
+.home-mono-strong {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.home-delta {
+  margin-left: var(--space-2);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--sev-healthy);
+}
+
+.home-delta--up { color: var(--sev-critical); }
+
+.home-cves { color: var(--text-secondary); }
+.home-cves--open { color: var(--sev-warning); }
+
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.home-problems-banner {
+  background: var(--surface-bg);
+  border: 1px solid var(--sev-critical-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-md);
+}
+
+.home-problems-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.home-row-sm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.home-row-md {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.home-problems-note {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.home-problem-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.home-problem-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+}
+
+.home-problem-id {
+  font-size: var(--font-xs);
+  color: var(--brand-primary);
+}
+
+.home-semibold { font-weight: 600; }
+
+.home-card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.home-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.home-title {
+  margin: 0;
+  font-size: var(--font-lg);
+  color: var(--text-primary);
+}
+
+.home-subtle {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.home-loading {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+}

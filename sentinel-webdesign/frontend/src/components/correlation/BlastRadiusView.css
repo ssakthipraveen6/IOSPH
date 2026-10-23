@@ -1,0 +1,326 @@
+/* BlastRadiusView */
+
+.blast-root {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ---- Header ---- */
+.blast-header {
+  margin-bottom: var(--space-6);
+}
+
+.blast-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.3px;
+}
+
+.blast-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+/* ---- Loading / empty ---- */
+.blast-loading {
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.blast-empty {
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-panel);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border-light);
+}
+
+.blast-empty-icon {
+  font-size: var(--font-3xl);
+  margin-bottom: var(--space-2);
+}
+
+.blast-empty-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.blast-empty-text {
+  font-size: 0.8rem;
+  margin-top: var(--space-1);
+}
+
+/* ---- Layout ---- */
+.blast-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-5);
+}
+
+.blast-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.blast-panel--list {
+  padding: var(--space-4);
+  height: fit-content;
+}
+
+.blast-list-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.blast-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ---- Hypothesis card ---- */
+.blast-hypo {
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.blast-hypo--selected {
+  background: rgba(20, 184, 166, 0.12);
+  border-color: var(--sentinel-teal, #14b8a6);
+}
+
+.blast-hypo-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.blast-hypo-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.blast-hypo-conf {
+  font-size: var(--font-xs);
+  font-weight: 800;
+  color: var(--sev-warning);
+}
+
+.blast-hypo-conf--high { color: var(--sev-healthy); }
+
+.blast-hypo-radius {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+.blast-hypo-status {
+  font-size: 0.7rem;
+  margin-top: 6px;
+  text-transform: uppercase;
+  color: var(--sev-unavailable);
+  font-weight: 700;
+}
+
+.blast-hypo-status--confirmed { color: var(--sev-healthy); }
+.blast-hypo-status--rejected { color: var(--sev-critical); }
+
+/* ---- Detail column ---- */
+.blast-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.blast-banner {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, var(--bg-panel) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.blast-banner-kicker {
+  font-size: var(--font-xs);
+  font-weight: 800;
+  color: var(--sev-critical);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.blast-banner-entity {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+.blast-banner-trigger {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+.blast-teal {
+  color: var(--sentinel-teal, #14b8a6);
+}
+
+.blast-metrics {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.blast-metric {
+  text-align: right;
+}
+
+.blast-metric-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.blast-metric-value {
+  font-size: var(--font-2xl);
+  font-weight: 900;
+  color: var(--sev-critical);
+}
+
+.blast-metric-value--healthy { color: var(--sev-healthy); }
+
+.blast-metric-unit {
+  font-size: 0.85rem;
+}
+
+.blast-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 10px;
+}
+
+.blast-section-title--12 { margin-bottom: var(--space-3); }
+.blast-section-title--8 { margin-bottom: var(--space-2); }
+
+/* ---- Affected apps ---- */
+.blast-apps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.blast-app-chip {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  padding: var(--space-1) 10px;
+  border-radius: 6px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- Evidence chain ---- */
+.blast-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blast-evidence {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 4px solid var(--sentinel-teal, #14b8a6);
+}
+
+.blast-evidence-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.blast-evidence-id {
+  font-family: monospace;
+  color: var(--primary);
+}
+
+.blast-evidence-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-top: var(--space-1);
+}
+
+/* ---- Verdict loop ---- */
+.blast-verdict-help {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.blast-verdict-row {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.blast-notes-input {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 6px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-light);
+  color: var(--text-main);
+  font-size: 0.8rem;
+}
+
+.blast-verdict-btn {
+  padding: var(--space-2) var(--space-4);
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.blast-verdict-btn--confirm {
+  background: var(--sev-healthy);
+  border: none;
+  color: #fff;
+}
+
+.blast-verdict-btn--reject {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: var(--sev-critical);
+}
+
+.blast-feedback {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sentinel-teal, #14b8a6);
+}

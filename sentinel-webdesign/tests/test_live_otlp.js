@@ -1,3 +1,6 @@
+/**
+ * Manual test: sends one OTLP payload to a running Sentinel and prints the result.
+ */
 async function sendTestOtlp() {
   const payload = {
     resourceMetrics: [

@@ -91,6 +91,7 @@ async function executeWithTokenRetry(apiCallFn) {
   }
 }
 
+// Forgets the cached token.
 function resetTokenState() {
   cachedToken = null;
   tokenExpiresAt = 0;

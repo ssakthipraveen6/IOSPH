@@ -1,0 +1,16 @@
+[Unit]
+Description=SENTINEL osquery (file changes and installed packages)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/sentinel/osquery/osqueryd --flagfile /etc/sentinel/osquery/osquery.flags
+Restart=always
+RestartSec=10s
+CPUQuota=5%
+MemoryMax=256M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

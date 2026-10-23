@@ -11,10 +11,6 @@ const { SEVERITY, SEVERITY_WEIGHTS, normalizeSeverity } = require('@sentinel/sha
  * Calculates health index (0 - 100) based on active alerts and simulated outages.
  */
 function calculateHealthScore(activeAlerts = [], sims = {}, currentEnv = 'staging') {
-  if (currentEnv === 'demo') {
-    return 100;
-  }
-
   let healthIndex = 100;
 
   // Deduct for active alerts using canonical weights
@@ -52,11 +48,6 @@ function calculateComponentStatuses({
   const componentStatuses = {};
 
   components.forEach(comp => {
-    if (currentEnv === 'demo') {
-      componentStatuses[comp] = SEVERITY.HEALTHY;
-      return;
-    }
-
     const criticalAlerts = activeAlerts.filter(a => a.component === comp && normalizeSeverity(a.severity) === SEVERITY.CRITICAL);
     const warnAlerts = activeAlerts.filter(a => a.component === comp && (normalizeSeverity(a.severity) === SEVERITY.WARNING || normalizeSeverity(a.severity) === SEVERITY.PREDICTIVE_WARNING));
 

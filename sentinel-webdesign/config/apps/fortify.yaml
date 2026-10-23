@@ -1,66 +1,132 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: Micro Focus Fortify SSC
-# =========================================================================
-id: "fortify"
-kind: "application"
-display_name: "Micro Focus Fortify SSC"
-category: "security_scanner"
-tier: "Tier-2 Operational"
-log_tag: "[FORTIFY]"
-regions: ["emea"]
-
+id: fortify
+kind: application
+display_name: Micro Focus Fortify SSC
+category: security_scanner
+tier: Tier-2 Operational
+log_tag: '[FORTIFY]'
+regions:
+  - emea
 endpoints:
   prod:
-    api: "https://fortify-prod.internal.corp/ssc/api/v1"
+    api: https://fortify-prod.internal.corp/ssc/api/v1
+    vip: https://fortify-prod.internal.corp
   stg:
-    api: "https://fortify-stg.internal.corp/ssc/api/v1"
-
+    api: https://fortify-stg.internal.corp/ssc/api/v1
+    vip: https://fortify-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
 topology:
   servers:
-    ssc_master: "fortify-ssc-1.internal.corp"
+    ssc_master: fortify-ssc-1.internal.corp
   agent_pools:
-    - { id: "fortify-sensors", os: "linux", expected_count: 20, discovery: "fortify_api" }
-
+    - id: fortify-sensors
+      os: linux
+      expected_count: 20
+      discovery: fortify_api
 lifecycle:
-  refweb_url: { url: "https://fortify.internal.corp", expiry: "2027-08-31" }
-  license: { type: "Fortify SSC Enterprise", expiry: "2027-05-15" }
-
+  refweb_url:
+    url: https://fortify.internal.corp
+    expiry: '2027-08-31'
+  license:
+    type: Fortify SSC Enterprise
+    expiry: '2027-05-15'
+  certificates:
+    - { name: vip-tls, probe: "fortify-prod.internal.corp:443" }
 layers:
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-fortify.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-fortify.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://fortify-prod.internal.corp
+  hosts:
+    - fortify-node-01.internal.corp
+    - fortify-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/fortify
+  databases:
+    - jdbc:postgresql://db-prod-fortify.internal.corp:5432/fortify_db
+  clusters:
+    - k8s-prod-fortify
 servers:
   unix:
-    - node: "fortify-ssc-1"
-      api: "https://linux-compute-prod-fortify-1.internal.corp/api/v1/metrics"
+    - node: fortify-ssc-1
+      api: https://linux-compute-prod-fortify-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 140
   successRate: 99.4
   requests: 30
-
 logs:
-  log_tag: "[FORTIFY]"
-  log_path: "d:\\production_shares\\nas_logs\\fortify.log"
-
+  log_tag: '[FORTIFY]'
+  log_path: d:\production_shares\nas_logs\fortify.log
 credentials:
-  safe: "SF-FORTIFY-PROD"
+  safe: SF-FORTIFY-PROD
   objects:
-    api_token: "FORTIFY-API-TOKEN"
+    api_token: FORTIFY-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_FORTIFY_SERVICE
+journeys:
+  - id: fortify_projects_read
+    name: Fortify SSC Health & Project Versions
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: ssc_info
+        name: SSC Server Info
+        type: http
+        layer: network
+        url: /info
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: project_versions
+        name: Project Versions Query
+        type: http
+        layer: app
+        url: /projectVersions?limit=5
+        assert:
+          status: 200
+          max_ms: 2500
+  - id: fortify_scans_flow
+    name: Fortify Cloud Sensor Pool & Scan Activity
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: cloud_pool
+        name: Cloud Pool Sensor Health
+        type: http
+        layer: app
+        url: /cloudpools
+        assert:
+          status: 200
+          max_ms: 2000
+      - id: artifacts_queue
+        name: Artifact Processing Queue
+        type: http
+        layer: storage
+        url: /artifacts
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_FORTIFY_SERVICE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/opt/fortify/ssc/conf/%%"
+    - "/opt/tomcat/conf/%%"
+    - "/opt/tomcat/webapps/%.war"
+  windows: []

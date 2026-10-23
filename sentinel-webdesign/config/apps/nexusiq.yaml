@@ -1,55 +1,122 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: Sonatype Nexus IQ Server
-# =========================================================================
-id: "nexusiq"
-kind: "application"
-display_name: "Sonatype Nexus IQ Server"
-category: "security_scanner"
-tier: "Tier-2 Operational"
-log_tag: "[NEXUSIQ]"
-
+id: nexusiq
+kind: application
+display_name: Sonatype Nexus IQ Server
+category: security_scanner
+tier: Tier-2 Operational
+log_tag: '[NEXUSIQ]'
 endpoints:
   prod:
-    api: "https://nexusiq-prod.internal.corp/api/v2"
+    api: https://nexusiq-prod.internal.corp/api/v2
+    vip: https://nexusiq-prod.internal.corp
   stg:
-    api: "https://nexusiq-stg.internal.corp/api/v2"
-
+    api: https://nexusiq-stg.internal.corp/api/v2
+    vip: https://nexusiq-stg.internal.corp
 auth:
-  scheme: "basic_token"
-  credential_purpose: "api_token"
+  scheme: basic_token
+  credential_purpose: api_token
   cert_purpose: null
-  username_purpose: "service_user"
+  username_purpose: service_user
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://nexusiq-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "nexusiq-prod.internal.corp:443" }
 layers:
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-nexusiq.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-nexusiq.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://nexusiq-prod.internal.corp
+  hosts:
+    - nexusiq-node-01.internal.corp
+    - nexusiq-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/nexusiq
+  databases:
+    - jdbc:postgresql://db-prod-nexusiq.internal.corp:5432/nexusiq_db
+  clusters:
+    - k8s-prod-nexusiq
 servers:
   unix:
-    - node: "nexusiq-node-1"
-      api: "https://linux-compute-prod-nexusiq-1.internal.corp/api/v1/metrics"
+    - node: nexusiq-node-1
+      api: https://linux-compute-prod-nexusiq-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 125
   successRate: 99.7
   requests: 40
-
 logs:
-  log_tag: "[NEXUSIQ]"
-  log_path: "d:\\production_shares\\nas_logs\\nexusiq.log"
-
+  log_tag: '[NEXUSIQ]'
+  log_path: d:\production_shares\nas_logs\nexusiq.log
 credentials:
-  safe: "SF-NEXUSIQ-PROD"
+  safe: SF-NEXUSIQ-PROD
   objects:
-    api_token: "NEXUSIQ-API-TOKEN"
+    api_token: NEXUSIQ-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_NEXUSIQ_SERVICE
+journeys:
+  - id: nexusiq_policy_read
+    name: Nexus IQ Server Status & Applications
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: system_status
+        name: Ping System Status
+        type: http
+        layer: network
+        url: /config
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: applications_list
+        name: List Applications
+        type: http
+        layer: app
+        url: /applications
+        assert:
+          status: 200
+          max_ms: 2500
+  - id: nexusiq_evaluation_flow
+    name: Nexus IQ Policy Evaluation & Violations
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: policy_violations
+        name: Policy Violations Query
+        type: http
+        layer: app
+        url: /reports/applications
+        assert:
+          status: 200
+          max_ms: 2000
+      - id: quarantine_summary
+        name: Quarantine Summary Status
+        type: http
+        layer: db
+        url: /firewall/quarantine/summary
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_NEXUSIQ_SERVICE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/opt/nexus-iq-server/%.yml"
+    - "/opt/nexus-iq-server/%.jar"
+  windows: []

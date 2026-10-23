@@ -1,3 +1,6 @@
+/**
+ * Test: sign-in and role lock-down (anonymous writes refused, roles enforced).
+ */
 const assert = require('assert');
 const http = require('http');
 const ldapClient = require('../backend/auth/ldap_client');

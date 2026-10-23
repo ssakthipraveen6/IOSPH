@@ -1,3 +1,6 @@
+/**
+ * Custom checks declared in YAML: runs them and records results.
+ */
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -51,12 +54,12 @@ const CUSTOM_CHECKS_REGISTRY = loadCustomChecksRegistry();
 // In-memory runtime cache for custom check states
 const checkRuntimeStates = {};
 
-// [T0.20] Initialise check state to UNKNOWN, never Healthy; latencyMs to null
+// [T0.20 / O0.4] Initialise check state to UNKNOWN, never Healthy; latencyMs to null; lastRunValue to DATA_UNAVAILABLE
 CUSTOM_CHECKS_REGISTRY.forEach(check => {
   checkRuntimeStates[check.id] = {
     ...check,
     status: "UNKNOWN",
-    lastRunValue: null,
+    lastRunValue: "DATA_UNAVAILABLE",
     lastRunTimestamp: null,
     latencyMs: null,
     failureCount: 0
@@ -64,77 +67,42 @@ CUSTOM_CHECKS_REGISTRY.forEach(check => {
 });
 
 /**
- * Executes registered custom checks, updates runtime statistics, and writes log events
- * @param {Object} simulations - Active simulated failures payload
+ * [Phase O0.4 / O6.1] Records an executed check result into the runtime state store
+ */
+function recordCheckResult(checkId, result = {}) {
+  if (checkRuntimeStates[checkId]) {
+    checkRuntimeStates[checkId] = {
+      ...checkRuntimeStates[checkId],
+      status: result.status || (result.success ? "Healthy" : "Critical"),
+      lastRunValue: result.lastRunValue || (result.success ? checkRuntimeStates[checkId].expectedState : "FAILURE"),
+      lastRunTimestamp: result.timestamp || new Date().toISOString(),
+      latencyMs: typeof result.latencyMs === 'number' ? result.latencyMs : null,
+      failureCount: result.success ? 0 : (checkRuntimeStates[checkId].failureCount + 1)
+    };
+  }
+}
+
+/**
+ * Returns registered custom check runtime states.
+ * O0.4: Simulation-only path with hard-coded latency=12 deleted.
+ * Returns stored results or DATA_UNAVAILABLE per check.
  * @returns {Array} - The array of custom check status metrics
  */
-function runCustomChecks(simulations = {}) {
-  const results = [];
+function runCustomChecks() {
+  return CUSTOM_CHECKS_REGISTRY.map(check => ({
+    ...checkRuntimeStates[check.id]
+  }));
+}
 
-  CUSTOM_CHECKS_REGISTRY.forEach(check => {
-    const currentState = checkRuntimeStates[check.id];
-    let isFailing = false;
-    let actualValue = check.expectedState;
-    let latency = 12;
-
-    if (config.USE_SIMULATED_COLLECTORS) {
-      if (check.type === "jenkins_job" && simulations.jenkins_k8s) {
-        isFailing = true;
-        actualValue = "FAILURE";
-        latency = 1500;
-      } else if (check.type === "app_api" && simulations.database) {
-        isFailing = true;
-        actualValue = "DOWN (DB Connection Pool Saturation)";
-        latency = 3000;
-      }
-    } else {
-      // In real/production mode without live integration probe configured,
-      // state remains UNKNOWN / DATA_UNAVAILABLE rather than fabricating Healthy
-      if (global.runtimeEnvironment === 'prod' || !config.USE_SIMULATED_COLLECTORS) {
-        currentState.status = "UNKNOWN";
-        currentState.lastRunValue = "DATA_UNAVAILABLE";
-        currentState.latencyMs = null;
-        currentState.lastRunTimestamp = new Date().toISOString();
-        results.push({ ...currentState });
-        return;
-      }
-
-      if (check.type === "jenkins_job" && simulations.jenkins_k8s) {
-        isFailing = true;
-        actualValue = "FAILURE";
-        latency = 1500;
-      } else if (check.type === "app_api" && simulations.database) {
-        isFailing = true;
-        actualValue = "DOWN (DB Connection Pool Saturation)";
-        latency = 3000;
-      }
-    }
-
-    if (isFailing) {
-      currentState.status = "Critical";
-      currentState.lastRunValue = actualValue;
-      currentState.latencyMs = latency;
-      currentState.failureCount += 1;
-      currentState.lastRunTimestamp = new Date().toISOString();
-
-      if (currentState.failureCount === 1) {
-        logger.warn(`[CUSTOM CHECK] ${check.name} failed! Expected ${check.expectedState}, got ${actualValue}. Latency: ${latency}ms.`);
-      }
-    } else {
-      currentState.status = "Healthy";
-      currentState.lastRunValue = check.expectedState;
-      currentState.latencyMs = latency;
-      currentState.failureCount = 0;
-      currentState.lastRunTimestamp = new Date().toISOString();
-    }
-
-    results.push({ ...currentState });
-  });
-
-  return results;
+// Runs and returns the custom checks.
+function getCustomChecks() {
+  return runCustomChecks();
 }
 
 module.exports = {
   CUSTOM_CHECKS_REGISTRY,
-  runCustomChecks
+  checkRuntimeStates,
+  recordCheckResult,
+  runCustomChecks,
+  getCustomChecks
 };

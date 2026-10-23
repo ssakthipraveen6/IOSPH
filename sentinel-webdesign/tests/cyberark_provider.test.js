@@ -1,3 +1,6 @@
+/**
+ * Test: CyberArk credential provider (registry lookup, cache, environment-variable fallback).
+ */
 const assert = require('assert');
 const path = require('path');
 const { getCredential, resolveRegistryEntry, clearCache } = require('../backend/config/cyberark/credential_provider');

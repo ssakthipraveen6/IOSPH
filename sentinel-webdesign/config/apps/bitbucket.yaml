@@ -1,28 +1,26 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: Bitbucket Enterprise SCM
-# Encapsulates Identity, Endpoints, Metrics, Logs, Credentials, & SRE Runbook
-# =========================================================================
-id: "bitbucket"
-kind: "application"
-display_name: "Bitbucket Enterprise SCM"
-category: "source_control"
-tier: "Tier-1 Mission Critical"
-log_tag: "[BB-NET]"
-regions: ["emea", "apac", "amer"]
-
+id: bitbucket
+kind: application
+display_name: Bitbucket Enterprise SCM
+category: source_control
+tier: Tier-1 Mission Critical
+log_tag: '[BB-NET]'
+regions:
+  - emea
+  - apac
+  - amer
 endpoints:
   prod:
-    api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
+    api: https://bitbucket-prod.internal.corp/rest/api/1.0
+    vip: https://bitbucket-prod.internal.corp
   stg:
-    api: "https://bitbucket-stg.internal.corp/rest/api/1.0"
-
+    api: https://bitbucket-stg.internal.corp/rest/api/1.0
+    vip: https://bitbucket-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
 topology:
   nodes:
     emea:
@@ -32,82 +30,169 @@ topology:
     amer:
       mirror_nodes: 5
   jump_servers:
-    - { host: "bb-jump-01.internal.corp", os: "linux" }
-    - { host: "bb-jump-02.internal.corp", os: "linux" }
-
+    - host: bb-jump-01.internal.corp
+      os: linux
+    - host: bb-jump-02.internal.corp
+      os: linux
 lifecycle:
-  refweb_url: { url: "https://bitbucket.internal.corp", expiry: "2027-06-30" }
-  license: { type: "Bitbucket Data Center", expiry: "2027-04-01" }
-
+  refweb_url:
+    url: https://bitbucket.internal.corp
+    expiry: '2027-06-30'
+  license:
+    type: Bitbucket Data Center
+    expiry: '2027-04-01'
+  certificates:
+    - { name: vip-tls, probe: "bitbucket-prod.internal.corp:443" }
 layers:
   sso:
-    api: "https://sso-auth-prod-bitbucket.internal.corp/oauth2/token"
-    credential_purpose: "sso"
+    api: https://sso-auth-prod-bitbucket.internal.corp/oauth2/token
+    credential_purpose: sso
   avi:
-    api: "https://avi-prod-bitbucket.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-bitbucket.internal.corp/api/v1/telemetry
     credential_purpose: null
   nfs:
-    mount: "/mnt/nfs/production_shares/bitbucket"
+    mount: /mnt/nfs/production_shares/bitbucket
     credential_purpose: null
   db:
-    jdbc: "jdbc:postgresql://db-prod-bitbucket.internal.corp:5432/bitbucket_db"
-    credential_purpose: "db"
+    jdbc: jdbc:postgresql://db-prod-bitbucket.internal.corp:5432/bitbucket_db
+    credential_purpose: db
   s3:
-    endpoint: "https://s3.prod-bitbucket-us-east-1.amazonaws.com"
+    endpoint: https://s3.prod-bitbucket-us-east-1.amazonaws.com
     credential_purpose: null
   docker:
-    registry_api: "https://registry-prod.internal.corp/v2/bitbucket"
+    registry_api: https://registry-prod.internal.corp/v2/bitbucket
     credential_purpose: null
   k8s:
-    api: "https://k8s-apiserver-prod.internal.corp:6443"
-    namespace: "bitbucket-prod"
+    api: https://k8s-apiserver-prod.internal.corp:6443
+    namespace: bitbucket-prod
     credential_purpose: null
   network_latency_hosts:
-    - "bitbucket-prod.internal.corp"
-
+    - bitbucket-prod.internal.corp
+  vip: https://bitbucket-prod.internal.corp
+  hosts:
+    - bitbucket-node-01.internal.corp
+    - bitbucket-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/bitbucket
+  databases:
+    - jdbc:postgresql://db-prod-bitbucket.internal.corp:5432/bitbucket_db
+  clusters:
+    - k8s-prod-bitbucket
 servers:
   unix:
-    - node: "bitbucket-node-1"
-      api: "https://linux-compute-prod-bitbucket-1.internal.corp/api/v1/metrics"
-    - node: "bitbucket-node-2"
-      api: "https://linux-compute-prod-bitbucket-2.internal.corp/api/v1/metrics"
+    - node: bitbucket-node-1
+      api: https://linux-compute-prod-bitbucket-1.internal.corp/api/v1/metrics
+    - node: bitbucket-node-2
+      api: https://linux-compute-prod-bitbucket-2.internal.corp/api/v1/metrics
   windows: []
-
-# Telemetry & Metrics Collection Policy
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
+  provider: opentelemetry
+  scrape_interval: 30s
   health_thresholds:
     jvm_heap_warning_pct: 80
     jvm_heap_critical_pct: 90
     response_time_warn_ms: 500
     response_time_crit_ms: 1200
   monitored_metrics:
-    - "jvm.memory.used"
-    - "process.cpu.utilization"
-    - "http.server.duration"
-    - "git.active_ssh_sessions"
-
+    - jvm.memory.used
+    - process.cpu.utilization
+    - http.server.duration
+    - git.active_ssh_sessions
+jvm:
+  jmx_port: 3333
 metrics_baseline:
   responseTime: 85
   successRate: 99.8
   requests: 45
-
-# Log Collection & Retention Policy
 logs:
-  log_tag: "[BB-NET]"
-  log_path: "d:\\production_shares\\nas_logs\\bitbucket_audit.log"
+  log_tag: '[BB-NET]'
+  log_path: d:\production_shares\nas_logs\bitbucket_audit.log
   retention_days: 30
-  rotation_size: "10M"
-  compression: "gzip"
-
-# CyberArk Vault Credential Mapping
+  rotation_size: 10M
+  compression: gzip
 credentials:
-  safe: "SF-BITBUCKET-PROD"
+  safe: SF-BITBUCKET-PROD
   objects:
-    db: "BITBUCKET-DB-SVC"
-    sso: "BITBUCKET-SSO-SVC"
-    api_token: "BITBUCKET-API-TOKEN"
+    db: BITBUCKET-DB-SVC
+    sso: BITBUCKET-SSO-SVC
+    api_token: BITBUCKET-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_BITBUCKET_SERVICE
+journeys:
+  - id: bitbucket_user_flow
+    name: Bitbucket SCM Canary & Git Operations
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: login_page
+        name: Login Page Render
+        type: http
+        layer: network
+        url: /status
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: projects_list
+        name: REST Projects Query
+        type: http
+        layer: app
+        url: /projects
+        assert:
+          status: 200
+          max_ms: 2500
+      - id: git_ls_remote
+        name: Git ls-remote Canary Probe
+        type: git
+        layer: storage
+        repo_url: https://bitbucket-prod.internal.corp/scm/canary/test-repo.git
+        action: ls-remote
+        assert:
+          max_ms: 3000
+      # [Q1] Push a commit to a dedicated canary branch, then put the branch back exactly as it
+      # was (force-with-lease to the previous commit, or delete it if it did not exist). Uses the
+      # journey credential (CyberArk purpose api_token) via http.extraHeader, never argv/URL.
+      # Emits journey.git.clone_ms / commit_ms / push_ms / reset_ms.
+      - id: git_push_reset
+        name: Git Push & Reset Canary Branch
+        type: git
+        layer: storage
+        action: push_reset
+        repo_url: https://bitbucket-prod.internal.corp/scm/canary/test-repo.git
+        branch: sentinel-canary
+        timeout_ms: 30000
+        assert:
+          max_ms: 15000
+  - id: bitbucket_api_health
+    name: Bitbucket Application Properties & Cluster Status
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: app_props
+        name: Application Properties
+        type: http
+        layer: app
+        url: /application-properties
+        assert:
+          status: 200
+          max_ms: 2000
+      - id: cluster_nodes
+        name: Cluster Nodes Status
+        type: http
+        layer: db
+        url: /admin/cluster
+        assert:
+          status: 200
+          max_ms: 2500
 
-# Automated SRE Self-Healing Playbook
-jenkins_remediation_job: "JOB_RESTART_BITBUCKET_SERVICE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/var/atlassian/application-data/bitbucket/shared/%.properties"
+    - "/opt/atlassian/bitbucket/%%/conf/%%"
+  windows: []

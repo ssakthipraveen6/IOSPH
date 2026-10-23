@@ -1,0 +1,325 @@
+/* KubernetesMeshView + NodeHoneycombMesh (k8s folder) */
+
+.k8s-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ---- Filter strip ---- */
+.k8s-strip {
+  background: var(--bg-glass-card);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--glass-shadow);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.k8s-chip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.k8s-chip {
+  background: var(--bg-panel-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.k8s-mono-note {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.k8s-mono-note--healthy { color: var(--healthy); }
+
+/* ---- Grids & cards ---- */
+.k8s-grid-12 {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-5);
+}
+
+.k8s-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+}
+
+.k8s-card {
+  background: var(--bg-glass-card);
+  padding: var(--space-5);
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.k8s-span-3 { grid-column: span 3; }
+
+.k8s-card-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.k8s-card-head--lg { margin-bottom: var(--space-3); }
+
+.k8s-card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.k8s-card-sub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* ---- KPI tiles ---- */
+.k8s-kpi-value {
+  font-size: 2.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--primary);
+  line-height: 1.1;
+}
+
+.k8s-kpi-value--healthy { color: var(--healthy); }
+
+.k8s-kpi-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+  font-weight: 600;
+}
+
+.k8s-kpi-foot {
+  font-size: 0.72rem;
+  color: var(--healthy);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+/* ---- Object counts ---- */
+.k8s-obj-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.k8s-obj-row {
+  display: flex;
+  justify-content: space-between;
+  background: var(--bg-panel-subtle);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.k8s-obj-count { color: var(--primary); }
+.k8s-obj-count--healthy { color: var(--healthy); }
+
+/* ---- Namespace bars ---- */
+.k8s-ns {
+  margin-bottom: 10px;
+}
+
+.k8s-ns-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-xs);
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+}
+
+.k8s-ns-value { color: var(--text-main); }
+
+.k8s-bar-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.k8s-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+}
+
+.k8s-bar-fill--full { width: 100%; }
+.k8s-bar-fill--critical { background: var(--critical); }
+.k8s-bar-fill--healthy { background: var(--healthy); }
+
+/* ---- NodeHoneycombMesh ---- */
+.k8s-honeycomb {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.k8s-node {
+  height: 32px;
+  border-radius: 6px;
+  background: var(--healthy-glass);
+  border: 1px solid var(--healthy);
+  color: var(--healthy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.k8s-node:hover {
+  transform: scale(1.12);
+  z-index: 2;
+}
+
+.k8s-node--warning {
+  background: var(--warning-glass);
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.k8s-node--critical {
+  background: var(--critical-glass);
+  border-color: var(--critical);
+  color: var(--critical);
+}
+
+/* ---- Kubernetes Hierarchy Screens (Phase O4.2) ---- */
+.k8s-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
+}
+
+.k8s-crumb-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.k8s-crumb-btn:hover {
+  color: var(--primary-hover);
+}
+
+.k8s-crumb-sep {
+  color: var(--text-muted);
+}
+
+.k8s-crumb-current {
+  color: var(--text-color);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.k8s-table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.k8s-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--font-sm);
+}
+
+.k8s-table th {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.k8s-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.k8s-clickable-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.k8s-clickable-row:hover {
+  background: var(--bg-hover);
+}
+
+.k8s-name-cell {
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--primary);
+}
+
+.k8s-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+.k8s-badge--ready {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--status-healthy);
+}
+
+.k8s-badge--not-ready {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--status-critical);
+}
+
+.k8s-badge--warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--status-warning);
+}
+
+.k8s-drift-alert {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid var(--status-warning);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  color: var(--status-warning);
+  font-size: var(--font-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+

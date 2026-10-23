@@ -1,3 +1,6 @@
+/**
+ * Predictive checks: warns when a metric trends toward its threshold.
+ */
 const db = require('@sentinel/database');
 const { writeNasLog } = require('@sentinel/logger');
 const { SEVERITY } = require('@sentinel/shared-constants');
@@ -28,6 +31,7 @@ function calculateLinearRegression(points) {
   return { slope, intercept };
 }
 
+// Raises a predictive alert when a metric approaches its threshold.
 function checkPredictiveAlerts(component, metricName, threshold, alertMessageTemplate, env = null) {
   const targetEnv = env || global.runtimeEnvironment || 'staging';
   // Get historical metric points for this component and metric with widened window
@@ -82,6 +86,7 @@ function checkPredictiveAlerts(component, metricName, threshold, alertMessageTem
   }
 }
 
+// Runs the predictive checks on the latest metrics.
 function runPredictiveAnalysis(currentMetrics, env = null) {
   const targetEnv = env || global.runtimeEnvironment || 'staging';
   // 1. Check Artifactory Heap Usage Trend (Simulated Heap Leak)

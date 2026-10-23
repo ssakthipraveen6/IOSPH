@@ -1,0 +1,58 @@
+// SENTINEL continuous integration. Runs on every change; separate from deployments/Jenkinsfile
+// (which rolls the collection agent out to the fleet).
+//
+// Adjust the agent label and the Chromium path to your build agents. The browser smoke test
+// (tests/ui_smoke.test.js) needs a Chromium: install one on the agent and point
+// SENTINEL_CHROMIUM_PATH at it, or let Playwright download its own where that is allowed.
+pipeline {
+    agent { label params.AGENT_LABEL }
+
+    options {
+        timeout(time: 45, unit: 'MINUTES')
+        ansiColor('xterm')
+        disableConcurrentBuilds(abortPrevious: true)
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+
+    parameters {
+        string(name: 'AGENT_LABEL', defaultValue: 'nodejs-24', description: 'Build agent label (needs Node 24, npm and a Chromium)')
+        string(name: 'CHROMIUM_PATH', defaultValue: '', description: 'Path to a pre-installed Chromium for the UI smoke test (blank = Playwright default)')
+    }
+
+    environment {
+        CI = 'true'
+        SENTINEL_CHROMIUM_PATH = "${params.CHROMIUM_PATH}"
+    }
+
+    stages {
+        stage('Install') {
+            steps { sh 'node --version && npm ci' }
+        }
+        stage('Lint and config') {
+            steps {
+                sh 'npm run lint'
+                sh 'npm run config:check'
+            }
+        }
+        stage('Build front end') {
+            steps {
+                // Rebuilds frontend/dist and records its fingerprint.
+                sh 'npm run build'
+                sh 'npm run verify:dist'
+            }
+        }
+        stage('Tests') {
+            steps { sh 'npm test' }
+        }
+        stage('Dependency audit') {
+            steps {
+                // Fails on high or critical advisories.
+                sh 'npm run audit:check'
+            }
+        }
+    }
+
+    post {
+        failure { echo 'CI failed: see the stage log above.' }
+    }
+}

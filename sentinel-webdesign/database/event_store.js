@@ -1,5 +1,9 @@
+/**
+ * Event and RCA-hypothesis store (PostgreSQL / ClickHouse, with an in-memory buffer).
+ */
 const crypto = require('crypto');
 const postgres = require('./postgres');
+const clickhouse = require('./clickhouse');
 
 const MAX_EVENT_BUFFER = 20000;
 const MAX_HYPOTHESIS_BUFFER = 500;
@@ -7,6 +11,7 @@ const MAX_HYPOTHESIS_BUFFER = 500;
 let inMemoryEvents = [];
 let inMemoryHypotheses = [];
 
+// New event id.
 function generateEventId() {
   return 'evt-' + crypto.randomUUID();
 }
@@ -17,6 +22,7 @@ function generateEventId() {
 function normalizeEvent(raw) {
   if (!raw) return null;
   const now = new Date().toISOString();
+  const payload = raw.payload || raw.details || {};
   return {
     event_id: raw.event_id || raw.id || generateEventId(),
     ts: raw.ts || raw.timestamp || now,
@@ -25,7 +31,8 @@ function normalizeEvent(raw) {
     severity: (raw.severity || 'warning').toLowerCase(),
     title: raw.title || 'System Event',
     summary: raw.summary || '',
-    payload: raw.payload || raw.details || {},
+    payload,
+    details: payload,
     environment: (raw.environment || raw.env || 'staging').toLowerCase(),
     source: raw.source || 'pipeline'
   };
@@ -50,10 +57,10 @@ async function addEvent(event) {
         INSERT INTO event (event_id, ts, entity_id, kind, severity, title, summary, payload, environment, source)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ON CONFLICT (event_id) DO UPDATE SET
-          severity = EXCLUDED.severity,
-          title = EXCLUDED.title,
-          summary = EXCLUDED.summary,
-          payload = EXCLUDED.payload;
+        severity = EXCLUDED.severity,
+        title = EXCLUDED.title,
+        summary = EXCLUDED.summary,
+        payload = EXCLUDED.payload;
       `, [
         norm.event_id,
         new Date(norm.ts),
@@ -70,6 +77,26 @@ async function addEvent(event) {
   } catch (err) {
     if (process.env.NODE_ENV !== 'test') {
       console.warn(`[EVENT_STORE] PostgreSQL event insert failed (${err.message}). Cached in ring buffer.`);
+    }
+  }
+
+  if (clickhouse && clickhouse.isConfigured()) {
+    try {
+      await clickhouse.insertEvents([{
+        ts: norm.ts,
+        env: norm.environment,
+        entity_id: norm.entity_id,
+        kind: norm.kind,
+        severity: norm.severity,
+        title: norm.title,
+        summary: norm.summary,
+        payload: norm.payload,
+        source: norm.source
+      }]);
+    } catch (chErr) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(`[EVENT_STORE] ClickHouse event insert failed (${chErr.message}).`);
+      }
     }
   }
 
@@ -391,6 +418,7 @@ async function recordVerdict(hypothesisId, verdict, user = 'operator', notes = '
   return saveHypothesis(hypothesis);
 }
 
+// Clears the in-memory buffers.
 function clearMemoryStore() {
   inMemoryEvents = [];
   inMemoryHypotheses = [];

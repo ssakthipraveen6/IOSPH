@@ -1,0 +1,179 @@
+# SENTINEL agent for Kubernetes, as plain manifests (no Helm).
+# Same content as the Helm chart in deployments/k8s/sentinel-agent; use whichever your platform team prefers.
+#
+#   1. Edit the lines marked EDIT (image, Sentinel URL, gateway URL).
+#   2. kubectl create namespace sentinel-agent
+#   3. kubectl -n sentinel-agent create secret generic sentinel-agent \
+#        --from-literal=ingest-key=<snk_...> --from-literal=gateway-token=<token>
+#      One ingest key per cluster environment: the key decides prod vs staging. Never put it in this file.
+#   4. kubectl apply -f deployments/k8s/sentinel-agent-plain.yaml
+#   5. kubectl -n sentinel-agent get ds,deploy,pods     (one agent pod per node + one cluster pod)
+#
+# Per node: a collector (host and kubelet metrics) and the sentinel-probe sidecar (heartbeat, share probes).
+# One cluster collector per cluster for workload objects and Warning events.
+# Both pull their collector config from Sentinel (GET /api/v2/agent/config) when they start, so drift stays visible.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sentinel-agent
+  namespace: sentinel-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: sentinel-agent
+rules:
+  - apiGroups: [""]
+    resources: [nodes, nodes/stats, nodes/proxy, pods, namespaces, services, endpoints, events, replicationcontrollers, resourcequotas, persistentvolumes, persistentvolumeclaims]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [daemonsets, deployments, replicasets, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: sentinel-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: sentinel-agent
+subjects:
+  - kind: ServiceAccount
+    name: sentinel-agent
+    namespace: sentinel-agent
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sentinel-node-agent
+  namespace: sentinel-agent
+  labels:
+    app.kubernetes.io/name: sentinel-agent
+    app.kubernetes.io/component: node
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel-agent
+      app.kubernetes.io/component: node
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 10%
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel-agent
+        app.kubernetes.io/component: node
+    spec:
+      serviceAccountName: sentinel-agent
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists            # run on every node, including tainted ones
+      initContainers:
+        - name: fetch-config
+          image: internal-docker-registry.corp/sentinel/sentinel-agent:2.4.0     # EDIT
+          command: ["node", "/opt/sentinel/probe/index.js", "--write-collector-config", "/etc/sentinel/collector.yaml"]
+          env:
+            - { name: SENTINEL_APP_URL, value: "https://sentinel.internal.corp" }                       # EDIT
+            - { name: SENTINEL_GATEWAY_URL, value: "https://sentinel-gateway.internal.corp:4318" }      # EDIT
+            - { name: SENTINEL_INGEST_KEY, valueFrom: { secretKeyRef: { name: sentinel-agent, key: ingest-key } } }
+            - { name: SENTINEL_GATEWAY_TOKEN, valueFrom: { secretKeyRef: { name: sentinel-agent, key: gateway-token } } }
+            - { name: SENTINEL_COLLECTOR_CONFIG, value: /etc/sentinel/collector.yaml }
+            - { name: K8S_NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+            - { name: SENTINEL_AGENT_HOST, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+          volumeMounts:
+            - { name: collector-config, mountPath: /etc/sentinel }
+      containers:
+        - name: agent
+          image: internal-docker-registry.corp/sentinel/sentinel-agent:2.4.0     # EDIT
+          args: ["--config", "/etc/sentinel/collector.yaml"]
+          env:
+            - { name: SENTINEL_GATEWAY_URL, value: "https://sentinel-gateway.internal.corp:4318" }      # EDIT
+            - { name: SENTINEL_GATEWAY_TOKEN, valueFrom: { secretKeyRef: { name: sentinel-agent, key: gateway-token } } }
+            - { name: K8S_NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+          resources:
+            limits: { cpu: 250m, memory: 300Mi }
+            requests: { cpu: 50m, memory: 100Mi }
+          volumeMounts:
+            - { name: collector-config, mountPath: /etc/sentinel, readOnly: true }
+            - { name: host-root, mountPath: /hostfs, readOnly: true }
+        - name: probe
+          image: internal-docker-registry.corp/sentinel/sentinel-agent:2.4.0     # EDIT
+          command: ["node", "/opt/sentinel/probe/index.js"]
+          env:
+            - { name: SENTINEL_APP_URL, value: "https://sentinel.internal.corp" }                       # EDIT
+            - { name: SENTINEL_GATEWAY_URL, value: "https://sentinel-gateway.internal.corp:4318" }      # EDIT
+            - { name: SENTINEL_INGEST_KEY, valueFrom: { secretKeyRef: { name: sentinel-agent, key: ingest-key } } }
+            - { name: SENTINEL_GATEWAY_TOKEN, valueFrom: { secretKeyRef: { name: sentinel-agent, key: gateway-token } } }
+            - { name: SENTINEL_COLLECTOR_CONFIG, value: /etc/sentinel/collector.yaml }
+            - { name: K8S_NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+            - { name: SENTINEL_AGENT_HOST, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+          resources:
+            limits: { cpu: 50m, memory: 96Mi }
+            requests: { cpu: 10m, memory: 48Mi }
+          volumeMounts:
+            - { name: collector-config, mountPath: /etc/sentinel, readOnly: true }
+      volumes:
+        - name: collector-config
+          emptyDir: {}
+        - name: host-root
+          hostPath:
+            path: /
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-cluster-agent
+  namespace: sentinel-agent
+  labels:
+    app.kubernetes.io/name: sentinel-agent
+    app.kubernetes.io/component: cluster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel-agent
+      app.kubernetes.io/component: cluster
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel-agent
+        app.kubernetes.io/component: cluster
+    spec:
+      serviceAccountName: sentinel-agent
+      initContainers:
+        - name: fetch-config
+          image: internal-docker-registry.corp/sentinel/sentinel-agent:2.4.0     # EDIT
+          command: ["node", "/opt/sentinel/probe/index.js", "--write-collector-config", "/etc/sentinel/collector.yaml", "--role", "cluster"]
+          env:
+            - { name: SENTINEL_APP_URL, value: "https://sentinel.internal.corp" }                       # EDIT
+            - { name: SENTINEL_GATEWAY_URL, value: "https://sentinel-gateway.internal.corp:4318" }      # EDIT
+            - { name: SENTINEL_INGEST_KEY, valueFrom: { secretKeyRef: { name: sentinel-agent, key: ingest-key } } }
+            - { name: SENTINEL_GATEWAY_TOKEN, valueFrom: { secretKeyRef: { name: sentinel-agent, key: gateway-token } } }
+            - { name: SENTINEL_COLLECTOR_CONFIG, value: /etc/sentinel/collector.yaml }
+            - { name: SENTINEL_AGENT_HOST, value: "k8s-cluster" }      # EDIT: the cluster name Sentinel knows
+          volumeMounts:
+            - { name: collector-config, mountPath: /etc/sentinel }
+      containers:
+        - name: agent
+          image: internal-docker-registry.corp/sentinel/sentinel-agent:2.4.0     # EDIT
+          args: ["--config", "/etc/sentinel/collector.yaml"]
+          env:
+            - { name: SENTINEL_GATEWAY_URL, value: "https://sentinel-gateway.internal.corp:4318" }      # EDIT
+            - { name: SENTINEL_GATEWAY_TOKEN, valueFrom: { secretKeyRef: { name: sentinel-agent, key: gateway-token } } }
+          resources:
+            limits: { cpu: 500m, memory: 512Mi }
+            requests: { cpu: 100m, memory: 256Mi }
+          volumeMounts:
+            - { name: collector-config, mountPath: /etc/sentinel, readOnly: true }
+      volumes:
+        - name: collector-config
+          emptyDir: {}

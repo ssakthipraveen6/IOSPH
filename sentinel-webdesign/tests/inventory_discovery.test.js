@@ -1,3 +1,6 @@
+/**
+ * Test: hosts and services are discovered from OTLP data.
+ */
 const assert = require('assert');
 const inventory = require('../inventory');
 

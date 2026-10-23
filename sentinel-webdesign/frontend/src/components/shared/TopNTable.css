@@ -1,0 +1,98 @@
+/* frontend/src/components/shared/TopNTable.css */
+
+.top-n-table {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  box-shadow: var(--shadow-sm);
+}
+
+.top-n-table__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top-n-table__title {
+  margin: 0;
+  font-size: var(--text-base, 14px);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.top-n-table__count {
+  font-size: var(--text-xs, 12px);
+  color: var(--text-muted);
+}
+
+.top-n-table__rank {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: var(--text-xs, 12px);
+}
+
+.top-n-table__name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.top-n-table__name {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: var(--text-sm, 13px);
+}
+
+.top-n-table__secondary {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.top-n-table__value-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.top-n-table__num {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--text-xs, 12px);
+  min-width: 48px;
+  text-align: right;
+  color: var(--text-primary);
+}
+
+.top-n-table__bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-full, 9999px);
+  overflow: hidden;
+}
+
+.top-n-table__bar-fill {
+  height: 100%;
+  background: var(--brand-primary);
+  border-radius: var(--radius-full, 9999px);
+  transition: width 0.2s ease;
+  width: 50%;
+}
+
+.top-n-table__bar-fill[data-pct="0"] { width: 0%; }
+.top-n-table__bar-fill[data-pct="10"] { width: 10%; }
+.top-n-table__bar-fill[data-pct="20"] { width: 20%; }
+.top-n-table__bar-fill[data-pct="30"] { width: 30%; }
+.top-n-table__bar-fill[data-pct="40"] { width: 40%; }
+.top-n-table__bar-fill[data-pct="50"] { width: 50%; }
+.top-n-table__bar-fill[data-pct="60"] { width: 60%; }
+.top-n-table__bar-fill[data-pct="70"] { width: 70%; }
+.top-n-table__bar-fill[data-pct="80"] { width: 80%; }
+.top-n-table__bar-fill[data-pct="90"] { width: 90%; }
+.top-n-table__bar-fill[data-pct="100"] { width: 100%; }

@@ -1,0 +1,50 @@
+/* DonutChart — co-located styles (U4). */
+.shr-donut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.shr-donut__plot {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.shr-donut__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.shr-donut__legend {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-xs);
+}
+
+.shr-donut__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+}
+
+.shr-donut__label {
+  display: flex;
+  align-items: center;
+}
+
+.shr-donut__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-xs);
+  margin-right: 6px;
+  display: inline-block;
+}
+
+.shr-donut__value {
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}

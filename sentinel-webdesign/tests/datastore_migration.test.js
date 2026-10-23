@@ -1,3 +1,6 @@
+/**
+ * Test: PostgreSQL metric store queries and migrations.
+ */
 const assert = require('assert');
 const postgres = require('../database/postgres');
 const db = require('../database/db');

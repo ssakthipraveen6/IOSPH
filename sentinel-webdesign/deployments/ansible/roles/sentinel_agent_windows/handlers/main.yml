@@ -1,0 +1,10 @@
+---
+- name: Restart SentinelAgent Windows
+  ansible.windows.win_service:
+    name: SentinelAgent
+    state: restarted
+
+- name: Restart SentinelProbe task
+  ansible.windows.win_shell: |
+    Stop-ScheduledTask -TaskName SentinelProbe -ErrorAction SilentlyContinue
+    Start-ScheduledTask -TaskName SentinelProbe

@@ -1,0 +1,62 @@
+name: SENTINEL Storage Health Check
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  probe-storage:
+    runs-on: [self-hosted, linux, toolchain]
+    steps:
+      - name: Measure Shared Mount Latency
+        env:
+          SENTINEL_ENDPOINT: 'https://sentinel.internal.corp/api/v1/metrics/ingest'
+          SENTINEL_API_KEY: ${{ secrets.SENTINEL_INGEST_KEY }}
+          TARGET_SHARE: '/mnt/enterprise/shared-build-cache'
+        run: |
+          set -euo pipefail
+
+          if [ ! -d "${TARGET_SHARE}" ]; then
+            echo "[ERROR] Mount ${TARGET_SHARE} not accessible."
+            exit 1
+          fi
+
+          # Measure stat latency
+          T0=$(date +%s%N)
+          stat "${TARGET_SHARE}" > /dev/null
+          T1=$(date +%s%N)
+          STAT_MS=$(awk "BEGIN {print ($T1 - $T0)/1000000}")
+
+          # Measure canary write
+          CANARY="${TARGET_SHARE}/.sentinel_gha_${GITHUB_RUN_ID}.tmp"
+          T2=$(date +%s%N)
+          echo "SENTINEL_${GITHUB_RUN_ID}" > "${CANARY}"
+          sync "${CANARY}"
+          T3=$(date +%s%N)
+          WRITE_MS=$(awk "BEGIN {print ($T3 - $T2)/1000000}")
+
+          # Measure canary read
+          T4=$(date +%s%N)
+          cat "${CANARY}" > /dev/null
+          T5=$(date +%s%N)
+          READ_MS=$(awk "BEGIN {print ($T5 - $T4)/1000000}")
+
+          rm -f "${CANARY}"
+
+          # Format and push line protocol metrics
+          HOSTNAME=$(hostname -s)
+          TS=$(date +%s%3N)
+
+          cat <<EOF > payload.txt
+          nas.stat_latency_ms,host=${HOSTNAME},share=${TARGET_SHARE},source=custom value=${STAT_MS} ${TS}
+          nas.write_latency_ms,host=${HOSTNAME},share=${TARGET_SHARE},source=custom value=${WRITE_MS} ${TS}
+          nas.read_latency_ms,host=${HOSTNAME},share=${TARGET_SHARE},source=custom value=${READ_MS} ${TS}
+          EOF
+
+          curl -k -s -X POST "${SENTINEL_ENDPOINT}" \
+            -H "Content-Type: text/plain" \
+            -H "X-Sentinel-Api-Key: ${SENTINEL_API_KEY}" \
+            --data-binary @payload.txt
+
+          echo "[SENTINEL] Ingested GHA NAS metrics successfully."

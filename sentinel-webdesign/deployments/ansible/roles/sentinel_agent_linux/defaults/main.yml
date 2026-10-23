@@ -1,0 +1,11 @@
+---
+# Required (keep secrets in Ansible Vault):
+#   sentinel_api_url        SENTINEL app URL (AVI VIP), e.g. https://sentinel.internal.corp
+#   sentinel_ingest_key     ingest key, scopes agent;heartbeat  -> X-Sentinel-Api-Key
+#   sentinel_gateway_url    OTel gateway URL, e.g. https://sentinel-gateway.internal.corp:4318
+#   sentinel_gateway_token  gateway bearer token                -> Authorization: Bearer
+# Optional: read-only DB accounts for hosts listed under layers.databases
+#   sentinel_db_env: { SENTINEL_DB_PG_USER: ..., SENTINEL_DB_PG_PASSWORD: ... }
+sentinel_package_name: sentinel-agent
+sentinel_probe_interval_seconds: 60
+sentinel_db_env: {}

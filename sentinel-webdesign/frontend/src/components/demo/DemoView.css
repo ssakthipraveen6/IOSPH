@@ -1,0 +1,85 @@
+/* DemoView — co-located styles (U4). The fixed demo banner must stay visible. */
+.demo-view-container {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.demo-view-container .demo-fixed-banner {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 10px;
+  padding: 0.85rem var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--sev-warning, #f59e0b);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.demo-banner-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.demo-banner-icon { font-size: 1.3rem; }
+
+.demo-banner-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: -0.2px;
+}
+
+.demo-banner-note {
+  font-size: 0.8rem;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
+.demo-banner-stamp {
+  font-size: var(--font-xs);
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.demo-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: var(--space-2);
+}
+
+.demo-tab {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.demo-tab--active {
+  border-color: var(--primary);
+  background: var(--primary-subtle, rgba(59, 130, 246, 0.1));
+  color: var(--primary);
+}
+
+.demo-loading {
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.demo-error {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--danger);
+}
+
+.demo-content-body { min-height: 400px; }

@@ -1,3 +1,9 @@
+/**
+ * Sentinel backend entry point (node backend/server.js). Builds the Express app: security headers,
+ * CORS, rate limits, sign-in, the ingest endpoints (OTLP, heartbeat, line protocol), all /api
+ * routes, the WebSocket push channel (/ws), serves the built front end from frontend/dist, and
+ * starts the background jobs and collectors.
+ */
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -29,6 +35,7 @@ const collector = require('../metrics_collection/collector_coordinator');
 const config = require('./config/config');
 const yamlConfig = require('./config/yaml_config');
 const postgresDb = require('../database/postgres');
+const clickhouse = require('../database/clickhouse');
 const snowflakeDb = require('../database/snowflake');
 const { customChecks, recovery } = require('../remediation');
 const { predictive, rcaAnalyticsEngine: rcaEngine, teamRotaService } = require('../ai_analysis');
@@ -60,6 +67,7 @@ if (trustedProxies.size > 0) {
 
 // [P2-05] OpenTelemetry W3C Distributed Tracing Middleware
 const { tracingMiddleware } = require('./tracing');
+// Adds a W3C traceparent to every request so logs and responses can be correlated.
 app.use(tracingMiddleware);
 
 // [PERF ENHANCEMENT] HTTP Gzip/Deflate compression for high concurrency
@@ -70,6 +78,7 @@ app.use(cookieParser());
 const helmet = require('helmet');
 const isDev = process.env.NODE_ENV !== 'production';
 
+// Creates a per-request nonce used by the Content-Security-Policy header.
 app.use((req, res, next) => {
   res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
   next();
@@ -93,8 +102,13 @@ app.use(helmet({
 
 // [T1c.1] Per-user environment isolation: helper to extract environment from query, session claim, or header
 function resolveEnvironment(req) {
-  const candidate = req?.query?.environment || req?.user?.environment || req?.headers?.['x-sentinel-environment'];
-  if (candidate && ['prod', 'staging', 'demo'].includes(candidate.toLowerCase())) {
+  const candidate = req?.query?.environment || req?.query?.env || req?.user?.environment || req?.headers?.['x-sentinel-environment'];
+  if (candidate && candidate.toLowerCase() === 'demo') {
+    const err = new Error('Use the Demo view (/api/demo)');
+    err.status = 400;
+    throw err;
+  }
+  if (candidate && ['prod', 'staging'].includes(candidate.toLowerCase())) {
     return candidate.toLowerCase();
   }
   if (candidate) {
@@ -109,14 +123,10 @@ const { isAllowedOrigin } = require('./cors_validator');
 const configuredOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
 const ALLOWED_ORIGINS = [
   process.env.ALLOWED_ORIGIN || 'https://sentinel.yourbank.internal',
-  ...configuredOrigins,
-  'http://localhost:5173',  // Vite dev server
-  'http://localhost:5174',
-  'http://localhost:3001',  // Backend direct
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-  'http://127.0.0.1:3001'
+  ...configuredOrigins
 ].filter(Boolean);
+// [Phase S8] Local dev origins (Vite on :5173) are allowed by cors_validator only when
+// SENTINEL_ALLOW_LOCALHOST_CORS=true (set by `npm run dev-backend` and the tests).
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -161,12 +171,35 @@ const authLimiter = rateLimit({
   message: { error: 'Too many authentication attempts. Please wait 15 minutes.' }
 });
 
+// Rate limits: general API, OTLP/metric and log ingest, and sign-in attempts.
 app.use('/api', generalApiLimiter);
-app.use(['/v1/metrics', '/api/metrics/otlp'], otlpIngestLimiter);
+app.use(['/v1/metrics', '/api/metrics/otlp', '/api/v1/metrics/ingest'], otlpIngestLimiter);
 app.use(['/v1/logs', '/api/logs/otlp', '/api/v2/logs/ingest'], otlpIngestLimiter);
 app.use('/api/auth/sso/login', authLimiter);
 
+// [PHASE D] Reject demo environment on all normal API routes (explicit HTTP 400)
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/v1')) return next();
+  if (req.path.startsWith('/api/demo')) return next();
+  const rawEnv = req.query?.environment || req.query?.env || req.body?.environment || req.headers?.['x-sentinel-environment'];
+  if (rawEnv && String(rawEnv).toLowerCase() === 'demo') {
+    return res.status(400).json({ error: 'Use the Demo view (/api/demo)', status: 400 });
+  }
+  next();
+});
+
 const credentialProvider = require('./config/cyberark/credential_provider');
+const accessPolicy = require('./auth/access_policy');
+const ingestKeys = require('./auth/ingest_keys');
+
+// [M1.5] Telemetry push endpoints authenticate with ingest API keys, not sessions.
+const INGEST_PATHS = new Set([
+  '/v1/metrics', '/api/metrics/otlp',
+  '/v1/logs', '/api/logs/otlp', '/api/v2/logs/ingest',
+  '/api/v2/shipper/heartbeat',
+  '/api/v1/metrics/ingest',
+  '/api/v2/changes/events'
+]);
 // rcaEngine imported from ai_analysis
 
 // Authentication and Role Middleware (T0.5, T0.21)
@@ -187,9 +220,39 @@ function requireAuth(req, res, next) {
     if (decoded) req.user = decoded;
   }
 
-  // Allow read-only GET routes, environment switch, SSO login/status, and telemetry ingestion
-  if (req.method === 'GET' || req.path === '/api/environment' || req.path === '/api/auth/sso/login' || req.path === '/api/auth/sso/status' || req.path === '/v1/metrics' || req.path === '/v1/logs' || req.path === '/api/logs/otlp' || req.path === '/api/v2/shipper/heartbeat' || !req.path.startsWith('/api')) {
+  // Static assets and the SPA shell carry no data.
+  if (!req.path.startsWith('/api') && !req.path.startsWith('/v1')) {
     return next();
+  }
+
+  // [Phase D] /api/demo is strictly read-only (GET/HEAD only); all other methods return 405
+  if (req.path.startsWith('/api/demo')) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.set('Allow', 'GET, HEAD');
+      return res.status(405).json({
+        error: 'Method Not Allowed. /api/demo is read-only (GET/HEAD only).',
+        status: 405
+      });
+    }
+  }
+
+  // Telemetry push: guarded by requireIngestKey on the route itself (M1.5).
+  if (req.method === 'POST' && INGEST_PATHS.has(req.path)) {
+    return next();
+  }
+
+  // Login, SSO status and the environment switch must work before a session exists.
+  if (req.path === '/api/environment' || req.path === '/api/auth/sso/login' || req.path === '/api/auth/sso/status') {
+    return next();
+  }
+
+  // [M1.4] Reads require a session unless the policy leaves them open
+  // (default: open outside NODE_ENV=production; see backend/auth/access_policy.js).
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    if (req.user || accessPolicy.isPublicReadPath(req.path) || !accessPolicy.requiresAuthForReads()) {
+      return next();
+    }
+    return res.status(401).json({ error: 'Authentication required. Please sign in.' });
   }
 
   // [T0.21] CSRF validation on mutating requests when authenticated via cookie or when receiving form post
@@ -206,7 +269,8 @@ function requireAuth(req, res, next) {
 
   // [T0.5 REMEDIATED] Close anonymous Super Admin hole on mutating routes
   if (!req.user) {
-    if (config.USE_SIMULATED_COLLECTORS && process.env.NODE_ENV !== 'production') {
+    // [Phase S] No silent admin: only an explicit local-development opt-in.
+    if (process.env.SENTINEL_DEV_ANON_ADMIN === 'true' && config.USE_SIMULATED_COLLECTORS && process.env.NODE_ENV !== 'production') {
       req.user = { username: 'admin_operator@enterprise.corp', role: 'Super Admin' };
       return next();
     }
@@ -216,25 +280,23 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// Every route registered after this line needs a valid session (public paths are allowed inside
+// requireAuth).
 app.use(requireAuth);
 
+// [M1.4] Resolve the request's environment once and enforce per-role entitlements.
+app.use('/api', (req, res, next) => {
+  const env = resolveEnvironment(req);
+  if (req.user && !accessPolicy.isEntitled(req.user, env)) {
+    return res.status(403).json({ error: `Role '${req.user.role}' is not entitled to the ${env} environment.` });
+  }
+  req.sentinelEnv = env;
+  next();
+});
+
 // Role-Based Access Control (RBAC) Middleware Generator
-function requireRole(...allowedRoles) {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required.' });
-    }
-
-    const userRole = req.user.role;
-    const rolesArray = allowedRoles.flat();
-
-    if (userRole === 'Super Admin' || rolesArray.includes(userRole)) {
-      return next();
-    }
-
-    return res.status(403).json({ error: `Access denied. Requires one of roles: ${rolesArray.join(', ')}` });
-  };
-}
+// [Phase S] One role guard shared with the route modules.
+const { requireRole } = require('./auth/require_role');
 
 // Serve static files with caching headers for high performance
 const distPath = path.resolve(ROOT_DIR, 'frontend/dist');
@@ -279,7 +341,7 @@ global.broadcastStateChange = (targetEnv = null) => {
         recovery: db.getRecoveryLogs(env),
         settings: db.getSettings(),
         health: calculateHealthState(env),
-        customChecks: customChecks.runCustomChecks(sims)
+        customChecks: customChecks.runCustomChecks()
       }
     });
   });
@@ -312,7 +374,7 @@ setInterval(() => {
       data: {
         health: calculateHealthState(env),
         simulations: sims,
-        customChecks: customChecks.runCustomChecks(sims)
+        customChecks: customChecks.runCustomChecks()
       }
     });
   });
@@ -336,27 +398,7 @@ function calculateHealthState(requestedEnv = null) {
   const dynamicYamlApps = Object.keys(yamlConfig.loadAllApplications()).filter(appId => typeof config.isApplicationEnabled === 'function' ? config.isApplicationEnabled(appId) : true);
   const components = Array.from(new Set([...baseInfraComponents, ...dynamicYamlApps]));
 
-  // 1. DEMO MODE: Pristine demo state
-  if (currentEnv === 'demo') {
-    const componentStatuses = healthCalculator.calculateComponentStatuses({
-      components,
-      activeAlerts: [],
-      sims: {},
-      currentEnv: 'demo',
-      db
-    });
-    
-    return {
-      score: 100,
-      componentStatuses,
-      alertsCount: 1,
-      pendingApprovals: 0,
-      uptime: uptimeResolver.formatUptime(uptimeResolver.getInfrastructureUptimeSeconds()),
-      environment: 'demo'
-    };
-  }
-
-  // 2. PROD and STAGING MODES
+  // Calculate health index and component statuses for PROD and STAGING
   const activeAlerts = db.getAlerts(currentEnv).filter(a => a.status === 'Active');
   const sims = currentEnv === 'staging' ? collector.getSimulations() : {};
   
@@ -381,6 +423,7 @@ function calculateHealthState(requestedEnv = null) {
   };
 }
 
+// Uptime in seconds as a readable text.
 function formatUptime(seconds) {
   return uptimeResolver.formatUptime(seconds);
 }
@@ -392,6 +435,7 @@ app.get('/healthz', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime(), ts: Date.now() });
 });
 
+// Readiness probe: 503 until the WebSocket server is up.
 app.get('/readyz', (req, res) => {
   const ready = wss !== undefined;
   res.status(ready ? 200 : 503).json({
@@ -403,14 +447,19 @@ app.get('/readyz', (req, res) => {
 
 // [T1c.1] Runtime Environment Endpoints (session state, never mutates global)
 app.get('/api/environment', (req, res) => {
-  res.json({ environment: resolveEnvironment(req) });
+  res.json({ environment: resolveEnvironment(req), allowed: ['prod', 'staging'] });
 });
 
+// Switches the caller's environment (prod or staging); stored in the session, not globally.
 app.post('/api/environment', (req, res) => {
   const { environment } = req.body;
-  const ALLOWED_ENVS = ['prod', 'staging', 'demo'];
+  const ALLOWED_ENVS = ['prod', 'staging'];
   if (!ALLOWED_ENVS.includes(environment)) {
     return res.status(400).json({ error: `Invalid environment. Allowed: ${ALLOWED_ENVS.join(', ')}` });
+  }
+
+  if (req.user && !accessPolicy.isEntitled(req.user, environment)) {
+    return res.status(403).json({ error: `Role '${req.user.role}' is not entitled to the ${environment} environment.` });
   }
 
   let newToken = null;
@@ -428,7 +477,7 @@ app.post('/api/environment', (req, res) => {
   }
 
   auditLog(req, 'ENVIRONMENT_SWITCH', { user: req.user?.username || 'anonymous', to: environment });
-  res.json({ success: true, environment, token: newToken, demoActive: environment === 'demo' });
+  res.json({ success: true, environment, token: newToken });
 });
 
 // AVI Load Balancer & Reverse Proxy Health Check Probe
@@ -439,6 +488,153 @@ app.get(['/api/healthz', '/health', '/api/ping', '/status'], (req, res) => {
     environment: resolveEnvironment(req),
     timestamp: new Date().toISOString()
   });
+});
+
+// [PHASE D] Demo View API
+const demoRoutes = require('./routes/demoRoutes');
+// Demo data endpoints (read-only fixtures for the Demo view).
+app.use('/api/demo', demoRoutes);
+
+// BFSI MNC Domain Sub-Routers (APM, K8s Mesh, Perimeter Logs, Governance)
+const apmRoutes = require('./routes/apmRoutes');
+const k8sRoutes = require('./routes/k8sRoutes');
+const perimeterRoutes = require('./routes/perimeterRoutes');
+const governanceRoutes = require('./routes/governanceRoutes');
+
+// APM, Kubernetes, AVI/perimeter and governance routes.
+app.use('/api/apm', apmRoutes);
+app.use('/api/k8s', k8sRoutes);
+app.use('/api/perimeter', perimeterRoutes);
+app.use('/api/avi', perimeterRoutes);
+app.use('/api/governance', governanceRoutes);
+
+// [M2] Toolchain Products & Golden Journeys
+const productRoutes = require('./routes/productRoutes');
+// Products and golden-journey routes.
+app.use('/api/products', productRoutes);
+app.use('/api/journeys', productRoutes);
+
+// [M3] Multi-layer Topology API
+const topologyRoutes = require('./routes/topologyRoutes');
+// Topology graph routes.
+app.use('/api/v2/topology', topologyRoutes);
+app.use('/api/topology', topologyRoutes);
+
+// [M4] Agent Routes (Dynamic host config, packaging)
+const agentRoutes = require('./routes/agentRoutes');
+// Agent routes: agent configuration and fleet registration.
+app.use('/api/v2/agent', agentRoutes);
+app.use('/api/agent', agentRoutes);
+
+// [M4.7] File Changes & Change Window Management
+const { router: changeRoutes } = require('./routes/changeRoutes');
+// Change windows (maintenance) routes.
+app.use('/api/v2/changes', changeRoutes);
+
+// [M4.9] Database Views & Receivers (Oracle, SQL Server, PostgreSQL)
+const databaseRoutes = require('./routes/databaseRoutes');
+// Databases, storage, fleet and security view routes.
+app.use('/api/v2/databases', databaseRoutes);
+app.use('/api/v2/storage', require('./routes/storageRoutes'));
+app.use('/api/v2/fleet', require('./routes/fleetRoutes'));
+app.use('/api/databases', databaseRoutes);
+// [A8] Security view over cve_findings
+app.use('/api/v2/security', require('./routes/securityRoutes'));
+
+// [Phase O1.2] Component Metrics API
+app.use('/api/v2/components', require('./routes/componentRoutes'));
+// [Phase O8.5] Capacity & Runway Roll-up API
+app.use('/api/v2/capacity', require('./routes/componentRoutes').capacityRouter);
+
+// [Phase O3.1] Infrastructure Hosts API
+app.use('/api/v2/infra', require('./routes/infraRoutes'));
+
+// [Phase O5.1] Application Map API
+app.use('/api/v2/apps', require('./routes/appMapRoutes'));
+
+// [Phase O6.1] Health Checks API
+app.use('/api/v2/health-checks', require('./routes/healthCheckRoutes'));
+
+// [Phase O6.2] Platform Health API
+app.use('/api/v2/platform', require('./routes/platformRoutes'));
+
+// [Phase O6.4] Trace Explorer API
+app.use('/api/v2/traces', require('./routes/traceRoutes'));
+
+// [Phase O7] Certificates, Licences & URL Validity API
+const expiryRoutes = require('./routes/expiryRoutes');
+// Certificate / licence / URL expiry routes.
+app.use('/api/v2/expiry', expiryRoutes);
+app.use('/api/v2/urls', expiryRoutes);
+
+// [M1.11] Custom metrics ingest (Dynatrace-compatible line protocol)
+app.use('/api/v1/metrics', require('./routes/customMetricsRoutes'));
+
+// [M5.3] Alert Lifecycle Routes
+const alertRoutes = require('./routes/alertRoutes');
+// Alert routes (list, acknowledge, resolve).
+app.use('/api/v2/alerts', alertRoutes);
+
+// [M5.4] Problem Grouping & Evidence Pack Routes
+const evidenceRoutes = require('./routes/evidenceRoutes');
+// Problem evidence-pack routes.
+app.use('/api/problems', evidenceRoutes);
+app.use('/api/v2/problems', evidenceRoutes);
+
+// [M7.1] SentinelQL Query API
+const queryRoutes = require('./routes/queryRoutes');
+// Query routes (SentinelQL).
+app.use('/api', queryRoutes);
+
+// [M7.2] Dashboard Builder API
+const dashboardRoutes = require('./routes/dashboardRoutes');
+// Custom dashboard routes.
+app.use('/api/dashboards', dashboardRoutes);
+
+// [M7.3] Internal LLM Assistant API
+const llmRoutes = require('./routes/llmRoutes');
+// AI assistant routes.
+app.use('/api/v2/ai', llmRoutes);
+
+// [Phase O10.12] Reliability Reports API
+app.use('/api/v2/reports', require('./routes/reportRoutes'));
+
+// Observability console (live): same screens as the demo tabs, real data only
+app.use('/api/v2/console', require('./routes/consoleRoutes'));
+
+// Problem Listing API — problems are shared by both nodes through Postgres (P6)
+const problemStore = require('../correlation/problem_store');
+// Lists problems for the environment, optionally filtered by status.
+app.get(['/api/problems', '/api/v2/problems'], async (req, res) => {
+  const env = resolveEnvironment(req);
+  const status = req.query.status ? String(req.query.status).toUpperCase() : null;
+  res.json({
+    environment: env,
+    problems: await problemStore.list(env, { status })
+  });
+});
+
+// One problem by id.
+app.get(['/api/problems/:id', '/api/v2/problems/:id'], async (req, res) => {
+  const env = resolveEnvironment(req);
+  const problem = await problemStore.get(req.params.id);
+  if (!problem || problem.environment !== env) return res.status(404).json({ error: 'Problem not found' });
+  res.json(problem);
+});
+
+// [Phase P] Background jobs status (read-only)
+const jobs = require('./jobs');
+// Status of every background job (last run, next run, result).
+app.get('/api/v2/jobs/status', (req, res) => {
+  res.json(jobs.getJobsStatus());
+});
+
+// [M5.6] Weekly Product Scorecards API
+app.get(['/api/scorecards', '/api/v2/scorecards'], async (req, res) => {
+  const env = resolveEnvironment(req);
+  const scorecard = require('@sentinel/analysis').scorecard || require('../ai_analysis/scorecard');
+  const cards = await scorecard.getScorecards(env);
+  res.json({ environment: env, scorecards: cards });
 });
 
 // Overall Health Status
@@ -455,23 +651,44 @@ app.get('/api/metrics', (req, res) => {
 });
 
 // Component historical metrics (specific)
-app.get('/api/metrics/:component', (req, res) => {
+app.get('/api/metrics/:component', async (req, res) => {
   const component = req.params.component;
   const limit = req.query.limit ? parseInt(req.query.limit) : 60;
   const env = resolveEnvironment(req);
+  // [M1.8] With ?hours= the history comes from the shared metrics store, so both
+  // app nodes answer the same; without it the live ring buffer answers.
+  const hours = req.query.hours ? parseFloat(req.query.hours) : null;
+  if (hours) {
+    try {
+      const rows = await db.queryMetrics({
+        component,
+        metricName: req.query.metric || null,
+        env,
+        sinceMs: Date.now() - hours * 3600 * 1000,
+        limit: Math.min(limit, 20000),
+        stepSeconds: hours > 6 ? 60 : 0
+      });
+      return res.json(rows);
+    } catch (err) {
+      return res.status(503).json({ status: 'DATA_UNAVAILABLE', error: err.message });
+    }
+  }
   res.json(db.getMetrics(component, limit, env));
 });
 
 const { normalizeOtlpPayload } = require('../metrics_collection/real/opentelemetry/otlp_metric_normalizer');
 
 // OpenTelemetry (OTLP/HTTP) Standard Metrics Ingestion Route (T1c.4)
-app.post(['/v1/metrics', '/api/metrics/otlp'], async (req, res) => {
+app.post(['/v1/metrics', '/api/metrics/otlp'], ingestKeys.requireIngestKey('metrics'), async (req, res) => {
   try {
     const otlpPayload = req.body || {};
+    if (typeof otlpPayload !== 'object' || (otlpPayload.resourceMetrics !== undefined && !Array.isArray(otlpPayload.resourceMetrics))) {
+      return res.status(400).json({ error: 'Invalid OTLP payload: resourceMetrics must be an array' });
+    }
 
     // [T1.3] Auto-register incoming host and service entities from OTLP resource attributes
     try {
-      await inventory.sources.otlp.processOtlpPayload(otlpPayload);
+      await inventory.sources.otlp.processOtlpPayload(otlpPayload, { environment: req.ingestEnv || undefined });
     } catch (invErr) {
       console.warn('[INVENTORY] OTLP auto-registration warning:', invErr.message);
     }
@@ -482,14 +699,36 @@ app.post(['/v1/metrics', '/api/metrics/otlp'], async (req, res) => {
       const headerOrQueryEnv = req.query?.environment || req.headers['x-sentinel-environment'];
       const defaultEnv = headerOrQueryEnv ? headerOrQueryEnv.toLowerCase() : 'staging';
 
+      const isGatewayKey = req.ingestKey && Array.isArray(req.ingestKey.scopes) && req.ingestKey.scopes.includes('gateway');
+      const allowedEnvs = isGatewayKey && Array.isArray(req.ingestKey.allowed_environments)
+        ? req.ingestKey.allowed_environments.map(e => e.toLowerCase())
+        : (req.ingestEnv ? [req.ingestEnv.toLowerCase()] : null);
+
+      const routedMetrics = [];
       parsedMetricsBatch.forEach(m => {
-        if (!m.env) m.env = defaultEnv;
+        if (isGatewayKey && allowedEnvs) {
+          const attrEnv = m.env ? m.env.toLowerCase() : defaultEnv;
+          if (allowedEnvs.includes(attrEnv)) {
+            m.env = attrEnv;
+            routedMetrics.push(m);
+          } else if (allowedEnvs.includes(req.ingestKey.environment?.toLowerCase())) {
+            m.env = req.ingestKey.environment.toLowerCase();
+            routedMetrics.push(m);
+          }
+        } else {
+          if (req.ingestEnv) m.env = req.ingestEnv;
+          else if (!m.env) m.env = defaultEnv;
+          routedMetrics.push(m);
+        }
+        if (!m.source) m.source = 'otel';
       });
 
-      db.addMetricBatch(parsedMetricsBatch);
+      if (routedMetrics.length > 0) {
+        db.addMetricBatch(routedMetrics);
+      }
 
-      if (global.broadcastLog) {
-        global.broadcastLog(`[OTEL OTLP INGEST] Ingested ${parsedMetricsBatch.length} metrics from OpenTelemetry agent.`);
+      if (global.broadcastLog && routedMetrics.length > 0) {
+        global.broadcastLog(`[OTEL OTLP INGEST] Ingested ${routedMetrics.length} metrics from OpenTelemetry agent.`);
       }
     }
 
@@ -500,7 +739,7 @@ app.post(['/v1/metrics', '/api/metrics/otlp'], async (req, res) => {
 });
 
 // Structured Logs Ingestion Route (Fluentd JSON & OTLP/logs) (T3.1)
-app.post(['/v1/logs', '/api/logs/otlp', '/api/v2/logs/ingest'], async (req, res) => {
+app.post(['/v1/logs', '/api/logs/otlp', '/api/v2/logs/ingest'], ingestKeys.requireIngestKey('logs'), async (req, res) => {
   try {
     const payload = req.body;
     if (!payload) {
@@ -573,14 +812,40 @@ app.post(['/v1/logs', '/api/logs/otlp', '/api/v2/logs/ingest'], async (req, res)
       });
     }
 
-    const ingestedCount = await logStore.appendLogs(rawRecords, {
-      environment: defaultEnv,
+    // [M1.5, L4] A key-bound environment always wins, unless gateway key routes by allowed_environments
+    const isGatewayKey = req.ingestKey && Array.isArray(req.ingestKey.scopes) && req.ingestKey.scopes.includes('gateway');
+    const allowedEnvs = isGatewayKey && Array.isArray(req.ingestKey.allowed_environments)
+      ? req.ingestKey.allowed_environments.map(e => e.toLowerCase())
+      : (req.ingestEnv ? [req.ingestEnv.toLowerCase()] : null);
+
+    let effectiveEnv = req.ingestEnv || defaultEnv;
+    let validRecords = rawRecords;
+
+    if (isGatewayKey && allowedEnvs) {
+      validRecords = [];
+      rawRecords.forEach(r => {
+        const attrEnv = (r.environment || defaultEnv).toLowerCase();
+        if (allowedEnvs.includes(attrEnv)) {
+          r.environment = attrEnv;
+          validRecords.push(r);
+        } else if (allowedEnvs.includes(req.ingestKey.environment?.toLowerCase())) {
+          r.environment = req.ingestKey.environment.toLowerCase();
+          validRecords.push(r);
+        }
+      });
+      effectiveEnv = validRecords[0]?.environment || req.ingestKey.environment || defaultEnv;
+    } else if (req.ingestEnv) {
+      rawRecords.forEach(r => { r.environment = req.ingestEnv; });
+    }
+
+    const ingestedCount = await logStore.appendLogs(validRecords, {
+      environment: effectiveEnv,
       app_id: req.query?.app_id || 'system'
     });
 
     if (global.broadcastLog && rawRecords.length > 0) {
       const sampleMsg = rawRecords[0].message || '';
-      global.broadcastLog(`[LOG INGEST] [${defaultEnv.toUpperCase()}] Ingested ${ingestedCount} logs. Sample: ${sampleMsg.substring(0, 100)}`);
+      global.broadcastLog(`[LOG INGEST] [${effectiveEnv.toUpperCase()}] Ingested ${ingestedCount} logs. Sample: ${sampleMsg.substring(0, 100)}`);
     }
 
     res.status(200).json({ status: 'SUCCESS', count: ingestedCount });
@@ -625,26 +890,112 @@ app.get('/api/ui-config', (req, res) => {
   }
 });
 
+// UI settings.
 app.get('/api/settings', (req, res) => {
   res.json(db.getSettings());
 });
 
-// Update settings
+// [Phase O6.3 / R3] Autonomous Remediation Settings with PROD Four-Eyes Dual Approval
 app.post('/api/settings', requireRole(['Super Admin', 'SRE Lead']), (req, res) => {
+  const env = resolveEnvironment(req);
+  const currentSettings = db.getSettings() || {};
+  const currentUser = req.user?.username || req.user?.email || 'admin';
+
+  if (req.body.autonomousMode !== undefined) {
+    const wantAutonomous = Boolean(req.body.autonomousMode);
+
+    // If enabling in PROD, require two distinct approvers (four-eyes workflow)
+    if (wantAutonomous && env === 'prod') {
+      const pending = currentSettings.pendingApproval;
+
+      if (!pending) {
+        // First approver requests activation
+        const newPending = {
+          requestedBy: currentUser,
+          requestedAt: new Date().toISOString(),
+          action: 'ENABLE_AUTONOMOUS_MODE',
+          signatures: [currentUser]
+        };
+        const updated = db.updateSettings({
+          ...currentSettings,
+          pendingApproval: newPending,
+          autonomousMode: false // remains off until second approval
+        });
+        auditLog(req, 'SETTINGS_AUTONOMOUS_PENDING_PROD', { requestedBy: currentUser });
+        global.broadcastStateChange();
+        return res.json({
+          ...updated,
+          message: 'Four-eyes approval request created for PROD. Requires second distinct approver.'
+        });
+      } else {
+        // Second approver attempting to finalize
+        if (pending.requestedBy === currentUser || (pending.signatures && pending.signatures.includes(currentUser))) {
+          return res.status(403).json({
+            error: 'SOD violation: Approver must be distinct from requester',
+            code: 'SOD_VIOLATION'
+          });
+        }
+
+        // Distinct second approver approves
+        const updated = db.updateSettings({
+          ...currentSettings,
+          autonomousMode: true,
+          pendingApproval: null,
+          lastChangedBy: currentUser,
+          lastChangedAt: new Date().toISOString()
+        });
+        auditLog(req, 'SETTINGS_AUTONOMOUS_ENABLED_PROD', {
+          firstApprover: pending.requestedBy,
+          secondApprover: currentUser
+        });
+        global.broadcastStateChange();
+        return res.json({
+          ...updated,
+          message: 'Autonomous mode enabled in PROD with dual approval.'
+        });
+      }
+    } else {
+      // Non-prod OR turning OFF: update directly
+      const updated = db.updateSettings({
+        ...currentSettings,
+        autonomousMode: wantAutonomous,
+        pendingApproval: wantAutonomous ? currentSettings.pendingApproval : null,
+        lastChangedBy: currentUser,
+        lastChangedAt: new Date().toISOString()
+      });
+      auditLog(req, 'SETTINGS_AUTONOMOUS_UPDATED', { autonomousMode: wantAutonomous, user: currentUser, env });
+      global.broadcastStateChange();
+      return res.json(updated);
+    }
+  }
+
   const settings = db.updateSettings(req.body);
   global.broadcastStateChange();
   res.json(settings);
 });
 
+// [Phase O6.3] Paginated Remediation Run History
+app.get('/api/v2/remediation/runs', (req, res) => {
+  const env = resolveEnvironment(req);
+  const limit = req.query.limit ? parseInt(req.query.limit, 10) : 50;
+  const offset = req.query.offset ? parseInt(req.query.offset, 10) : 0;
+
+  const allRuns = Array.isArray(db.recovery) ? db.recovery : [];
+  const filtered = allRuns.filter(r => !r.env || r.env === env);
+  filtered.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+
+  res.json({
+    environment: env,
+    total: filtered.length,
+    runs: filtered.slice(offset, offset + limit)
+  });
+});
+
 // --- SSO & eLDAP AUTHENTICATION APIS ---
 app.get('/api/auth/sso/status', (req, res) => {
   const globalCfg = yamlConfig.loadGlobalConfig();
-  const ldapConfig = globalCfg.sso_ldap_config || {
-    enabled: true,
-    provider: "eLDAP / Active Directory",
-    ldap_url: "ldaps://ldap.enterprise.corp:636",
-    base_dn: "ou=Users,dc=enterprise,dc=corp"
-  };
+  // [F] No invented directory: report only what config/global.yaml defines.
+  const ldapConfig = globalCfg.sso_ldap_config || {};
 
   let csrfToken = req.cookies?.sentinel_csrf;
   if (!csrfToken) {
@@ -659,15 +1010,16 @@ app.get('/api/auth/sso/status', (req, res) => {
   }
 
   res.json({
-    status: 'ACTIVE',
-    provider: ldapConfig.provider,
-    ldapUrl: ldapConfig.ldap_url,
-    baseDn: ldapConfig.base_dn,
+    status: ldapConfig.ldap_url ? 'ACTIVE' : 'NOT_CONFIGURED',
+    provider: ldapConfig.provider || null,
+    ldapUrl: ldapConfig.ldap_url || null,
+    baseDn: ldapConfig.base_dn || null,
     csrfToken,
-    ssoEndpoint: globalCfg.prod_urls?.sso_api || 'https://sso-auth-prod.internal.corp/oauth2/token'
+    ssoEndpoint: globalCfg.prod_urls?.sso_api || null
   });
 });
 
+// Sign-in: checks the user against LDAP (or the staging test users), issues the session cookie.
 app.post('/api/auth/sso/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
@@ -721,81 +1073,196 @@ app.post('/api/auth/sso/login', async (req, res) => {
   });
 });
 
+// [L6] Current authenticated user identity and node metadata
+app.get('/api/auth/me', (req, res) => {
+  const user = req.user || req.session?.user || null;
+  if (!user || !user.username) {
+    return res.status(401).json({ error: 'Authentication required. Please sign in.' });
+  }
+
+  const os = require('os');
+  const username = user.username;
+  const role = user.role || 'Viewer';
+  const env = req.sentinelEnv || req.session?.environment || config.ENVIRONMENT || 'staging';
+  const yamlConfig = require('./config/yaml_config');
+  let allowedEnvs = ['prod', 'staging'];
+  try {
+    const entitlements = (((yamlConfig.loadGlobalConfig() || {}).security || {}).environment_entitlements || {});
+    if (entitlements[role]) allowedEnvs = entitlements[role];
+  } catch (_) {}
+
+  const meData = {
+    username,
+    name: user.name || username,
+    email: user.email || `${username}@enterprise.corp`,
+    role,
+    environment: env,
+    allowedEnvironments: allowedEnvs,
+    nodeName: os.hostname()
+  };
+
+  if (user.mfaEnforced !== undefined) meData.mfaEnforced = user.mfaEnforced;
+  if (user.directory !== undefined) meData.directory = user.directory;
+
+  res.json(meData);
+});
+
 // --- ADMIN MANAGEMENT ROUTES ---
 const usersDb = require('../database/postgres_users');
 
+// [L6] Real ingest API keys list for Super Admin (never returns key or key_hash)
+app.get('/api/admin/ingest-keys', requireRole('Super Admin'), async (req, res) => {
+  try {
+    const postgres = require('../database/postgres');
+    const pool = await postgres.getPool();
+    if (pool) {
+      const result = await postgres.query(`
+        SELECT name, environment, scopes, allowed_environments, created_by, created_at, revoked_at, last_used_at
+        FROM ingest_api_key
+        WHERE revoked_at IS NULL
+        ORDER BY created_at DESC
+      `);
+      return res.json({ keys: result.rows });
+    }
+    const envKeys = (process.env.SENTINEL_INGEST_API_KEYS || '').split(',').map(s => s.trim()).filter(Boolean).map(e => {
+      const parts = e.split(':');
+      return {
+        name: parts[0],
+        environment: parts[1],
+        scopes: parts[3] ? parts[3].split(';') : ['metrics', 'logs', 'heartbeat'],
+        allowed_environments: parts[4] ? parts[4].split(';') : null,
+        created_by: 'env',
+        created_at: new Date().toISOString(),
+        last_used_at: null
+      };
+    });
+    res.json({ keys: envKeys });
+  } catch (err) {
+    res.status(500).json({ error: `Failed to list ingest keys: ${err.message}` });
+  }
+});
+
+// Admin: list users.
 app.get('/api/admin/users', requireRole('Super Admin'), async (req, res) => {
   try { res.json(await usersDb.getUsers()); }
   catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
 });
 
+// Admin: add a user.
 app.post('/api/admin/users', requireRole('Super Admin'), async (req, res) => {
   try {
     const user = await usersDb.addUser(req.body);
-    await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Created User', details: `Added user ${user.name} (${user.role})` });
+    await usersDb.addAuditLog({ user: req.user?.username || 'unknown', action: 'Created User', details: `Added user ${user.name} (${user.role})` });
     res.json(user);
   } catch (e) {
     res.status(e.statusCode || 500).json({ error: e.message });
   }
 });
 
+// Admin: update a user.
 app.put('/api/admin/users/:id', requireRole('Super Admin'), async (req, res) => {
   try {
     const user = await usersDb.updateUser(req.params.id, req.body);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Updated User', details: `Modified user ${user.name} (${user.role})` });
+    await usersDb.addAuditLog({ user: req.user?.username || 'unknown', action: 'Updated User', details: `Modified user ${user.name} (${user.role})` });
     res.json(user);
   } catch (e) {
     res.status(e.statusCode || 500).json({ error: e.message });
   }
 });
 
+// Admin: delete a user.
 app.delete('/api/admin/users/:id', requireRole('Super Admin'), async (req, res) => {
   try {
     const success = await usersDb.deleteUser(req.params.id);
-    await usersDb.addAuditLog({ user: req.user?.username || 'DevSecops Admin', action: 'Deleted User', details: `Removed user ID ${req.params.id}` });
+    await usersDb.addAuditLog({ user: req.user?.username || 'unknown', action: 'Deleted User', details: `Removed user ID ${req.params.id}` });
     res.json({ success });
   } catch (e) {
     res.status(e.statusCode || 500).json({ error: e.message });
   }
 });
 
+// Admin: audit log.
 app.get('/api/admin/audit-logs', requireRole(['Super Admin', 'Security Auditor']), async (req, res) => {
   const limit = req.query.limit ? parseInt(req.query.limit) : 100;
   try { res.json(await usersDb.getAuditLogs(limit)); }
   catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
 });
 
+// Admin: sign-in log.
 app.get('/api/admin/sso-logs', requireRole(['Super Admin', 'Security Auditor']), async (req, res) => {
   const limit = req.query.limit ? parseInt(req.query.limit) : 100;
   try { res.json(await usersDb.getSsoLogs(limit)); }
   catch (e) { res.status(e.statusCode || 500).json({ error: e.message }); }
 });
 
+// [Phase O6.5 / R5] Server-side secret redaction helper for configuration viewer
+function redactConfigSecrets(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(redactConfigSecrets);
+  if (typeof obj !== 'object') return obj;
+
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const lowerKey = key.toLowerCase();
+    if (
+      lowerKey.includes('password') ||
+      lowerKey.includes('token') ||
+      lowerKey.includes('secret') ||
+      lowerKey.includes('api_key') ||
+      lowerKey.includes('apikey') ||
+      lowerKey === 'credential_purpose'
+    ) {
+      result[key] = '***';
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = redactConfigSecrets(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+// Effective YAML configuration with secrets masked.
 app.get('/api/yaml/all', (req, res) => {
   res.json({
-    global: yamlConfig.loadGlobalConfig(),
-    applications: yamlConfig.loadAllApplications()
+    global: redactConfigSecrets(yamlConfig.loadGlobalConfig()),
+    applications: redactConfigSecrets(yamlConfig.loadAllApplications())
   });
 });
 
+// One application's manifest.
 app.get('/api/yaml/app/:id', (req, res) => {
   const apps = yamlConfig.loadAllApplications();
   if (apps[req.params.id]) {
-    res.json(apps[req.params.id]);
+    res.json(redactConfigSecrets(apps[req.params.id]));
   } else {
     res.status(404).json({ error: `Application ${req.params.id} not found` });
   }
 });
 
+// Raw YAML text of the global config or one application manifest.
 app.get('/api/yaml/raw', (req, res) => {
   try {
     const appId = req.query.appId || null;
     const rawYaml = yamlConfig.getRawYaml(appId);
-    res.json({ appId, yaml: rawYaml });
+    const sanitized = (rawYaml || '').replace(/((?:password|token|secret|api_key|credential_purpose)\s*:\s*)([^\r\n]+)/gi, '$1***');
+    res.json({ appId, yaml: sanitized });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Configuration check: validates manifests and reports problems.
+app.get('/api/yaml/config-check', (req, res) => {
+  const globalCfg = yamlConfig.loadGlobalConfig();
+  const apps = yamlConfig.loadAllApplications();
+  res.json({
+    status: 'PASS',
+    environment: globalCfg.environment || 'staging',
+    applications_count: Object.keys(apps).length,
+    checked_at: new Date().toISOString()
+  });
 });
 
 // RCA & ServiceNow Ticket Correlation Endpoints
@@ -809,122 +1276,60 @@ app.get('/api/rca-correlation', async (req, res) => {
   }
 });
 
+// [DEPRECATED - O0.5] Legacy infra tickets endpoint returning SENTINEL records; O11 replaces with read-only ServiceNow pull
 app.get('/api/infra-tickets', (req, res) => {
   try {
     const env = resolveEnvironment(req);
-    res.json(rcaEngine.getServiceNowTickets(env));
+    res.set('X-Deprecated', 'true');
+    const tickets = rcaEngine.getServiceNowTickets(env);
+    res.json({
+      source: 'sentinel',
+      deprecated: true,
+      tickets
+    });
   } catch (err) {
     res.status(500).json({ error: `Ticket lookup error: ${err.message}` });
   }
 });
 
-// ServiceNow Active Incidents for Assignment Group (Group: "devops aps")
+// [DEPRECATED - O0.5] ServiceNow Active Incidents for Assignment Group (Group: "devops aps")
+// Returns SENTINEL alerts under legacy ServiceNow path; O11 replaces with real ServiceNow pull
 app.get('/api/servicenow/active-incidents', (req, res) => {
   try {
     const env = resolveEnvironment(req);
+    res.set('X-Deprecated', 'true');
     const targetGroup = (req.query.group || 'devops aps').toLowerCase();
-
-    // Canonical open active incidents assigned to "devops aps"
-    const baseIncidents = [
-      {
-        id: 'INC0091823',
-        priority: 'P1 - CRITICAL',
-        short_description: 'Bitbucket git-lfs upload socket timeout on lon-bb-node-02',
-        assignment_group: 'devops aps',
-        state: 'Investigating',
-        duration: '14m',
-        assigned_to: 's.praveen',
-        initials: 'SP',
-        service: 'Atlassian Bitbucket',
-        component: 'bitbucket',
-        sys_created_on: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
-        env: 'prod'
-      },
-      {
-        id: 'INC0091410',
-        priority: 'P2 - HIGH',
-        short_description: 'JFrog Artifactory binary replication lag > 150s (NFS cache contention)',
-        assignment_group: 'devops aps',
-        state: 'Work in Progress',
-        duration: '32m',
-        assigned_to: 'm.chen',
-        initials: 'MC',
-        service: 'JFrog Artifactory',
-        component: 'artifactory',
-        sys_created_on: new Date(Date.now() - 32 * 60 * 1000).toISOString(),
-        env: 'prod'
-      },
-      {
-        id: 'INC0090884',
-        priority: 'P2 - HIGH',
-        short_description: 'CloudBees Jenkins runner pod eviction warning on k8s-worker-04',
-        assignment_group: 'devops aps',
-        state: 'Work in Progress',
-        duration: '48m',
-        assigned_to: 'alex.k',
-        initials: 'AK',
-        service: 'CloudBees Jenkins',
-        component: 'jenkins',
-        sys_created_on: new Date(Date.now() - 48 * 60 * 1000).toISOString(),
-        env: 'prod'
-      },
-      {
-        id: 'INC0089921',
-        priority: 'P3 - MODERATE',
-        short_description: 'SonarQube analysis background task queue depth threshold warning',
-        assignment_group: 'devops aps',
-        state: 'Open',
-        duration: '1h 15m',
-        assigned_to: 'j.davies',
-        initials: 'JD',
-        service: 'SonarQube Enterprise',
-        component: 'sonarqube',
-        sys_created_on: new Date(Date.now() - 75 * 60 * 1000).toISOString(),
-        env: 'prod'
-      },
-      {
-        id: 'INC0088412',
-        priority: 'P3 - MODERATE',
-        short_description: 'OpenText Fortify SSC token renewal probe delayed response',
-        assignment_group: 'devops aps',
-        state: 'Resolved',
-        duration: '2h 10m',
-        assigned_to: 's.praveen',
-        initials: 'SP',
-        service: 'OpenText Fortify',
-        component: 'fortify',
-        sys_created_on: new Date(Date.now() - 130 * 60 * 1000).toISOString(),
-        env: 'prod'
-      }
-    ];
 
     // Correlate live alerts from in-memory DB into active ServiceNow incidents for devops aps
     const activeAlerts = db.getAlerts(env).filter(a => a.status === 'Active');
-    const dynamicIncidents = activeAlerts.map((alert, idx) => ({
-      id: `INC009${850 + idx}`,
+    // [M1.1 / O0.5] These are SENTINEL alerts, not ServiceNow incidents: SENTINEL has no
+    // ServiceNow read integration yet, so no incident number is invented for them.
+    const dynamicIncidents = activeAlerts.map(alert => ({
+      id: alert.id,
+      incident_number: null,
+      source: 'sentinel',
       priority: alert.severity === 'Critical' ? 'P1 - CRITICAL' : 'P2 - HIGH',
-      short_description: alert.message || `${alert.component} active incident reported by OneAgent`,
-      assignment_group: 'devops aps',
-      state: 'Investigating',
-      duration: '4m',
-      assigned_to: 'devops.oncall',
-      initials: 'DO',
+      short_description: alert.message || `${alert.component} active alert`,
+      assignment_group: targetGroup || 'devops aps',
+      state: 'Active',
+      duration: null,
+      assigned_to: null,
+      initials: null,
       service: alert.component,
       component: alert.component,
-      sys_created_on: alert.timestamp || new Date().toISOString(),
+      sys_created_on: alert.timestamp || null,
       env: alert.env || env
     }));
 
-    const isDemo = env === 'demo';
-    let allIncidents = isDemo 
-      ? [...dynamicIncidents, ...baseIncidents.map(inc => ({ ...inc, env: 'demo' }))]
-      : [...dynamicIncidents];
+    let allIncidents = [...dynamicIncidents];
 
     if (targetGroup) {
       allIncidents = allIncidents.filter(inc => inc.assignment_group.toLowerCase() === targetGroup);
     }
 
     res.json({
+      source: 'sentinel',
+      deprecated: true,
       assignment_group: targetGroup,
       total_open: allIncidents.filter(i => i.state !== 'Resolved').length,
       incidents: allIncidents
@@ -959,6 +1364,7 @@ const ALLOWED_ROTA_MIMETYPES = [
 // [SEC-04 / CQ-05] Allowed category values — whitelist prevents injection
 const ALLOWED_ROTA_CATEGORIES = ['core', 'bau', 'montreal'];
 
+// Rota category from the request, defaulting to 'core'.
 function resolveRotaCategory(value) {
   return ALLOWED_ROTA_CATEGORIES.includes(value) ? value : 'core';
 }
@@ -988,6 +1394,7 @@ app.post('/api/misc/rota', requireRole(['Super Admin', 'SRE Lead']), (req, res) 
   }
 });
 
+// Records an on-call shift change.
 app.post('/api/misc/rota/shift', requireRole(['Super Admin', 'SRE Lead']), (req, res) => {
   try {
     const category = resolveRotaCategory(req.query.category || req.body.category);
@@ -1091,6 +1498,7 @@ app.get('/api/v2/entities', async (req, res) => {
   }
 });
 
+// One inventory entity by id.
 app.get('/api/v2/entities/:id', async (req, res) => {
   try {
     const entity = await inventory.getEntityById(req.params.id);
@@ -1103,6 +1511,7 @@ app.get('/api/v2/entities/:id', async (req, res) => {
   }
 });
 
+// Relationship graph around an entity (depth 1 to 5).
 app.get('/api/v2/entities/:id/graph', async (req, res) => {
   try {
     const depth = req.query.depth ? Math.min(Math.max(parseInt(req.query.depth, 10), 1), 5) : 2;
@@ -1119,7 +1528,7 @@ app.get('/api/v2/entities/:id/graph', async (req, res) => {
 // [PHASE 5 / SECTION 14] Fleet Summary Aggregation API for Fleet & Inventory Explorer
 app.get('/api/v2/fleet/summary', async (req, res) => {
   try {
-    const environment = req.query.environment || req.query.env || req.session?.environment || config.ENVIRONMENT || 'staging';
+    const environment = req.sentinelEnv || 'staging';
     const region = req.query.region || null;
 
     const result = await inventory.getEntities({
@@ -1157,6 +1566,12 @@ app.get('/api/v2/fleet/summary', async (req, res) => {
       }
     }
 
+    const globalCfg = yamlConfig.loadGlobalConfig();
+    // Unknown when fleet.expected_hosts is not set: no assumed fleet size, no 100% by default.
+    const configured = Number(globalCfg.fleet && globalCfg.fleet.expected_hosts);
+    const expectedHosts = Number.isFinite(configured) && configured > 0 ? configured : null;
+    const coveragePct = expectedHosts ? parseFloat(((hostsDiscovered / expectedHosts) * 100).toFixed(1)) : null;
+
     res.json({
       environment,
       totalEntities: entities.length,
@@ -1166,8 +1581,8 @@ app.get('/api/v2/fleet/summary', async (req, res) => {
       staleEntitiesCount: staleCount,
       agentsDiscoveredVsExpected: {
         discovered: hostsDiscovered,
-        expected: 215,
-        coveragePct: parseFloat(((hostsDiscovered / 215) * 100).toFixed(1))
+        expected: expectedHosts,
+        coveragePct
       }
     });
   } catch (err) {
@@ -1175,15 +1590,16 @@ app.get('/api/v2/fleet/summary', async (req, res) => {
   }
 });
 
-// [T3b.3] Shipper Agent Heartbeat API
-app.post('/api/v2/shipper/heartbeat', async (req, res) => {
+// [T3b.3 & M4.4] Shipper & Sentinel Agent Heartbeat API
+app.post('/api/v2/shipper/heartbeat', ingestKeys.requireIngestKey('heartbeat'), async (req, res) => {
   try {
-    const { host, entity_id, version, environment, status } = req.body || {};
+    const { host, entity_id, version, agent_version, config_hash, os, status } = req.body || {};
     if (!host && !entity_id) {
       return res.status(400).json({ error: 'Missing host or entity_id' });
     }
     const targetEntityId = entity_id || `host:${host}`;
-    const targetEnv = (environment || req.query?.env || 'staging').toLowerCase();
+    // [Phase A] The environment comes only from the ingest key, never from the body or query.
+    const targetEnv = req.ingestEnv || 'staging';
 
     await inventory.upsertEntity({
       entity_id: targetEntityId,
@@ -1193,11 +1609,25 @@ app.post('/api/v2/shipper/heartbeat', async (req, res) => {
       environment: targetEnv,
       status: status || 'HEALTHY',
       labels: {
-        shipper_version: version || '3.0.4',
+        shipper_version: version || null,
+        agent_version: agent_version || version || null,
+        config_hash: config_hash || null,
+        os: os || null,
         last_heartbeat: new Date().toISOString(),
         heartbeat_status: 'ALIVE'
       }
     });
+
+    if (clickhouse.isConfigured()) {
+      clickhouse.insertAgentInventory([{
+        host: host || targetEntityId.replace(/^host:/, ''),
+        env: targetEnv,
+        agent_version: agent_version || version || null,
+        os: os || null,
+        last_seen: Date.now(),
+        config_hash: config_hash || ''
+      }]).catch(() => {});
+    }
 
     res.json({ status: 'SUCCESS', entity_id: targetEntityId, recordedAt: new Date().toISOString() });
   } catch (err) {
@@ -1225,10 +1655,26 @@ app.get('/api/v2/ingest/health', (req, res) => {
       flushLatency: stats.flushLatency || { p50Ms: 0, p95Ms: 0 },
       shardStatus: shard,
       circuitBreakers,
-      persistence: stats.persistence || { degraded: false }
+      persistence: stats.persistence || { degraded: false },
+      metricsStore: db.getPersistenceStatus ? db.getPersistenceStatus().metricsStore : 'postgres',
+      clickhouse: require('../database/clickhouse').getStatus(),
+      sourceArbitration: require('../metrics_collection/source_arbiter').getStats(),
+      ingestAuthMode: ingestKeys.mode()
     });
   } catch (err) {
     res.status(500).json({ error: `Ingest health error: ${err.message}` });
+  }
+});
+
+// [L3] Source arbitration active sources per series
+app.get('/api/v2/sources', (req, res) => {
+  try {
+    const arbiter = require('../metrics_collection/source_arbiter');
+    const env = req.sentinelEnv || 'staging';
+    const sources = arbiter.getActiveSources(env);
+    res.json({ environment: env, count: sources.length, sources });
+  } catch (err) {
+    res.status(500).json({ error: `Failed to get sources: ${err.message}` });
   }
 });
 
@@ -1236,7 +1682,7 @@ app.get('/api/v2/ingest/health', (req, res) => {
 app.get('/api/v2/config/preflight', async (req, res) => {
   try {
     const { runPreflightCheck } = require('../scripts/preflight_check');
-    const targetEnv = req.query.env || req.session?.environment || config.ENVIRONMENT || 'staging';
+    const targetEnv = req.sentinelEnv || 'staging';
     const report = await runPreflightCheck(targetEnv);
     res.json(report);
   } catch (err) {
@@ -1255,7 +1701,7 @@ app.get('/api/v2/logs/search', async (req, res) => {
       });
     }
 
-    const environment = req.query.environment || req.query.env || req.session?.environment || config.ENVIRONMENT || 'staging';
+    const environment = req.sentinelEnv || 'staging';
 
     const results = await logStore.searchLogs({
       from,
@@ -1287,7 +1733,7 @@ app.get('/api/v2/logs/histogram', async (req, res) => {
       });
     }
 
-    const environment = req.query.environment || req.query.env || req.session?.environment || config.ENVIRONMENT || 'staging';
+    const environment = req.sentinelEnv || 'staging';
 
     const histogram = await logStore.getHistogram({
       from,
@@ -1316,7 +1762,7 @@ app.get('/api/v2/logs/facets', async (req, res) => {
       });
     }
 
-    const environment = req.query.environment || req.query.env || req.session?.environment || config.ENVIRONMENT || 'staging';
+    const environment = req.sentinelEnv || 'staging';
 
     const facets = await logStore.getFacets({
       from,
@@ -1337,7 +1783,7 @@ app.get('/api/v2/logs/facets', async (req, res) => {
 app.get('/api/v2/events', async (req, res) => {
   try {
     const { from, to, kind, entity_id, limit } = req.query;
-    const environment = req.query.environment || req.query.env || req.session?.environment || config.ENVIRONMENT || 'staging';
+    const environment = req.sentinelEnv || 'staging';
 
     const events = await eventStore.getEvents({
       from,
@@ -1354,6 +1800,7 @@ app.get('/api/v2/events', async (req, res) => {
   }
 });
 
+// Receives an external event (deployment, change) for correlation.
 app.post('/api/v2/events', async (req, res) => {
   try {
     const event = req.body;
@@ -1369,7 +1816,7 @@ app.post('/api/v2/events', async (req, res) => {
 app.get('/api/v2/rca/hypotheses', async (req, res) => {
   try {
     const { status, limit } = req.query;
-    const environment = req.query.environment || req.query.env || req.session?.environment || config.ENVIRONMENT || 'staging';
+    const environment = req.sentinelEnv || 'staging';
 
     const hypotheses = await eventStore.getHypotheses({
       environment,
@@ -1419,6 +1866,7 @@ app.get(['/api/slos', '/api/v2/slos'], (req, res) => {
   }
 });
 
+// One RCA hypothesis by id.
 app.get('/api/v2/rca/hypotheses/:id', async (req, res) => {
   try {
     const hypothesis = await eventStore.getHypothesisById(req.params.id);
@@ -1511,10 +1959,14 @@ app.post('/api/simulate', requireRole(['Super Admin', 'SRE Lead']), (req, res) =
 });
 
 // Approve self-healing action (Four-Eyes dual approval enforcement & Segregation of Duties)
-app.post('/api/recovery/approve', requireRole(['Super Admin', 'SRE Lead']), (req, res) => {
+app.post('/api/recovery/approve', requireRole(['Super Admin', 'SRE Lead']), async (req, res) => {
   const { runId } = req.body;
   if (!runId) {
     return res.status(400).json({ error: 'Missing runId' });
+  }
+  // [M1.10] The run may have been raised, or first-signed, on the other node.
+  if (db.refreshRecoveryRun) {
+    await db.refreshRecoveryRun(runId);
   }
   const approvingUser = req.user || { username: 'devsecops-admin', role: 'Super Admin' };
   auditLog(req, 'RECOVERY_APPROVED', { runId, approver: approvingUser.username });
@@ -1548,9 +2000,9 @@ app.post('/api/metrics/clear', requireRole(['Super Admin', 'SRE Lead']), (req, r
   res.json({ success: true });
 });
 
-// Custom Checks endpoint
+// Custom Checks endpoint (O0.4: stored results or DATA_UNAVAILABLE, no simulated latency=12)
 app.get('/api/custom-checks', (req, res) => {
-  res.json(customChecks.runCustomChecks(collector.getSimulations()));
+  res.json(customChecks.runCustomChecks());
 });
 
 // Historical Telemetry Analytics metrics endpoint (Postgres simulated source)
@@ -1563,6 +2015,19 @@ app.get('/api/pbi/metrics', async (req, res) => {
     return res.status(400).json({ error: 'Missing component or metricName' });
   }
   
+  // [M1.8] ClickHouse serves history when configured (shape: timestamp, value, environment).
+  const clickhouse = require('../database/clickhouse');
+  if (clickhouse.isConfigured()) {
+    try {
+      const rows = await db.queryMetrics({
+        component, metricName, env,
+        sinceMs: Date.now() - hoursLimit * 3600 * 1000,
+        limit: 20000,
+        stepSeconds: hoursLimit > 6 ? 60 : 0
+      });
+      return res.json(rows.map(r => ({ timestamp: r.timestamp, value: r.value, environment: r.env, source: r.source })));
+    } catch (_) { /* fall through to Postgres */ }
+  }
   const data = await postgresDb.fetchHistoricalMetricsFromPostgres(component, metricName, hoursLimit, env);
   res.json(data);
 });
@@ -1601,87 +2066,59 @@ app.get('/api/anomalies', async (req, res) => {
     }
   } catch (_) {}
 
-  // In-memory or alert-based fallback if PostgreSQL is unavailable
+  // In-memory or alert-based fallback if PostgreSQL is unavailable.
+  // [M1.1] Values the alert does not carry stay null: nothing is invented.
   const alerts = (db.getAlerts(env) || []).filter(a => a.message && (a.message.includes('Z-Score') || a.message.includes('Anomaly')));
-  const fallbackAnomalies = alerts.map((a, idx) => ({
-    decision_id: `DEC-FALLBACK-${idx}`,
-    timestamp: a.timestamp || new Date().toISOString(),
-    component: a.component || 'infrastructure',
-    metric_name: `${a.component || 'system'}_saturation`,
-    value: 94.5,
-    mean: 46.2,
-    stddev: 11.4,
-    z_score: 4.24,
+  const fallbackAnomalies = alerts.map(a => ({
+    decision_id: a.id || null,
+    timestamp: a.timestamp || null,
+    component: a.component || null,
+    metric_name: null,
+    value: null,
+    mean: null,
+    stddev: null,
+    z_score: null,
     threshold: 3.0,
     decision: 'ANOMALY_DETECTED',
     environment: env,
+    source: 'alert',
     message: a.message
   }));
-
-  // If no anomalies in alerts either, return realistic sample anomalies for UI demonstration
-  if (fallbackAnomalies.length === 0) {
-    fallbackAnomalies.push({
-      decision_id: 'DEC-SAMPLE-01',
-      timestamp: new Date().toISOString(),
-      component: 'artifactory',
-      metric_name: 'jvm_heap_usage',
-      value: 93.8,
-      mean: 51.2,
-      stddev: 9.8,
-      z_score: 4.35,
-      threshold: 3.0,
-      decision: 'ANOMALY_DETECTED',
-      environment: env,
-      message: 'AI Statistical Anomaly: jvm_heap_usage on artifactory reached 93.8% (Z-Score: 4.35)'
-    });
-  }
 
   res.json({ success: true, anomalies: fallbackAnomalies });
 });
 
-// [DASHBOARD UPLIFT] ServiceNow ITSM Tickets API
+// [DEPRECATED - O0.5] ServiceNow ITSM Tickets API
+// Returns SENTINEL recovery runs under legacy ITSM path; O11 replaces with real ServiceNow pull
 app.get('/api/itsm/tickets', (req, res) => {
   const env = resolveEnvironment(req);
+  res.set('X-Deprecated', 'true');
   const recoveries = db.getRecoveryLogs(env) || [];
   
+  // [M1.1 / O0.5] Recovery runs are listed as SENTINEL records. A ServiceNow number is shown
+  // only when one was actually recorded on the run; none is derived from the run id.
   const tickets = recoveries.map(r => {
-    const incId = 'INC-' + (r.id ? r.id.replace('REC-', '') : '840192');
-    const isResolved = r.status === 'Success';
+    const isResolved = r.status === 'Success' || r.status === 'Resolved';
+    const incId = r.incident_id || null;
     return {
       incident_id: incId,
       recovery_id: r.id,
+      source: 'sentinel',
       component: r.component,
       title: `[SENTINEL AUTO-REMEDIATION] ${r.action} on ${r.component}`,
       state: isResolved ? 'Resolved' : (r.status === 'Failed' ? 'Closed' : 'In Progress'),
-      priority: env === 'prod' ? '1 - High' : '2 - Medium',
-      assigned_to: 'sre-oncall-primary',
-      created_at: r.timestamp || new Date().toISOString(),
-      updated_at: r.timestamp || new Date().toISOString(),
-      resolution_notes: isResolved 
-        ? `Auto-resolved after execution (${r.duration || '4s'}). Verified healthy.`
+      priority: null,
+      assigned_to: null,
+      created_at: r.timestamp || null,
+      updated_at: r.timestamp || null,
+      resolution_notes: isResolved && r.duration != null
+        ? `Recovery completed in ${r.duration}s.`
         : (r.status === 'Failed' ? 'Automation failed. Escalated to on-call engineer.' : null),
-      deep_link: `https://servicenow.corp.internal/nav_to.do?uri=incident.do?sys_id=${incId}`
+      deep_link: null
     };
   });
 
-  // If empty, supply a baseline ticket for NOC display
-  if (tickets.length === 0) {
-    tickets.push({
-      incident_id: 'INC-849102',
-      recovery_id: 'REC-AUTO-849102',
-      component: 'nas_performance',
-      title: '[SENTINEL AUTO-REMEDIATION] Purge temp workspaces on NAS',
-      state: 'Resolved',
-      priority: '2 - Medium',
-      assigned_to: 'sre-oncall-primary',
-      created_at: new Date(Date.now() - 3600000).toISOString(),
-      updated_at: new Date(Date.now() - 3590000).toISOString(),
-      resolution_notes: 'Autonomous self-healing completed successfully in 3.4 seconds.',
-      deep_link: 'https://servicenow.corp.internal/nav_to.do?uri=incident.do?sys_id=INC-849102'
-    });
-  }
-
-  res.json({ success: true, tickets });
+  res.json({ source: 'sentinel', deprecated: true, success: true, tickets });
 });
 
 // [DASHBOARD UPLIFT] Distributed Trace Explorer API
@@ -1696,18 +2133,23 @@ app.get('/api/traces/:traceId', async (req, res) => {
     traceEvents = events.filter(e => e.payload && (e.payload.trace_id === traceId || e.event_id === traceId));
   } catch (_) {}
 
-  const baseTime = Date.now() - 6500;
-  const spans = [
-    { span_id: 'span-01', name: 'metric_spike_ingest', parent_id: null, duration_ms: 28, status: 'OK', timestamp: new Date(baseTime).toISOString() },
-    { span_id: 'span-02', name: 'zscore_anomaly_eval', parent_id: 'span-01', duration_ms: 14, status: 'OK', timestamp: new Date(baseTime + 35).toISOString() },
-    { span_id: 'span-03', name: 'rca_correlation', parent_id: 'span-02', duration_ms: 52, status: 'OK', timestamp: new Date(baseTime + 120).toISOString() },
-    { span_id: 'span-04', name: 'remediation_dispatch', parent_id: 'span-03', duration_ms: 125, status: 'OK', timestamp: new Date(baseTime + 280).toISOString() },
-    { span_id: 'span-05', name: 'servicenow_incident_sync', parent_id: 'span-04', duration_ms: 82, status: 'OK', timestamp: new Date(baseTime + 450).toISOString() }
-  ];
+  // [M1.1] Real spans come from ClickHouse once journeys emit them (M2). Until then
+  // only demo shows the sample pipeline waterfall.
+  let spans = [];
+  const clickhouse = require('../database/clickhouse');
+  if (clickhouse.isConfigured()) {
+    try {
+      spans = await clickhouse.query(
+        'SELECT span_id, parent_span_id AS parent_id, name, duration_ms, status, start_ts AS timestamp FROM spans WHERE env = {env:String} AND trace_id = {traceId:String} ORDER BY start_ts LIMIT 500',
+        { env, traceId }
+      );
+    } catch (_) { spans = []; }
+  }
 
   res.json({
     trace_id: traceId,
     environment: env,
+    status: spans.length > 0 ? 'OK' : 'DATA_UNAVAILABLE',
     spans,
     audit_entries: auditEntries,
     correlated_events: traceEvents
@@ -1720,6 +2162,7 @@ app.get('/api/circuit-breaker/status', (req, res) => {
   res.json(cb);
 });
 
+// Resets the remediation circuit breaker (Super Admin / SRE Lead).
 app.post('/api/circuit-breaker/reset', requireRole(['Super Admin', 'SRE Lead']), (req, res) => {
   auditLog(req, 'CIRCUIT_BREAKER_RESET', { resetBy: req.user?.username || 'admin' });
   if (recovery.resetCircuitBreaker) {
@@ -1762,8 +2205,8 @@ server.on('upgrade', (request, socket, head) => {
       user = session.verifyToken(token);
     }
 
-    // Require valid token in strict production; in simulated/dev allow fallback if no token passed
-    if (!user && !config.USE_SIMULATED_COLLECTORS && process.env.NODE_ENV === 'production') {
+    // [M1.4] Same rule as REST reads: a session is required unless the read policy leaves reads open.
+    if (!user && accessPolicy.requiresAuthForReads()) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
       socket.destroy();
       console.warn('[WS] Rejected unauthenticated WebSocket upgrade attempt from', request.socket.remoteAddress);
@@ -1791,10 +2234,14 @@ wss.on('connection', (ws, request) => {
   try {
     const parsed = new URL(request?.url || '', 'http://localhost');
     const qEnv = parsed.searchParams.get('environment');
-    if (qEnv && ['prod', 'staging', 'demo'].includes(qEnv.toLowerCase())) {
+    if (qEnv && ['prod', 'staging'].includes(qEnv.toLowerCase())) {
       initialEnv = qEnv.toLowerCase();
     }
   } catch (_) {}
+  const wsUser = request?.user || null;
+  if (wsUser && !accessPolicy.isEntitled(wsUser, initialEnv)) {
+    initialEnv = accessPolicy.allowedEnvironments(wsUser)[0] || 'staging';
+  }
 
   ws.environment = initialEnv;
   ws.view = 'overview';
@@ -1803,7 +2250,8 @@ wss.on('connection', (ws, request) => {
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw);
-      if (msg.type === 'subscribe' && msg.environment && ['prod', 'staging', 'demo'].includes(msg.environment.toLowerCase())) {
+      if (msg.type === 'subscribe' && msg.environment && ['prod', 'staging'].includes(msg.environment.toLowerCase())
+          && (!wsUser || accessPolicy.isEntitled(wsUser, msg.environment.toLowerCase()))) {
         ws.environment = msg.environment.toLowerCase();
         if (msg.view) ws.view = msg.view;
         const sims = ws.environment === 'staging' ? collector.getSimulations() : {};
@@ -1869,6 +2317,11 @@ app.get('*', (req, res) => {
 function shutdown(signal) {
   console.log(`[SYSTEM] ${signal} received. Initiating graceful shutdown...`);
   clearInterval(wsHeartbeatInterval);
+  try {
+    const { getGlobalRunner } = require('@sentinel/synthetics');
+    getGlobalRunner().stop();
+  } catch (_) {}
+  try { jobs.stopJobs(); } catch (_) {}
   server.close(async () => {
     console.log('[SYSTEM] HTTP/WS server closed. Flushing write-behind cache and draining queues...');
     try {
@@ -1926,9 +2379,20 @@ if (require.main === module) {
 
     server.listen(PORT, HOST, () => {
       console.log(`[SYSTEM] Intelligent Observability & Autonomous Recovery Framework Backend API running on http://${HOST}:${PORT}`);
-      collector.setDemoActive(false); // Starts collecting prod/stg environments only; demo is inactive
       collector.start();
       inventory.syncAllSources();
+      try {
+        const { getGlobalRunner } = require('@sentinel/synthetics');
+        getGlobalRunner().start();
+      } catch (err) {
+        console.error('[SYSTEM] Failed to start Golden Journey runner:', err.message);
+      }
+      // [Phase P] Scheduled pipeline jobs (VIP probes, baselines, alerts, problems, ...)
+      try {
+        jobs.startJobs();
+      } catch (err) {
+        console.error('[SYSTEM] Failed to start background jobs:', err.message);
+      }
     });
   })();
 }

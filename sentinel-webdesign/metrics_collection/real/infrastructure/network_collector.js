@@ -1,17 +1,18 @@
 const config = require('@sentinel/config');
 const { runWithConcurrencyLimit } = require('../../concurrency_limiter');
+const { collectVipProbes, probeVip, getLastVipProbes } = require('../probers/url_probe_collector');
 const net = require('net');
 
 /**
- * network_collector.js (T2b.2 REMEDIATED)
+ * network_collector.js (T2b.2 REMEDIATED & M3 Task 3.1)
  * 
- * Real network latency and packet loss collector via active TCP handshakes.
- * Measures real latency, real packet loss percentage, and real latency standard deviation (jitter).
- * No hardcoded constants reach returned values.
+ * Real network latency and packet loss collector via active TCP handshakes
+ * and VIP layer probers (DNS, TCP, TLS, TTFB, Total duration, cert expiry).
  */
 
 let cachedHostList = null;
 
+// Host list to probe (cached).
 function getHostList() {
   if (cachedHostList) return cachedHostList;
   const targetConfig = config.ACTIVE_URLS || {};
@@ -28,8 +29,51 @@ function getHostList() {
   return cachedHostList;
 }
 
+// VIP targets from the manifests.
+function getVipTargets(env = 'staging') {
+  let yamlConfig;
+  try {
+    yamlConfig = require('@sentinel/config/yaml_config');
+  } catch (_) {
+    return [];
+  }
+
+  const apps = yamlConfig.loadAllApplications ? yamlConfig.loadAllApplications() : {};
+  const targets = [];
+  const seenUrls = new Set();
+
+  for (const [appId, app] of Object.entries(apps)) {
+    if (app.id && app.id !== appId) continue;
+    const vipUrl = (app.layers && typeof app.layers.vip === 'string' ? app.layers.vip : null)
+      || (app.endpoints && app.endpoints[env] && app.endpoints[env].vip)
+      || (app.endpoints && app.endpoints.prod && app.endpoints.prod.vip);
+
+    if (vipUrl && !seenUrls.has(vipUrl)) {
+      seenUrls.add(vipUrl);
+      targets.push({
+        url: vipUrl,
+        productId: appId,
+        component: `${appId}_vip`,
+        expectedStatus: [200, 301, 302, 401, 403]
+      });
+    }
+  }
+  return targets;
+}
+
+// Probes the VIPs of an environment.
+async function collectVips(env = 'staging', db = null) {
+  const targets = getVipTargets(env);
+  if (targets.length === 0) return [];
+  return collectVipProbes(targets, db, env);
+}
+
 module.exports = {
   clearHostCache: () => { cachedHostList = null; },
+  getVipTargets,
+  collectVips,
+  probeVip,
+  getLastVipProbes,
   collect: async (simulations, base = {}) => {
     const isOutage = simulations && simulations.network_latency && simulations.network_latency.type === 'outage';
     if (isOutage) {
@@ -99,3 +143,4 @@ module.exports = {
     };
   }
 };
+

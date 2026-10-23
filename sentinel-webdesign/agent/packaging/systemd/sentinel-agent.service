@@ -1,0 +1,24 @@
+[Unit]
+Description=SENTINEL agent (OpenTelemetry collector)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sentinel
+Group=sentinel
+EnvironmentFile=-/etc/sentinel/agent.env
+# Refresh the host-rendered collector config from SENTINEL before starting; the
+# last good file is kept when SENTINEL is unreachable.
+ExecStartPre=-/usr/bin/node /opt/sentinel/probe/index.js --config /etc/sentinel/probe.json --write-collector-config /etc/sentinel/collector.yaml
+ExecStart=/opt/sentinel/bin/sentinel-agent --config /etc/sentinel/collector.yaml
+Restart=always
+RestartSec=10s
+LimitNOFILE=65536
+CPUQuota=5%
+MemoryMax=300M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

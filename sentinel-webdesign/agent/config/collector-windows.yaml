@@ -1,0 +1,87 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+      http:
+        endpoint: 127.0.0.1:4318
+
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      filesystem:
+      network:
+
+  windowsperfcounters:
+    collection_interval: 30s
+    perf_counters:
+      - object: "Processor Information"
+        counters: ["% Processor Time"]
+        instances: ["_Total"]
+      - object: "System"
+        counters: ["Processor Queue Length"]
+      - object: "Memory"
+        counters: ["Available MBytes", "% Committed Bytes In Use", "Pages/sec"]
+      - object: "PhysicalDisk"
+        counters: ["Avg. Disk sec/Read", "Avg. Disk sec/Write", "Current Disk Queue Length"]
+        instances: ["*"]
+      - object: "LogicalDisk"
+        counters: ["% Free Space"]
+        instances: ["*"]
+      - object: "Network Interface"
+        counters: ["Bytes Total/sec", "Packets Received Discarded", "Current Bandwidth"]
+        instances: ["*"]
+      - object: "TCPv4"
+        counters: ["Connections Established", "Connection Failures", "Connections Reset"]
+      - object: "Process"
+        counters: ["Handle Count", "Thread Count"]
+        instances: ["*"]
+
+  windowseventlog:
+    channel: System
+    max_reads: 100
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 2s
+
+  resource:
+    attributes:
+      - key: sentinel.agent.version
+        value: "2.4.0"
+        action: upsert
+      - key: sentinel.agent.os
+        value: "windows"
+        action: upsert
+
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+
+exporters:
+  otlphttp:
+    endpoint: ${env:SENTINEL_GATEWAY_URL}
+    headers:
+      Authorization: "Bearer ${env:SENTINEL_GATEWAY_TOKEN}"
+    compression: gzip
+    timeout: 10s
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, hostmetrics, windowsperfcounters]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [windowseventlog]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

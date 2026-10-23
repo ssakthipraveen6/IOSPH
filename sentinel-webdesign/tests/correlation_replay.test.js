@@ -1,5 +1,11 @@
+/**
+ * Test: replays a shared-storage failure and checks the correlation engine finds the dependent
+ * applications.
+ */
 const assert = require('assert');
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const inventory = require('@sentinel/inventory');
 const eventStore = require('../database/event_store');
 const correlation = require('@sentinel/correlation');
@@ -158,7 +164,94 @@ async function runCorrelationReplayTest() {
   assert.strictEqual(confirmed.verdicts[0].verdict, 'confirmed', 'Verdict should be confirmed');
   assert.strictEqual(confirmed.verdicts[0].operator, 'sre-lead@sentinel.corp');
 
-  console.log('✅ [TEST PASS] Phase 4 Correlation Engine Replay Scenario Succeeded completely.');
+  // 6. Milestone M3 Task 3.3 Layer Diagnosis Rules Fixture Replays
+  console.log('[TEST] Testing M3 Task 3.3 Layer Diagnosis Rules with Synthetic Fixtures...');
+  const fs = require('fs');
+  const fixturesDir = path.resolve(__dirname, 'fixtures');
+
+  // Rule (a): network/AVI
+  const fixtureA = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'rule_a_network_avi.json'), 'utf8'));
+  const diagA = correlation.diagnoseLayer(fixtureA);
+  assert.ok(diagA.length > 0, 'Rule A must produce hypothesis');
+  assert.strictEqual(diagA[0].layer, fixtureA.expectedLayer, `Expected layer ${fixtureA.expectedLayer}, got ${diagA[0].layer}`);
+  assert.strictEqual(diagA[0].rule_id, fixtureA.expectedRuleId);
+  console.log(`✔ Rule (a) Replay: Diagnosed layer '${diagA[0].layer}' with confidence ${diagA[0].confidence}`);
+
+  // Rule (b): AVI/path (Enabled in M4.5)
+  const fixtureB = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'rule_b_avi_path.json'), 'utf8'));
+  const diagB = correlation.diagnoseLayer(fixtureB);
+  assert.ok(diagB.length > 0, 'Rule B must produce hypothesis');
+  assert.strictEqual(diagB[0].layer, fixtureB.expectedLayer, `Expected layer ${fixtureB.expectedLayer}, got ${diagB[0].layer}`);
+  assert.strictEqual(diagB[0].rule_id, fixtureB.expectedRuleId);
+  console.log(`✔ Rule (b) Replay: Diagnosed layer '${diagB[0].layer}' with confidence ${diagB[0].confidence}`);
+
+  // Rule (c): storage
+  const fixtureC = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'rule_c_storage.json'), 'utf8'));
+  const diagC = correlation.diagnoseLayer(fixtureC);
+  assert.ok(diagC.length > 0, 'Rule C must produce hypothesis');
+  assert.strictEqual(diagC[0].layer, fixtureC.expectedLayer, `Expected layer ${fixtureC.expectedLayer}, got ${diagC[0].layer}`);
+  assert.strictEqual(diagC[0].rule_id, fixtureC.expectedRuleId);
+  console.log(`✔ Rule (c) Replay: Diagnosed layer '${diagC[0].layer}' with confidence ${diagC[0].confidence}`);
+
+  // Rule (d): product
+  const fixtureD = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'rule_d_product.json'), 'utf8'));
+  const diagD = correlation.diagnoseLayer(fixtureD);
+  assert.ok(diagD.length > 0, 'Rule D must produce hypothesis');
+  assert.strictEqual(diagD[0].layer, fixtureD.expectedLayer, `Expected layer ${fixtureD.expectedLayer}, got ${diagD[0].layer}`);
+  assert.strictEqual(diagD[0].rule_id, fixtureD.expectedRuleId);
+  console.log(`✔ Rule (d) Replay: Diagnosed layer '${diagD[0].layer}' with confidence ${diagD[0].confidence}`);
+
+  // Rule (e): change
+  const fixtureE = JSON.parse(fs.readFileSync(path.join(fixturesDir, 'rule_e_change.json'), 'utf8'));
+  const diagE = correlation.diagnoseLayer(fixtureE);
+  assert.ok(diagE.length > 0, 'Rule E must produce hypothesis');
+  assert.strictEqual(diagE[0].layer, fixtureE.expectedLayer, `Expected layer ${fixtureE.expectedLayer}, got ${diagE[0].layer}`);
+  assert.strictEqual(diagE[0].rule_id, fixtureE.expectedRuleId);
+  console.log(`✔ Rule (e) Replay: Diagnosed layer '${diagE[0].layer}' with confidence ${diagE[0].confidence}`);
+
+  // M5 Task 5.4: Problem Grouping Replay Test (5 alerts from one storage incident make 1 problem)
+  console.log('\n[TEST] Testing M5 Task 5.4: Problem grouping from shared storage incident...');
+  const storageAlerts = [
+    { id: 'alt-1', component: 'jenkins', entity_id: 'app:jenkins', message: 'JENKINS Disk I/O Wait on /data/shared', severity: 'Critical', timestamp: new Date().toISOString() },
+    { id: 'alt-2', component: 'bitbucket', entity_id: 'app:bitbucket', message: 'BITBUCKET Disk I/O Wait on /data/shared', severity: 'Critical', timestamp: new Date().toISOString() },
+    { id: 'alt-3', component: 'artifactory', entity_id: 'app:artifactory', message: 'ARTIFACTORY Disk I/O Wait on /data/shared', severity: 'Critical', timestamp: new Date().toISOString() },
+    { id: 'alt-4', component: 'argocd', entity_id: 'app:argocd', message: 'ARGOCD Disk I/O Wait on /data/shared', severity: 'Critical', timestamp: new Date().toISOString() },
+    { id: 'alt-5', component: 'teamcity', entity_id: 'app:teamcity', message: 'TEAMCITY Disk I/O Wait on /data/shared', severity: 'Critical', timestamp: new Date().toISOString() }
+  ];
+
+  // [F3] The storage layer must come from diagnoseLayer evidence (storage-heavy journey
+  // steps failing on two products), not from keywords in the alert text.
+  const storageJourneyEvidence = [
+    { id: 'artifactory_pipeline', productId: 'artifactory', steps: [{ id: 'download_canary', layer: 'storage', status: 'FAILED', duration_ms: 3500 }] },
+    { id: 'bitbucket_clone', productId: 'bitbucket', steps: [{ id: 'clone_canary', layer: 'storage', status: 'FAILED', duration_ms: 4200 }] }
+  ];
+  const groupedProblems = await correlation.groupAlertsIntoProblems(storageAlerts, { environment: testEnv, journeys: storageJourneyEvidence });
+  assert.strictEqual(groupedProblems.length, 1, '5 storage incident alerts must fold into exactly 1 problem');
+  const prob = groupedProblems[0];
+  assert.strictEqual(prob.alert_count, 5, 'Problem must contain all 5 alerts');
+  assert.strictEqual(prob.top_layer, 'storage', `Top cause must be storage, got ${prob.top_layer}`);
+  assert.strictEqual(prob.suspect_entity, storageEntityId, `Suspect entity must be ${storageEntityId}`);
+  assert.ok(storageAlerts.every(a => a.problem_id === prob.id), 'All alerts must be tagged with the problem ID');
+  console.log(`✔ Problem Grouping: 5 alerts folded into 1 problem (${prob.id}) with top cause '${prob.top_layer}' and suspect '${prob.suspect_entity}'.`);
+
+  // Same alerts without any stored evidence: still grouped by topology, but no layer is invented.
+  const noEvidenceAlerts = storageAlerts.map(a => ({ ...a, id: a.id + '-ne', problem_id: undefined }));
+  const noEvidence = await correlation.groupAlertsIntoProblems(noEvidenceAlerts, { environment: testEnv });
+  assert.strictEqual(noEvidence.length, 1, 'Topology grouping must not depend on evidence');
+  assert.strictEqual(noEvidence[0].top_layer, 'unknown', 'Without evidence the top layer must be unknown');
+  assert.strictEqual(noEvidence[0].confidence, null, 'Without evidence confidence must be null');
+
+  // Two unrelated alerts (no shared topology) make two problems, each with layer unknown.
+  const unrelated = [
+    { id: 'u-1', component: 'unrelated-a', entity_id: 'app:unrelated-a', message: 'latency high', severity: 'Warning', timestamp: new Date().toISOString() },
+    { id: 'u-2', component: 'unrelated-b', entity_id: 'app:unrelated-b', message: 'latency high', severity: 'Warning', timestamp: new Date().toISOString() }
+  ];
+  const unrelatedProblems = await correlation.groupAlertsIntoProblems(unrelated, { environment: testEnv });
+  assert.strictEqual(unrelatedProblems.length, 2, '2 unrelated alerts must make 2 problems');
+  assert.ok(unrelatedProblems.every(p => p.top_layer === 'unknown'), 'Unrelated alerts get layer unknown');
+  console.log('✔ Problem Grouping: no evidence -> layer unknown; unrelated alerts -> separate problems.');
+
+  console.log('✅ [TEST PASS] Phase 4 Correlation Engine Replay Scenario & M3/M5 Layer Diagnoses Succeeded completely.');
 }
 
 if (require.main === module) {

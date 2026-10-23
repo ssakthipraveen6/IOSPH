@@ -30,6 +30,14 @@ const entityResolver = {
     return `k8snode:${sanitizeIdPart(clusterId)}:${sanitizeIdPart(nodeName)}`;
   },
 
+  k8sPvc(clusterId, namespace, name) {
+    return `k8spvc:${sanitizeIdPart(clusterId)}:${sanitizeIdPart(namespace)}:${sanitizeIdPart(name)}`;
+  },
+
+  k8sPv(clusterId, name) {
+    return `k8spv:${sanitizeIdPart(clusterId)}:${sanitizeIdPart(name)}`;
+  },
+
   k8sCluster(clusterId) {
     return `k8scluster:${sanitizeIdPart(clusterId)}`;
   },
@@ -48,6 +56,18 @@ const entityResolver = {
 
   service(serviceName) {
     return `service:${sanitizeIdPart(serviceName)}`;
+  },
+
+  vip(hostname) {
+    return `vip:${sanitizeIdPart(hostname)}`;
+  },
+
+  share(sharePath) {
+    return `share:${sanitizeIdPart(sharePath)}`;
+  },
+
+  database(dbName) {
+    return `database:${sanitizeIdPart(dbName)}`;
   },
 
   sensor(appId, sensorName) {
@@ -70,11 +90,22 @@ const entityResolver = {
       case 'k8s_node':
       case 'k8snode':
         return this.k8sNode(params.clusterId, params.nodeName || params.name);
+      case 'k8s_pvc':
+        return this.k8sPvc(params.clusterId, params.namespace, params.name);
+      case 'k8s_pv':
+        return this.k8sPv(params.clusterId, params.name);
       case 'k8s_cluster':
       case 'k8scluster':
         return this.k8sCluster(params.clusterId || params.name);
       case 'avi':
         return this.avi(params.vsName || params.name);
+      case 'vip':
+        return this.vip(params.hostname || params.name || params.url);
+      case 'share':
+        return this.share(params.path || params.name || params.sharePath);
+      case 'database':
+      case 'db':
+        return this.database(params.connection || params.name || params.dbName);
       case 'storage':
         return this.storage(params.volumeId || params.name);
       case 'url':

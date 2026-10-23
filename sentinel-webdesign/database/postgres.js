@@ -1,3 +1,6 @@
+/**
+ * PostgreSQL connection pool (created only when db_jdbc is set) and metric read/write helpers.
+ */
 const { Pool } = require('pg');
 const config = require('@sentinel/config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
@@ -21,6 +24,7 @@ function parseJdbcUrl(url) {
 
 let pool = null;
 
+// Creates the pool from db_jdbc, PGUSER and the CyberArk/PGPASSWORD password.
 async function getPool() {
   if (pool) return pool;
   const targetConfig = config.ACTIVE_URLS || {};
@@ -50,10 +54,12 @@ async function getPool() {
   return pool;
 }
 
+// Saves one metric.
 async function saveMetricToPostgres(metric, writeNasLog) {
   return saveMetricBatchToPostgres([metric], writeNasLog);
 }
 
+// Saves a batch of metrics.
 async function saveMetricBatchToPostgres(metrics, writeNasLog) {
   if (!metrics || metrics.length === 0) return;
   const activePool = await getPool();
@@ -109,6 +115,7 @@ async function saveMetricBatchToPostgres(metrics, writeNasLog) {
   }
 }
 
+// Reads a metric's history.
 async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLimit = 24, env = null) {
   const targetEnv = env || global.runtimeEnvironment || 'staging';
   const activePool = await getPool();
@@ -190,6 +197,7 @@ async function fetchHistoricalMetricsFromPostgres(component, metricName, hoursLi
   return dataset;
 }
 
+// Closes the pool.
 async function closePool() {
   if (pool) {
     try {
@@ -199,6 +207,7 @@ async function closePool() {
   }
 }
 
+// Runs a query, or returns null without a database.
 async function query(text, params) {
   const p = await getPool();
   if (!p) return null;

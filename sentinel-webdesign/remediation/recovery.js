@@ -1,3 +1,7 @@
+/**
+ * Autonomous recovery: chooses and runs runbooks under four-eyes approval, with a circuit breaker
+ * for Jenkins.
+ */
 const db = require('@sentinel/database');
 const yamlConfig = require('@sentinel/config/yaml_config');
 const { SEVERITY } = require('@sentinel/shared-constants');
@@ -101,6 +105,7 @@ function resolveWorkflow(component) {
 // Map of components that are currently in recovery to prevent duplicate runs
 const activeRecoveries = new Map();
 
+// Running recoveries.
 function getActiveRecoveries() {
   return activeRecoveries;
 }
@@ -116,10 +121,12 @@ const jenkinsCircuitBreaker = {
 
 const RECOVERY_TIMEOUT_MS = parseInt(process.env.RECOVERY_TIMEOUT_MS, 10) || (30 * 60 * 1000); // 30 minutes default
 
+// Jenkins circuit-breaker state.
 function getCircuitBreakerStatus() {
   return { ...jenkinsCircuitBreaker };
 }
 
+// Resets the Jenkins circuit breaker.
 function resetCircuitBreaker() {
   jenkinsCircuitBreaker.consecutiveFailures = 0;
   jenkinsCircuitBreaker.state = 'CLOSED';
@@ -161,8 +168,7 @@ function executeRecoveryWorkflow(runId, component) {
     }
   }
 
-  const mode = config.USE_SIMULATED_COLLECTORS ? 'simulation' : 'real';
-  const { triggerJenkinsSelfHealingJob } = require(`./${mode}/jenkins/jenkins_trigger`);
+  const { triggerJenkinsSelfHealingJob } = require('./real/jenkins/jenkins_trigger');
   
   writeNasLog('INFO', 'RECOVERY', `[START] Triggering self-healing Jenkins Job for ${component}`);
   
@@ -413,10 +419,9 @@ function runSelfHealingOrchestrator(currentMetrics, env = 'staging') {
       if (activeAlerts.length === 0) {
         db.addAlert(component, SEVERITY.CRITICAL, `Outage/Critical event detected on component: ${component}. System offline or threshold breached.`, 'Active', env);
         
-        // Also log to the simulated ServiceNow ticket queue
-        const ticketNum = crypto.randomInt ? crypto.randomInt(100000, 999999) : (100000 + (Date.now() % 900000));
-        const ticketId = 'INC-' + ticketNum;
-        db.addAlert('servicenow', SEVERITY.WARNING, `Ticket ${ticketId} created in ServiceNow for ${component} critical failure.`, 'Active', env);
+        // [M1.1] No ServiceNow write integration: record that a ticket draft is due,
+        // without inventing an incident number.
+        db.addAlert('servicenow', SEVERITY.WARNING, `ServiceNow ticket draft due for ${component} critical failure (not submitted by SENTINEL).`, 'Active', env);
       }
       
       // Trigger recovery with explicit options object

@@ -33,7 +33,7 @@ function extractAttributes(resource) {
  * @param {object} otlpPayload - Standard OTLP metrics or traces payload
  * @returns {Promise<Array<{ entity_id: string, kind: string }>>}
  */
-async function processOtlpPayload(otlpPayload) {
+async function processOtlpPayload(otlpPayload, options = {}) {
   if (!otlpPayload || !Array.isArray(otlpPayload.resourceMetrics)) {
     return [];
   }
@@ -43,9 +43,10 @@ async function processOtlpPayload(otlpPayload) {
   for (const rm of otlpPayload.resourceMetrics) {
     const attrs = extractAttributes(rm.resource);
     const hostName = attrs['host.name'] || attrs['host.id'];
-    const serviceName = attrs['service.name'] || attrs['app.name'] || 'unknown_service';
-    const env = attrs['environment'] || attrs['deployment.environment'] || global.runtimeEnvironment || 'staging';
-    const region = attrs['cloud.region'] || attrs['region'] || 'emea';
+    const serviceName = attrs['service.name'] || attrs['app.name'] || null; // no service.name: do not invent an 'unknown_service' app
+    // An ingest key fixes the environment; the payload cannot move an entity into another one.
+    const env = options.environment || attrs['environment'] || attrs['deployment.environment'] || global.runtimeEnvironment || 'staging';
+    const region = attrs['cloud.region'] || attrs['region'] || null; // not reported: leave blank, never default to a region
 
     let hostEntity = null;
     let serviceEntity = null;
@@ -80,9 +81,11 @@ async function processOtlpPayload(otlpPayload) {
         app_id: serviceName,
         region,
         environment: env,
+        // Only labels the agent actually reported. Writing 'unknown' here used to overwrite a
+        // known OS (from the heartbeat or manifest) and hid the host from the Linux/Windows views.
         labels: {
-          os: attrs['os.type'] || attrs['os.description'] || 'unknown',
-          arch: attrs['host.arch'] || 'unknown'
+          ...(attrs['os.type'] || attrs['os.description'] ? { os: String(attrs['os.type'] || attrs['os.description']).toLowerCase() } : {}),
+          ...(attrs['host.arch'] ? { arch: attrs['host.arch'] } : {})
         },
         source: 'otlp',
         status: 'Active'

@@ -1,6 +1,11 @@
+/**
+ * Collects CloudBees Jenkins metrics and polls the declared operations centres and controllers.
+ */
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
-const { runSeleniumCheck } = require('../python_checks/runner');
+const yamlConfig = require('@sentinel/config/yaml_config');
+const topologyPoller = require('./jenkins_topology');
+const { updateProductVersion } = require('../../shared/version_tracker');
 
 /**
  * jenkins_collector.js (T2b.2 REMEDIATED)
@@ -25,11 +30,40 @@ module.exports = {
       };
     }
 
-    // Perform active Selenium browser load latency check
-    let browserCheck = { latency_ms: null, status: 'UNKNOWN' };
+    // The browser-load check no longer runs in this cycle (it blocks for seconds per call).
+    // Page-load and SSO-login timing belong to the synthetic probes.
+
+    // Per-controller polling when the manifest declares operations centres and controllers.
+    let topology = null;
     try {
-      browserCheck = await runSeleniumCheck(url);
-    } catch (_) {}
+      const manifest = yamlConfig.getApplication('cloudbees_jenkins');
+      topology = manifest && manifest.topology;
+    } catch (_) { topology = null; }
+    if (topologyPoller.listControllers(topology).length > 0) {
+      const snap = await topologyPoller.pollAll(topology, { fetchJson: fetchJsonWithFallback });
+      topologyPoller.setLastSnapshot(snap);
+      try {
+        const agents = snap.controllers.flatMap(c => c.computers.map(x => ({ displayName: x.name, offline: x.offline, numExecutors: x.num_executors, region: x.region })));
+        if (agents.length) await require('@sentinel/inventory').sources.jenkins.syncJenkinsInventory({ computers: agents });
+      } catch (_) { /* inventory is best-effort here */ }
+      if (snap.answered === 0 && snap.auth_failed > 0) {
+        return { status: 'AUTH_FAILED', error: 'AUTH_FAILED', authFailed: true, executors: null, queue: null, responseTime: null, podsOnline: null, podsTotal: null };
+      }
+      if (snap.answered > 0) {
+        const lat = snap.controllers.map(c => c.latency_ms).filter(Number.isFinite);
+        return {
+          executors: snap.totals.executors_total,
+          busyExecutors: snap.totals.executors_busy,
+          queue: snap.totals.queue,
+          controllersAnswered: snap.answered,
+          controllersDeclared: snap.declared,
+          responseTime: lat.length ? Math.max(...lat) : null,
+          podsOnline: null,
+          podsTotal: null
+        };
+      }
+      // No controller answered: fall through to the single-URL call below.
+    }
 
     // Attempt live API fetch for build queue depth & executors
     const apiResult = await fetchJsonWithFallback(
@@ -51,6 +85,15 @@ module.exports = {
       };
     }
 
+    // Capture product version from X-Jenkins response header or API data
+    try {
+      const version = apiResult.headers?.['x-jenkins'] || apiResult.data?.version || null;
+      if (version) {
+        const env = (global.runtimeEnvironment || config.ENVIRONMENT || 'staging').toLowerCase();
+        await updateProductVersion('jenkins', String(version), env, 'product_api');
+      }
+    } catch (_) {}
+
     const queue = apiResult.success && Array.isArray(apiResult.data?.queue)
       ? apiResult.data.queue.length
       : null;
@@ -59,7 +102,7 @@ module.exports = {
       ? apiResult.data.executors.length
       : null;
 
-    const measuredLatency = browserCheck.latency_ms || apiResult.latencyMs || null;
+    const measuredLatency = apiResult.latencyMs || null;
 
     return {
       executors,

@@ -1,0 +1,122 @@
+/* frontend/src/components/govern/ConfigurationView.css */
+
+.config-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  color: var(--text-primary);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.cfg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3, 12px);
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-3, 12px);
+}
+
+.cfg-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  font-size: var(--text-xl, 20px);
+  font-weight: 600;
+  margin: 0;
+}
+
+.cfg-subtitle {
+  font-size: var(--text-sm, 14px);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.cfg-banner {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--brand-primary, #6366f1);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-3, 12px);
+  font-size: var(--text-sm, 14px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.cfg-badge-pass {
+  background: var(--sev-healthy-bg, rgba(16, 185, 129, 0.1));
+  color: var(--sev-healthy, #10b981);
+  border: 1px solid var(--sev-healthy-border, #10b981);
+  padding: 2px 8px;
+  border-radius: var(--radius-xs, 2px);
+  font-weight: 600;
+  font-size: var(--text-xs, 12px);
+}
+
+.cfg-controls {
+  display: flex;
+  gap: var(--space-3, 12px);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cfg-select,
+.cfg-input {
+  background: var(--surface-default);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: var(--text-sm, 14px);
+  outline: none;
+}
+
+.cfg-select:focus,
+.cfg-input:focus {
+  border-color: var(--brand-primary, #6366f1);
+}
+
+.cfg-card {
+  background: var(--surface-default);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.cfg-card-title {
+  font-size: var(--text-base, 16px);
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: var(--space-2, 8px);
+  margin: 0;
+}
+
+.cfg-viewer {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-4, 16px);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs, 12px);
+  line-height: 1.6;
+  max-height: 700px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.cfg-mono {
+  font-family: var(--font-mono, monospace);
+}

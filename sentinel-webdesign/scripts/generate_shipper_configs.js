@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const inventory = require('@sentinel/inventory');
 
+// Writes one Fluent Bit config per host.
 async function generateConfigs(targetEnv = 'staging', outputDir = null) {
   console.log(`[CONFIG_GEN] Generating Fluent Bit shipper configurations for env=${targetEnv}...`);
   const res = await inventory.getEntities({ environment: targetEnv, limit: 1000 });

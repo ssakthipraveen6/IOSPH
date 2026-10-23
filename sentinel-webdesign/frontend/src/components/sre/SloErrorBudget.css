@@ -177,3 +177,43 @@
   font-weight: 600;
   font-size: 0.75rem;
 }
+
+/* U4: former inline styles */
+.slo-loading {
+  text-align: center;
+  padding: var(--space-10);
+  color: var(--text-muted);
+}
+
+.slo-header-icon { font-size: 1.8rem; }
+.slo-env-name { color: var(--primary); }
+.slo-freeze-icon { font-size: 1.4rem; }
+
+.slo-freeze-note {
+  font-size: var(--font-xs);
+  font-weight: normal;
+  opacity: 0.9;
+}
+
+.slo-card-id {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.slo-big-num.slo-big-num--ok { color: var(--sev-healthy); }
+.slo-big-num.slo-big-num--breach { color: var(--sev-critical); }
+
+.burn-rate-chip.slo-burn--ok {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--sev-healthy);
+}
+
+.burn-rate-chip.slo-burn--hot {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--sev-critical);
+}
+
+/* Unknown SLO: no measurement yet */
+.slo-big-num.slo-big-num--none { color: var(--text-muted); }
+.burn-rate-chip.slo-burn--none { color: var(--text-muted); background: var(--surface-subtle); }

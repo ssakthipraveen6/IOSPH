@@ -1,0 +1,121 @@
+/* frontend/src/components/shared/TimeSeriesPanel.css */
+
+.timeseries-panel {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast, 0.15s ease);
+}
+
+.timeseries-panel:hover {
+  border-color: var(--border-default);
+}
+
+.timeseries-panel--empty {
+  min-height: 220px;
+}
+
+.timeseries-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
+.timeseries-panel__title-group {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2, 8px);
+}
+
+.timeseries-panel__title {
+  margin: 0;
+  font-size: var(--text-base, 14px);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.timeseries-panel__unit {
+  font-size: var(--text-xs, 12px);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.timeseries-panel__stats {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  font-size: var(--text-xs, 12px);
+  color: var(--text-secondary);
+}
+
+.timeseries-panel__stat--latest {
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.timeseries-panel__markers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.timeseries-panel__marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.timeseries-panel__marker-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.timeseries-panel__marker--critical {
+  border-color: var(--sev-critical-border);
+  background: var(--sev-critical-bg);
+  color: var(--sev-critical);
+}
+.timeseries-panel__marker--critical .timeseries-panel__marker-dot {
+  background: var(--sev-critical);
+}
+
+.timeseries-panel__marker--warning {
+  border-color: var(--sev-warning-border);
+  background: var(--sev-warning-bg);
+  color: var(--sev-warning);
+}
+.timeseries-panel__marker--warning .timeseries-panel__marker-dot {
+  background: var(--sev-warning);
+}
+
+.timeseries-panel__marker--info {
+  border-color: var(--sev-info-border);
+  background: var(--sev-info-bg);
+  color: var(--sev-info);
+}
+.timeseries-panel__marker--info .timeseries-panel__marker-dot {
+  background: var(--sev-info);
+}
+
+.timeseries-panel__chart-container {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-sm, 4px);
+}

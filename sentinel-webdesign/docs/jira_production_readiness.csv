@@ -1,0 +1,625 @@
+﻿"Issue Id","Issue Type","Summary","Description","Priority","Labels","Parent"
+"1","Epic","E1 Environment and process settings","Production readiness: Environment and process settings. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"2","Epic","E2 Sign-in and access","Production readiness: Sign-in and access. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"3","Epic","E3 Production endpoints and credentials","Production readiness: Production endpoints and credentials. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"4","Epic","E4 Data stores","Production readiness: Data stores. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"5","Epic","E5 Hosting and high availability","Production readiness: Hosting and high availability. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"6","Epic","E6 Agent rollout","Production readiness: Agent rollout. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"7","Epic","E7 Verification and acceptance","Production readiness: Verification and acceptance. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"8","Epic","E8 Open code work","Production readiness: Open code work. Details in docs/PRODUCTION_READINESS_PLAN.md","Medium","sentinel production-readiness",""
+"9","Task","PR-01 Run the service with NODE_ENV=production","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-01
+
+Where:
+* web.config:21 - sets NODE_ENV under IIS (already correct)
+* backend/server.js:79 - isDev is false only when NODE_ENV=production; reads then need a session
+
+Steps:
+1. Confirm the IIS site uses web.config unchanged; for a scheduled-task install set NODE_ENV as a machine variable.
+2. Never set SENTINEL_REQUIRE_AUTH_READS=false or SENTINEL_INGEST_AUTH_MODE=warn/off in production.
+
+Acceptance criteria:
+* [ ] npm run readiness shows PASS for NODE_ENV and no FAIL in the login/ingest rows.","Highest","sentinel production-readiness e1","1"
+"10","Task","PR-02 Set SENTINEL_JWT_SECRET (identical on both servers)","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-02
+
+Where:
+* scripts/bootstrap.js:13 - secret is never generated in production
+* scripts/bootstrap.js:66 - startup stops with an error when it is missing
+
+Steps:
+1. Generate once (64 hex characters) and store it in CyberArk.
+2. Set it as a Machine environment variable on both servers; restart the service.
+
+Acceptance criteria:
+* [ ] A user who signs in on node 1 stays signed in after being routed to node 2.","Highest","sentinel production-readiness e1","1"
+"11","Task","PR-03 Set ALLOWED_ORIGIN to the real Sentinel URL","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-03
+
+Where:
+* backend/server.js:123 - ALLOWED_ORIGINS (comma list)
+* backend/server.js:125 - ALLOWED_ORIGIN; the built-in fallback is a placeholder
+
+Steps:
+1. Put the value in config/.env or a machine variable.
+
+Acceptance criteria:
+* [ ] Browser calls and the WebSocket (/ws) work from the production URL with no CORS error.","Highest","sentinel production-readiness e1","1"
+"12","Task","PR-04 Set environment: production on the production host","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-04
+
+Where:
+* config/global.yaml:14 - environment (shipped as staging)
+
+Steps:
+1. Edit only on the production host. PRD and STG remain selectable in the UI; this sets the default.
+
+Acceptance criteria:
+* [ ] Header shows PRODUCTION after sign-in without switching.","High","sentinel production-readiness e1","1"
+"13","Task","PR-05 Create one ingest key per environment","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-05
+
+Where:
+* scripts/ingest_key.js:4 - usage: create <name> <prod|staging>
+* backend/auth/ingest_keys.js:56 - SENTINEL_INGEST_API_KEYS parsing (no database needed)
+* backend/server.js:682 - POST /v1/metrics needs scope metrics
+* backend/server.js:1594 - POST /api/v2/shipper/heartbeat needs scope heartbeat
+
+Steps:
+1. Run the command twice (prod, staging). The raw key is shown once; store it in CyberArk and in the Ansible vault.
+2. Without PostgreSQL, add the printed entry to SENTINEL_INGEST_API_KEYS and restart.
+
+Acceptance criteria:
+* [ ] curl with the prod key returns 200 from /api/v2/shipper/heartbeat; without it, 401.","Highest","sentinel production-readiness e1","1"
+"14","Task","PR-06 Point sign-in at the real LDAP / eLDAP","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-06
+
+Where:
+* config/global.yaml:56 - ldap_url
+* config/global.yaml:58 - group_base_dn
+* config/global.yaml:59 - bind_dn
+* backend/auth/ldap_client.js:235 - URL actually used in production
+
+Steps:
+1. Replace the three placeholder values (enterprise.corp).
+2. Open the firewall from the Sentinel servers to the LDAPS port.
+
+Acceptance criteria:
+* [ ] A real directory user can sign in; a wrong password is refused.","Highest","sentinel production-readiness e2","2"
+"15","Task","PR-07 Provide the LDAP bind password through CyberArk","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-07
+
+Where:
+* config/cyberark.yaml:81 - sso_eldap entry (safe and object names)
+* backend/auth/ldap_client.js:226 - reads credential sso_eldap/bind
+
+Steps:
+1. Confirm safe and object names with the security team.
+2. Fallback only if CyberArk is unavailable: machine variable SSO_ELDAP_BIND.
+
+Acceptance criteria:
+* [ ] Sign-in succeeds with no ""Authentication service unavailable"" message in the log.","Highest","sentinel production-readiness e2","2"
+"16","Task","PR-08 Map directory groups to Sentinel roles","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-08
+
+Where:
+* config/global.yaml:62 - super_admin_group
+* config/global.yaml:63 - sre_lead_group
+* config/global.yaml:64 - noc_operator_group
+* config/global.yaml:65 - security_auditor_group
+* backend/auth/ldap_client.js:54 - resolveRoleFromGroups
+
+Steps:
+1. Replace each group DN with the real one.
+2. Sign in with one user per role and check the sidebar and actions.
+
+Acceptance criteria:
+* [ ] Each role sees only what it should (Access view lists the role matrix).","High","sentinel production-readiness e2","2"
+"17","Task","PR-09 Make sure simulated login is off in production","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-09
+
+Where:
+* backend/auth/ldap_client.js:221 - production uses LDAP unless SENTINEL_ALLOW_SIMULATED_LOGIN=true
+* tests/prod_login_lockdown.test.js:1 - regression test
+
+Steps:
+1. Never set SENTINEL_ALLOW_SIMULATED_LOGIN on a production server; it exists only for a staging server run with NODE_ENV=production.
+2. After go-live try admin_sentinel with any password: it must be refused.
+
+Acceptance criteria:
+* [ ] Login with a made-up user and any password returns 401.","Highest","sentinel production-readiness e2","2"
+"18","Task","PR-10 Restrict which environments each role can read","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-10
+
+Where:
+* config/global.yaml:210 - environment_entitlements (empty = everyone sees both)
+* backend/auth/access_policy.js:63 - allowedEnvironments
+
+Steps:
+1. Decide per role; Super Admin always sees both.
+
+Acceptance criteria:
+* [ ] A Viewer cannot open PRD data (403).","Medium","sentinel production-readiness e2","2"
+"19","Task","PR-11 Replace the production endpoint in each of the 17 application manifests","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-11
+
+Where:
+* config/apps/aquasec.yaml:10 - endpoints.prod (api: on the next line)
+* config/apps/argocd.yaml:10
+* config/apps/argoworkflows.yaml:10
+* config/apps/auto-remediation-service.yaml:10
+* config/apps/bitbucket-external.yaml:8
+* config/apps/bitbucket.yaml:12
+* ... 11 more in the plan
+
+Steps:
+1. In each file change api: and vip: under endpoints.prod to the real addresses (all are *-prod.internal.corp placeholders today).
+2. Keep endpoints.stg as the staging address; the two must differ.
+3. Run npm run config:check.
+
+Acceptance criteria:
+* [ ] npm run readiness shows no warning about shipped *-prod.internal.corp addresses.","Highest","sentinel production-readiness e3","3"
+"20","Task","PR-12 Replace the global production URLs","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-12
+
+Where:
+* config/global.yaml:21 - prod_urls block (app_url, avi_*, bitbucket_api, artifactory_api, jenkins_master_url, teamcity_api, sonarqube_api ...)
+* config/global.yaml:36 - nas_mount
+* config/global.yaml:39 - db_jdbc (see PR-20)
+* config/global.yaml:40 - k8s_api
+
+Steps:
+1. Edit every value that still says internal.corp; delete keys for tools you do not run.
+
+Acceptance criteria:
+* [ ] npm run preflight reports REACHABLE or AUTH_FAILED for each URL, never ""fetch failed"" for a live tool.","High","sentinel production-readiness e3","3"
+"21","Task","PR-13 Configure the real CyberArk CCP call (the stand-in script now refuses in production)","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-13
+
+Where:
+* scripts/cyberark_fetch.py:35 - fetch_from_ccp: real CCP REST call
+* scripts/cyberark_fetch.py:57 - main: refuses the fake secret when NODE_ENV=production
+* backend/config/cyberark/cyberark_client.js:23 - how Node starts the script
+* tests/cyberark_fetch_script.test.js:1 - test against a stand-in CCP
+
+Steps:
+1. Ask the security team for: CCP URL, an AppID for Sentinel, and the client certificate if used.
+2. Set on each server: CYBERARK_CCP_URL, CYBERARK_APP_ID, and if needed CYBERARK_CLIENT_CERT, CYBERARK_CLIENT_KEY, CYBERARK_CA_FILE. Python 3 must be on PATH.
+3. Test one credential by hand.
+
+Acceptance criteria:
+* [ ] The command prints a JSON value; the log has no ""[CRED] No credential resolved"" for configured apps.","Highest","sentinel production-readiness e3","3"
+"22","Task","PR-14 Add CyberArk entries for applications that have none","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-14
+
+Where:
+* config/cyberark.yaml:5 - applications: registry (safe + object names, no secrets)
+* config/cyberark.yaml:19 - cloudbees_jenkins has db and remediation_token but no api_token
+* config/apps/sonarqube.yaml:16 - auth.credential_purpose names the object each app needs
+
+Steps:
+1. Missing today: aquasec, auto_remediation_service, code_review_service, mcp_server_k8s, and the cloudbees_jenkins api_token; check the rest against their manifests (npm run readiness lists them).
+2. Use read-only tokens only.
+
+Acceptance criteria:
+* [ ] npm run readiness shows PASS for credentials.","High","sentinel production-readiness e3","3"
+"23","Task","PR-15 Declare the real Jenkins operations centres and controllers","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-15
+
+Where:
+* config/apps/cloudbees-jenkins.yaml:29 - topology.operations_centers (sample oc-01, oc-02 today)
+* metrics_collection/real/applications/jenkins_topology.js:1 - polls /queue/api/json and /computer/api/json per controller
+
+Steps:
+1. List every operations centre and controller with URL and region (5 OC, 10 controllers expected).
+2. Give the API token read access to queue and computers on every controller.
+
+Acceptance criteria:
+* [ ] Console, Jenkins shows every controller answering; a refused token shows as Degraded.","High","sentinel production-readiness e3","3"
+"24","Task","PR-16 Declare TLS certificate probes per application","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-16
+
+Where:
+* config/apps/sonarqube.yaml:28 - lifecycle.certificates (probe host:443)
+* config/apps/bitbucket.yaml:44
+* config/apps/jfrog-artifactory.yaml:47
+* backend/jobs/expiry_sync.js:151 - probeTlsEndpoint
+
+Steps:
+1. Replace each probe with the real VIP host:port; add licence and refweb expiry dates when the owning team supplies them (null = not tracked).
+
+Acceptance criteria:
+* [ ] Certificates and Licences lists each certificate with real days left.","Medium","sentinel production-readiness e3","3"
+"25","Task","PR-17 Replace infrastructure endpoints and host lists","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-17
+
+Where:
+* config/infra/avi.yaml:10 - AVI telemetry endpoint
+* config/infra/sso-eldap.yaml:10 - SSO token endpoint
+* config/infra/nfs.yaml:10 - NFS mount
+* config/infra/k8s.yaml:1 - cluster names and API
+* config/infra/windows.yaml:1 - Windows host list
+* config/infra/unix.yaml:1 - Linux host list
+
+Steps:
+1. Replace placeholders; the log_path lines point at d:\production_shares and need the real share.
+
+Acceptance criteria:
+* [ ] AVI, Storage and Kubernetes views leave the empty state or show AUTH_FAILED with a reason.","Medium","sentinel production-readiness e3","3"
+"26","Task","PR-18 Optional: turn on the Dynatrace read","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-18
+
+Where:
+* config/global.yaml:111 - collectors.dynatrace.enabled
+* config/global.yaml:22 - prod_urls.dynatrace_api_endpoint (or PROD_DYNATRACE_API_ENDPOINT)
+* config/cyberark.yaml:109 - dynatrace / api_token
+* metrics_collection/real/dynatrace/dynatrace_collector.js:213 - calls /api/v2/managementZones: confirm it exists on your tenant (the Config API path is /api/config/v1/managementZones)
+
+Steps:
+1. Ask the Dynatrace team for the environment URL and a read-only token (scopes metrics.read, problems.read, entities.read). The token lives about 30 seconds; Sentinel re-reads it every 25 s.
+2. Test from the Sentinel server with the commands below, then enable.
+
+Acceptance criteria:
+* [ ] With Dynatrace off Sentinel keeps working; with it on, open problems show in the problems view.","Low","sentinel production-readiness e3","3"
+"27","Task","PR-19 Validate all configuration and reachability","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-19
+
+Where:
+* package.json:44 - config:check and preflight scripts
+* scripts/preflight_check.js:1 - probes every endpoint
+
+Steps:
+1. Run both on the production server after PR-11 to PR-18.
+2. Fix anything UNREACHABLE (firewall/DNS) or AUTH_FAILED (token) with the owning team.
+
+Acceptance criteria:
+* [ ] No UNREACHABLE for tools that exist; every AUTH_FAILED has a ticket to the owning team.","High","sentinel production-readiness e3","3"
+"28","Task","PR-20 Connect PostgreSQL / TimescaleDB and run migrations","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-20
+
+Where:
+* config/global.yaml:39 - prod_urls.db_jdbc (blank today)
+* config/global.yaml:73 - stg_urls.db_jdbc
+* database/postgres.js:31 - pool is created only when db_jdbc is set
+* database/postgres.js:46 - user from PGUSER (default pg_telemetry_writer); password from PGPASSWORD or CyberArk database/db
+* package.json:25 - npm run migrate
+
+Steps:
+1. Create the database and a writer account; enable the TimescaleDB extension.
+2. Set db_jdbc, PGUSER and the password source; run npm run migrate on one node.
+3. Without this, state is one JSON file (.runtime/sentinel_db.json) on one server: no shared state between nodes.
+
+Acceptance criteria:
+* [ ] Platform health shows the database connected; alerts survive a restart and appear on the other node.","High","sentinel production-readiness e4","4"
+"29","Task","PR-21 Optional: enable ClickHouse for long metric history","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-21
+
+Where:
+* config/global.yaml:244 - clickhouse block
+* package.json:27 - npm run clickhouse:migrate
+* database/clickhouse.js:68 - isConfigured
+
+Steps:
+1. Size metrics_1m for about 2,000 hosts; choose retention (raw 30 days, 400-day rollup).
+2. Run migrate with --dry-run first.
+
+Acceptance criteria:
+* [ ] 13-month charts and capacity runway fill from ClickHouse.","Medium","sentinel production-readiness e4","4"
+"30","Task","PR-22 Log archive to S3","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-22
+
+Where:
+* config/global.yaml:268 - log_archive.s3_bucket (blank = upload off)
+* logs_collection/archival/s3_client.js:1 - signed upload
+
+Steps:
+1. Agree bucket, region and retention with the storage team; credentials come from CyberArk.
+2. Start with delete_local_after_upload: false; switch to true after a week of clean uploads.
+
+Acceptance criteria:
+* [ ] Archive job result shows uploaded > 0 and failed = 0.","Medium","sentinel production-readiness e4","4"
+"31","Task","PR-23 Back up and rehearse a restore","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-23
+
+Where:
+* database/db.js:1 - .runtime/sentinel_db.json when no PostgreSQL
+
+Steps:
+1. PostgreSQL: scheduled base backup + WAL archiving; test restoring to a scratch server.
+2. Keep config/ (without secrets) in source control; ingest keys can be re-created.
+
+Acceptance criteria:
+* [ ] A restore from last night's backup is shown working, with the time it took written down.","High","sentinel production-readiness e4","4"
+"32","Task","PR-24 Create the IIS site and application pool (choose this or PR-49 per server)","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-24
+
+Where:
+* web.config:13 - node.exe backend\server.js via HttpPlatformHandler
+* web.config:20 - PORT=%HTTP_PLATFORM_PORT%
+* web.config:39 - WebSocket must stay enabled for /ws
+
+Steps:
+1. App pool: specific service account, idle timeout 0, no periodic restart (Node manages itself).
+2. Site on 443 with the certificate from PR-25; physical path = the deployed folder.
+
+Acceptance criteria:
+* [ ] https://<sentinel-url>/api/healthz returns 200 through IIS.","Highest","sentinel production-readiness e5","5"
+"33","Task","PR-49 Alternative to IIS: run Sentinel as a Windows scheduled-task service","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-49
+
+Where:
+* install_service.ps1:27 - registers task ProjectSentinelDaemon, runs at startup
+* install_service.ps1:9 - -ServiceAccount parameter (default NT AUTHORITY\NetworkService)
+* install_service.ps1:56 - task runs start.bat --daemon
+* start.bat:67 - npm run start = node backend/server.js (start.bat also runs npm install and a front-end build when files are missing)
+* stop_service.bat:3 - stops the task and frees port 3001
+* backend/server.js:2356 - PORT (default 3001) and HOST (default 0.0.0.0)
+* ... 1 more in the plan
+
+Steps:
+1. Use this OR PR-24 on a server, never both (two Node processes would fight over the port and the leader lock).
+2. Before installing: npm run build and node scripts/verify_dist.js --write on the release machine so start.bat does not install or build at boot.
+3. Set the Machine environment variables from PR-01 to PR-05 and PORT=3001; the service account needs read access to the folder and write access to .runtime and logs.
+4. Run install_service.ps1 from an elevated PowerShell; pass -ServiceAccount for a managed service account.
+5. Put TLS in front: AVI terminates TLS and forwards to port 3001, or use IIS only as a reverse proxy.
+6. The task is restarted at most 3 times and its time limit is 365 days; for a stricter service use a wrapper (NSSM or WinSW) that runs node.exe backend\server.js directly.
+
+Acceptance criteria:
+* [ ] After a reboot the site answers on /api/healthz within two minutes with nobody signed in; stopping the process (stop_service.bat) and starting the task works.","Medium","sentinel production-readiness e5","5"
+"34","Task","PR-25 Install the TLS certificate and track its expiry","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-25
+
+Where:
+* config/apps/sonarqube.yaml:28 - example lifecycle.certificates block; add the same for Sentinel itself
+
+Steps:
+1. Bind the certificate in IIS; add its expiry so Sentinel warns about its own certificate.
+
+Acceptance criteria:
+* [ ] Certificates and Licences lists the Sentinel certificate.","High","sentinel production-readiness e5","5"
+"35","Task","PR-26 Configure the AVI virtual service and health monitor","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-26
+
+Where:
+* backend/server.js:484 - GET /api/healthz (also /health, /api/ping, /status) returns 200
+
+Steps:
+1. Pool: both Sentinel nodes on 443; HTTPS health monitor on /api/healthz expecting 200; session persistence not required (shared JWT secret).
+2. WebSocket upgrade must pass through the VIP.
+
+Acceptance criteria:
+* [ ] Stopping one node keeps the VIP green and users stay signed in.","High","sentinel production-readiness e5","5"
+"36","Task","PR-27 Run two nodes with one leader","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-27
+
+Where:
+* database/leader_lock.js:40 - leader election log line
+* config/global.yaml:252 - every job runs on the leader only, except vip_probes
+
+Steps:
+1. Both nodes need the same JWT secret, the same config and the shared PostgreSQL (PR-20).
+2. Stop the leader and confirm the other becomes LEADER within the lease time.
+
+Acceptance criteria:
+* [ ] Jobs continue after the leader is stopped; no duplicate alerts.","High","sentinel production-readiness e5","5"
+"37","Task","PR-28 Send the audit stream to the SIEM","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-28
+
+Where:
+* web.config:15 - stdoutLogEnabled=""true"" (keep true: this is the audit stream)
+
+Steps:
+1. Point the SIEM collector at the stdout log folder; check a sign-in event appears.
+
+Acceptance criteria:
+* [ ] A test sign-in and a test acknowledge appear in the SIEM.","High","sentinel production-readiness e5","5"
+"38","Task","PR-29 Build, sign and publish the agent packages","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-29
+
+Where:
+* agent/packaging/scripts/build-packages.sh:1 - RPM and DEB (nfpm)
+* agent/packaging/scripts/sign-packages.sh:1 - signing
+* agent/packaging/wix/sentinel-agent.wxs:1 - Windows MSI
+* agent/packaging/systemd/sentinel-agent.service:1 - Linux unit: 5% CPU, 300 MB limit
+
+Steps:
+1. Build on a build host, sign, push to the internal package repository (Linux) and file share (Windows MSI).
+
+Acceptance criteria:
+* [ ] dnf install sentinel-agent works on a test host.","High","sentinel production-readiness e6","6"
+"39","Task","PR-30 Install the OpenTelemetry gateway","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-30
+
+Where:
+* deployments/otel-gateway/install_otel_gateway.ps1:1 - Windows service for the gateway
+* deployments/otel-gateway/otel-gateway.yaml:1 - gateway configuration
+
+Steps:
+1. Two gateways behind a VIP; create the bearer token agents use (sentinel_gateway_token).
+
+Acceptance criteria:
+* [ ] An agent on a test host reaches the gateway and its metrics arrive in Sentinel.","High","sentinel production-readiness e6","6"
+"40","Task","PR-31 Roll out to Linux with Ansible (pilot first)","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-31
+
+Where:
+* deployments/ansible/playbooks/install_sentinel_agent.yml:1 - single playbook for Linux and Windows
+* deployments/ansible/group_vars/all.yml.example:1 - variables (vault them)
+* deployments/ansible/inventory.ini.example:1 - groups linux_servers, windows_servers, pilot
+* deployments/ansible/roles/sentinel_agent_linux/tasks/main.yml:28 - package install
+
+Steps:
+1. Copy the examples, fill them, ansible-vault encrypt group_vars/all.yml; use separate inventories for prod and staging.
+2. Dry run, then --limit pilot, then all.
+
+Acceptance criteria:
+* [ ] Pilot hosts appear in Govern, Agents and Observe, Linux with CPU, memory and disk within two minutes.","High","sentinel production-readiness e6","6"
+"41","Task","PR-32 Roll out to Windows","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-32
+
+Where:
+* deployments/ansible/roles/sentinel_agent_windows/tasks/main.yml:30 - MSI install (sentinel_msi_package_path)
+* deployments/ansible/group_vars/windows_servers.yml.example:1 - WinRM settings
+
+Steps:
+1. Install the ansible.windows and community.windows collections; WinRM over 5986 with Kerberos.
+2. Same playbook; the Windows play runs for the windows_servers group.
+
+Acceptance criteria:
+* [ ] Windows pilot hosts appear in Observe, Windows; service SentinelAgent is running.","High","sentinel production-readiness e6","6"
+"42","Task","PR-33 Roll out to Kubernetes","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-33
+
+Where:
+* deployments/k8s/sentinel-agent-plain.yaml:1 - plain manifests; edit the lines marked EDIT
+* deployments/k8s/sentinel-agent/values.yaml:1 - Helm values (same settings)
+
+Steps:
+1. Create the namespace and the secret (ingest-key, gateway-token) once per cluster, using the key of that cluster's environment.
+2. Apply; check one pod per node plus one cluster pod.
+
+Acceptance criteria:
+* [ ] Kubernetes view lists the cluster, nodes and pods from real data.","High","sentinel production-readiness e6","6"
+"43","Task","PR-34 Widen the rollout in waves and set the expected fleet size","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-34
+
+Where:
+* deployments/ansible/playbooks/deploy_sentinel_agent.yml:5 - waves: pilot, toolchain, databases, rest
+* deployments/ansible/playbooks/rollback_sentinel_agent.yml:1 - rollback
+* config/global.yaml:238 - fleet.expected_hosts (coverage = reporting / expected)
+
+Steps:
+1. One wave per week; watch silent and drifted agents in Govern, Agents before the next wave.
+
+Acceptance criteria:
+* [ ] Coverage reaches the target; silent agents are under 2%.","Medium","sentinel production-readiness e6","6"
+"44","Task","PR-35 Build the front end and verify the bundle","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-35
+
+Where:
+* package.json:35 - build script (also records the fingerprint)
+* scripts/verify_dist.js:1 - compares frontend/dist with frontend/src
+
+Steps:
+1. npm run build on the release machine; package frontend/dist.
+2. The Console view and per-application pages exist only after this build.
+
+Acceptance criteria:
+* [ ] verify_dist passes.","Highest","sentinel production-readiness e7","7"
+"45","Task","PR-36 Run the readiness check on the production server","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-36
+
+Where:
+* scripts/prod_readiness_check.js:1 - settings only; sends nothing
+* package.json:45 - npm run readiness
+
+Steps:
+1. Run after PR-01 to PR-35; fix every FAIL; read every WARN.
+
+Acceptance criteria:
+* [ ] Output ends with ""Ready"" and exit code 0.","Highest","sentinel production-readiness e7","7"
+"46","Task","PR-37 Run the full tests including the browser smoke test in CI","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-37
+
+Where:
+* package.json:37 - test:all (90 files)
+* tests/ui_smoke.test.js:13 - needs Playwright
+* tests/ui_smoke.test.js:33 - chromium.launch
+
+Steps:
+1. Install Chromium on the CI agent and run npm test.
+2. Every file passes except ui_smoke where Chromium is missing.
+
+Acceptance criteria:
+* [ ] All test files pass in CI.","High","sentinel production-readiness e7","7"
+"47","Task","PR-38 Walk every view in a browser on staging","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-38
+
+Where:
+* frontend/src/App.jsx:69 - NAV_GROUPS: every item to be opened
+
+Steps:
+1. Open each sidebar item in PRD and STG; no console errors; each shows data, an honest empty state, or a reason.
+2. Still to do: Health Checks, Dashboards, Topology, Databases, Kubernetes, AVI, Admin views.
+
+Acceptance criteria:
+* [ ] A signed checklist of views with no console errors.","High","sentinel production-readiness e7","7"
+"48","Task","PR-39 Load test at 2,000 hosts on staging","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-39
+
+Where:
+* scripts/simulate_demo_injection.js:1 - --hosts 2000 sends a round for 2,000 simulated hosts
+* tests/load_ingest.test.js:1 - in-repo ingest load test
+
+Steps:
+1. Run the simulator with 2,000 hosts at the production interval for an hour; watch CPU, memory, ingest queue and drops in Platform Health.
+2. 200 hosts per environment are verified; 2,000 are not.
+
+Acceptance criteria:
+* [ ] No dropped metrics, API responses under 2 s, node CPU under 60%.","High","sentinel production-readiness e7","7"
+"49","Task","PR-40 Accept each collector against the real system","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-40
+
+Where:
+* metrics_collection/real/applications/:1 - one collector per tool (bitbucket, artifactory, teamcity, fortify, nexusiq, sonarqube, argocd ...)
+* metrics_collection/real/infrastructure/:1 - avi, k8s, database collectors
+
+Steps:
+1. For each tool: open its screen, compare two numbers with the tool's own UI, record pass/fail.
+2. Endpoints are version-specific; expect small fixes on first contact. A failure shows AUTH_FAILED or Data not available, never a guess.
+
+Acceptance criteria:
+* [ ] Each of the 17 applications has a pass/fail row signed by its owning team.","High","sentinel production-readiness e7","7"
+"50","Task","PR-41 Security review and penetration test","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-41
+
+Where:
+* backend/auth/access_policy.js:1 - read/ingest policy
+* backend/auth/ldap_client.js:221 - sign-in path
+* backend/server.js:682 - public ingest endpoint
+
+Steps:
+1. Scope: sign-in, ingest key handling, CORS, rate limits, audit trail, secret masking in the Configuration view.
+2. Fix findings before widening the prod pilot.
+
+Acceptance criteria:
+* [ ] Report received; no open high findings.","High","sentinel production-readiness e7","7"
+"51","Task","PR-42 Rehearse failover and rollback","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-42
+
+Where:
+* database/leader_lock.js:40 - leader election
+* deployments/ansible/playbooks/rollback_sentinel_agent.yml:1 - agent rollback
+
+Steps:
+1. Stop node 1 on staging, then on the prod pilot; confirm sign-in, ingest and jobs continue.
+2. Rehearse the agent rollback on the pilot group.
+
+Acceptance criteria:
+* [ ] Written timings for failover and rollback.","High","sentinel production-readiness e7","7"
+"52","Task","PR-43 Management demonstration on staging","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-43
+
+Where:
+* scripts/simulate_demo_injection.js:1 - story: steady, incident, recovery, repeating every 10 minutes
+
+Steps:
+1. Create a staging-only key; start the simulator before the meeting and stop it after (hosts named sim-*.demo.local).
+2. Walk: Console Overview, Artifactory detail during the incident, Linux hot hosts, recovery.
+
+Acceptance criteria:
+* [ ] Demo runs clean twice in rehearsal.","Medium","sentinel production-readiness e7","7"
+"53","Task","PR-44 Remove the fabricated default MTTR and MTTD","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-44
+
+Where:
+* backend/routes/reportRoutes.js:59 - mttr falls back to 18 when no problem is resolved
+* backend/routes/reportRoutes.js:60 - mttd falls back to 2.5
+
+Steps:
+1. Return null when there are no resolved problems; show a dash in the reliability report.
+2. The current default breaks the rule that nothing is invented.
+
+Acceptance criteria:
+* [ ] Report shows a dash on a fresh install; test added.","Medium","sentinel production-readiness e8","8"
+"54","Task","PR-45 One inventory entry per host per environment","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-45
+
+Where:
+* inventory/entity_resolver.js:17 - host:<name> is global: the same name in prod and staging collides
+
+Steps:
+1. Either require distinct host names per environment (a rule in the rollout) or include the environment in the entity id and migrate existing rows.
+
+Acceptance criteria:
+* [ ] The same host name reporting to both environments shows in both views.","Medium","sentinel production-readiness e8","8"
+"55","Task","PR-46 Build the collectors behind the three ""Data not available"" console screens","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-46
+
+Where:
+* backend/routes/consoleRoutes.js:34 - UNAVAILABLE: geo, dependencies, reports
+* frontend/src/components/console/GeoScreen.jsx:1 - screen is ready
+* frontend/src/components/console/DependenciesScreen.jsx:1
+* frontend/src/components/console/ReportsScreen.jsx:1
+
+Steps:
+1. Geo: replication lag from Artifactory and mirror sync from Bitbucket per region. Dependencies: probes in each region. Reports: DORA and availability from stored history.
+2. Each needs its builder in consoleRoutes.js and a test like tests/console_live.test.js.
+
+Acceptance criteria:
+* [ ] The screens fill from real data.","Medium","sentinel production-readiness e8","8"
+"56","Task","PR-47 Fill the unmeasured Jenkins and compliance panels","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-47
+
+Where:
+* backend/routes/consoleRoutes.js:127 - buildJenkins: heap_pct and success_pct are null
+* backend/routes/consoleRoutes.js:147 - build_clusters, ubuntu_agents, windows_pools, jump_servers empty
+* backend/routes/consoleRoutes.js:176 - buildCompliance: versions, drift, disaster recovery empty
+
+Steps:
+1. Heap from the controller metrics endpoint; build clusters from kube-state-metrics; versions from version_tracker.
+
+Acceptance criteria:
+* [ ] Panels show measured values.","Low","sentinel production-readiness e8","8"
+"57","Task","PR-48 Remove unused code","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-48
+
+Where:
+* package.json:63 - jose dependency (no code uses it); the unused Sparkline component was removed on 2026-10-23
+
+Steps:
+1. Run npm uninstall jose on a machine with registry access so package-lock.json is updated too, then npm test and npm run lint.
+
+Acceptance criteria:
+* [ ] Smaller bundle; lint clean.","Low","sentinel production-readiness e8","8"

@@ -17,30 +17,37 @@ async function createIncidentForRecovery(recoveryRun, hypothesis = null) {
     }
   } catch (_) {}
 
-  const incidentId = 'INC-' + recoveryRun.id.replace('REC-', '');
+  // [M1.1] SENTINEL has no ServiceNow write integration and must not change the
+  // existing change process, so it prepares a ticket draft (evidence for the owning
+  // team) and never invents an incident number.
+  const incidentId = null;
   const title = `[SENTINEL AUTO-REMEDIATION] ${recoveryRun.action} on ${recoveryRun.component}`;
   const description = `Recovery Run ID: ${recoveryRun.id}\nReason: ${recoveryRun.triggerReason}\nStatus: ${recoveryRun.status}\nAssigned On-Call: ${onCallAssignee}\n${hypothesis ? `Correlated Root Cause: ${hypothesis.suspect_entity_id} (Confidence: ${hypothesis.confidence})` : ''}`;
 
   // Log to database alert stream for NOC visibility
   try {
-    db.addAlert('servicenow', 'Warning', `ServiceNow Incident ${incidentId} created: ${title}`, 'Active', recoveryRun.env);
+    db.addAlert('servicenow', 'Warning', `ServiceNow ticket draft prepared for ${recoveryRun.id} (not submitted): ${title}`, 'Active', recoveryRun.env);
   } catch (_) {}
 
   return {
     incident_id: incidentId,
     title,
     description,
-    state: 'New',
+    state: 'Draft',
+    recovery_id: recoveryRun.id,
     assigned_to: onCallAssignee,
     urgency: recoveryRun.env === 'prod' ? '1 - High' : '2 - Medium',
     created_at: new Date().toISOString()
   };
 }
 
+// Resolves the incident of a recovery run.
 async function resolveIncidentForRecovery(recoveryRun, duration) {
   if (!recoveryRun) return null;
-  const incidentId = 'INC-' + recoveryRun.id.replace('REC-', '');
-  const msg = `ServiceNow Incident ${incidentId} auto-resolved. Remediation completed in ${duration}s.`;
+  const incidentId = recoveryRun.incident_id || null;
+  const msg = incidentId
+    ? `Recovery ${recoveryRun.id} for ServiceNow ${incidentId} completed in ${duration}s.`
+    : `Recovery ${recoveryRun.id} completed in ${duration}s (no ServiceNow ticket recorded).`;
 
   try {
     db.addAlert('servicenow', 'Info', msg, 'Resolved', recoveryRun.env);

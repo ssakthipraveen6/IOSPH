@@ -1,0 +1,43 @@
+---
+# deployments/ansible/playbooks/deploy_sentinel_agent.yml
+# Phased wave deployment of SENTINEL Agent across enterprise fleet
+
+# Wave 1: Pilot hosts (20 canary nodes)
+- name: "Wave 1 - Pilot Hosts Deployment"
+  hosts: pilot_hosts
+  serial: 5
+  roles:
+    - role: sentinel_agent_linux
+      when: ansible_os_family != "Windows"
+    - role: sentinel_agent_windows
+      when: ansible_os_family == "Windows"
+
+# Wave 2: DevOps Toolchain App Servers
+- name: "Wave 2 - DevOps Toolchain Application Servers"
+  hosts: toolchain_servers
+  serial: "25%"
+  roles:
+    - role: sentinel_agent_linux
+      when: ansible_os_family != "Windows"
+    - role: sentinel_agent_windows
+      when: ansible_os_family == "Windows"
+
+# Wave 3: Database Servers (Oracle, SQL Server, PostgreSQL)
+- name: "Wave 3 - Database Infrastructure"
+  hosts: database_servers
+  serial: "20%"
+  roles:
+    - role: sentinel_agent_linux
+      when: ansible_os_family != "Windows"
+    - role: sentinel_agent_windows
+      when: ansible_os_family == "Windows"
+
+# Wave 4: Fleet Rest
+- name: "Wave 4 - Remaining Enterprise Infrastructure"
+  hosts: all:!pilot_hosts:!toolchain_servers:!database_servers
+  serial: "33%"
+  roles:
+    - role: sentinel_agent_linux
+      when: ansible_os_family != "Windows"
+    - role: sentinel_agent_windows
+      when: ansible_os_family == "Windows"

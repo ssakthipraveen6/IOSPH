@@ -1,0 +1,53 @@
+{{- if .Values.clusterCollector.enabled }}
+# Phase A6 / O2.4: one k8s_cluster collector per cluster (cluster-level objects: nodes,
+# deployments, pods, conditions, and k8sobjects Warning events). Its config comes from SENTINEL with role=cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-cluster-agent
+  labels:
+    app.kubernetes.io/name: sentinel-agent
+    app.kubernetes.io/component: cluster
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.clusterCollector.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel-agent
+      app.kubernetes.io/component: cluster
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel-agent
+        app.kubernetes.io/component: cluster
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      initContainers:
+        - name: fetch-config
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "/opt/sentinel/probe/index.js", "--write-collector-config", "/etc/sentinel/collector.yaml", "--role", "cluster"]
+          env:
+            {{- include "sentinel-agent.env" . | nindent 12 }}
+            - name: SENTINEL_AGENT_HOST
+              value: {{ .Values.clusterCollector.clusterName | quote }}
+          volumeMounts:
+            - name: collector-config
+              mountPath: /etc/sentinel
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["--config", "/etc/sentinel/collector.yaml"]
+          env:
+            {{- include "sentinel-agent.env" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.clusterCollector.resources | nindent 12 }}
+          volumeMounts:
+            - name: collector-config
+              mountPath: /etc/sentinel
+              readOnly: true
+      volumes:
+        - name: collector-config
+          emptyDir: {}
+{{- end }}

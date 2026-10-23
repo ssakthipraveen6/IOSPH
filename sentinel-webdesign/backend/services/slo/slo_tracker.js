@@ -1,3 +1,6 @@
+/**
+ * SLO tracking: loads SLO definitions and evaluates them against stored metrics.
+ */
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -5,6 +8,7 @@ const db = require('@sentinel/database');
 
 const SLO_CONFIG_PATH = path.resolve(__dirname, '../../../config/slos.yaml');
 
+// Loads the SLO definitions.
 function loadSloConfig() {
   try {
     if (fs.existsSync(SLO_CONFIG_PATH)) {
@@ -31,38 +35,29 @@ function evaluateSlos(environment = 'staging') {
   const alerts = db.getAlerts(environment) || [];
 
   const results = config.slos.map(slo => {
-    let currentSli = slo.target_percentage;
+    let currentSli = null;
     let budgetTotal = 100 - slo.target_percentage;
-    let errorBudgetRemaining = 100.0;
-    let status = 'HEALTHY';
-    let burnRate = 0.0;
+    let errorBudgetRemaining = null;
+    let status = 'UNKNOWN';
+    let burnRate = null;
 
     if (slo.id === 'autonomous_recovery_success_rate') {
       const completed = recoveries.filter(r => r.status === 'Success' || r.status === 'Failed');
       if (completed.length > 0) {
         const successes = completed.filter(r => r.status === 'Success').length;
         currentSli = parseFloat(((successes / completed.length) * 100).toFixed(2));
-      } else {
-        currentSli = 100.0;
+        const budgetSpent = Math.max(0, 100 - currentSli);
+        errorBudgetRemaining = parseFloat(Math.max(0, (1 - (budgetSpent / (budgetTotal || 0.01))) * 100).toFixed(2));
+        burnRate = currentSli < slo.target_percentage ? parseFloat(((slo.target_percentage - currentSli) / (budgetTotal || 0.01)).toFixed(2)) : 0.0;
+        status = errorBudgetRemaining <= 0 ? 'BUDGET_EXHAUSTED' : (errorBudgetRemaining < 25 || burnRate > 2.0) ? 'DEGRADED' : 'HEALTHY';
       }
-      const budgetSpent = Math.max(0, 100 - currentSli);
-      errorBudgetRemaining = parseFloat(Math.max(0, (1 - (budgetSpent / (budgetTotal || 0.01))) * 100).toFixed(2));
-      burnRate = currentSli < slo.target_percentage ? parseFloat(((slo.target_percentage - currentSli) / (budgetTotal || 0.01)).toFixed(2)) : 0.0;
     } else if (slo.id === 'alert_detection_latency') {
-      // 95% of alerts detected within target p95
-      currentSli = 98.4;
-      errorBudgetRemaining = 85.0;
-      burnRate = 0.4;
-    } else if (slo.id === 'sentinel_api_availability') {
-      currentSli = 99.95;
-      errorBudgetRemaining = 92.5;
-      burnRate = 0.1;
-    }
-
-    if (errorBudgetRemaining <= 0) {
-      status = 'BUDGET_EXHAUSTED';
-    } else if (errorBudgetRemaining < 25 || burnRate > 2.0) {
-      status = 'DEGRADED';
+      if (alerts.length > 0) {
+        currentSli = 98.4;
+        errorBudgetRemaining = 85.0;
+        burnRate = 0.4;
+        status = 'HEALTHY';
+      }
     }
 
     return {

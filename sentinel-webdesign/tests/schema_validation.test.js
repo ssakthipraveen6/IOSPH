@@ -1,3 +1,6 @@
+/**
+ * Test: YAML manifests and the CyberArk registry pass schema validation.
+ */
 const assert = require('assert');
 const yamlConfig = require('../backend/config/yaml_config');
 const config = require('../backend/config/config');

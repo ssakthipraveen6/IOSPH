@@ -1,0 +1,13 @@
+apiVersion: v2
+name: sentinel-agent
+description: Helm chart for SENTINEL DaemonSet and Cluster Receivers
+type: application
+version: 2.4.0
+appVersion: "2.4.0"
+keywords:
+  - observability
+  - opentelemetry
+  - sentinel
+maintainers:
+  - name: SRE Observability Team
+    email: sre-observability@internal.corp

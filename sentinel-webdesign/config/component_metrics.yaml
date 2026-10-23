@@ -1,0 +1,753 @@
+# config/component_metrics.yaml
+# Metric catalogue per component kind for application drill-down and platform dashboards.
+# Validated by scripts/config_check.js. Both '.' and '_' metric spellings are supported.
+
+vip:
+  - id: response_time
+    title: "Response Time & TTFB"
+    metrics:
+      - vip.total_ms
+      - vip_total_ms
+      - vip.ttfb_ms
+      - vip_ttfb_ms
+    aggregation: avg
+    unit: ms
+
+  - id: network_timing
+    title: "DNS, TCP & TLS Latency"
+    metrics:
+      - vip.dns_ms
+      - vip_dns_ms
+      - vip.tcp_ms
+      - vip_tcp_ms
+      - vip.tls_ms
+      - vip_tls_ms
+    aggregation: avg
+    unit: ms
+
+  - id: availability
+    title: "VIP Availability"
+    metrics:
+      - vip.available
+      - vip_available
+    aggregation: avg
+    unit: "%"
+
+  - id: status_mix
+    title: "HTTP Status Code Mix"
+    metrics:
+      - vip.http.status_2xx
+      - vip_http_status_2xx
+      - vip.http.status_4xx
+      - vip_http_status_4xx
+      - vip.http.status_5xx
+      - vip_http_status_5xx
+    aggregation: sum
+    unit: count
+
+  - id: avi_overhead
+    title: "AVI Overhead Latency"
+    metrics:
+      - vip.avi_overhead_ms
+      - vip_avi_overhead_ms
+    aggregation: avg
+    unit: ms
+
+  - id: cert_days
+    title: "Certificate Days Remaining"
+    metrics:
+      - vip.cert.days_remaining
+      - vip_cert_days_remaining
+    aggregation: min
+    unit: days
+
+host_linux:
+  - id: cpu_utilization
+    title: "CPU Utilization"
+    metrics:
+      - system.cpu.utilization
+      - system_cpu_utilization
+    aggregation: avg
+    unit: "%"
+    capacity:
+      used: system.cpu.utilization
+      total: system.cpu.cores
+
+  - id: memory_usage
+    title: "Memory Usage & Committed"
+    metrics:
+      - system.memory.usage
+      - system_memory_usage
+      - system.memory.utilization
+      - system_memory_utilization
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: system.memory.usage
+      total: system.memory.total
+      available: system.memory.available
+
+  - id: load_average
+    title: "Load Average (1m/5m/15m)"
+    metrics:
+      - system.cpu.load_average.1m
+      - system_cpu_load_average_1m
+      - system.cpu.load_average.5m
+      - system_cpu_load_average_5m
+      - system.cpu.load_average.15m
+      - system_cpu_load_average_15m
+    aggregation: avg
+    unit: load
+
+  - id: disk_io
+    title: "Disk I/O Operations"
+    metrics:
+      - system.disk.operations
+      - system_disk_operations
+      - system.disk.io_time
+      - system_disk_io_time
+    aggregation: avg
+    unit: iops
+
+  - id: filesystem_usage
+    title: "Filesystem Capacity"
+    metrics:
+      - system.filesystem.usage
+      - system_filesystem_usage
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: system.filesystem.usage
+      total: system.filesystem.total
+      available: system.filesystem.free
+
+  - id: network_traffic
+    title: "Network Throughput"
+    metrics:
+      - system.network.io
+      - system_network_io
+    aggregation: avg
+    unit: bytes/s
+
+  - id: tcp_connections
+    title: "TCP Connection States"
+    metrics:
+      - system.network.connections
+      - system_network_connections
+    aggregation: avg
+    unit: count
+
+host_windows:
+  - id: cpu_utilization
+    title: "CPU Utilization"
+    metrics:
+      - system.cpu.utilization
+      - system_cpu_utilization
+      - windows.processor.time_pct
+      - windows_processor_time_pct
+    aggregation: avg
+    unit: "%"
+    capacity:
+      used: windows.processor.time_pct
+      total: system.cpu.cores
+
+  - id: processor_queue
+    title: "Processor Queue Length"
+    metrics:
+      - windows.processor.queue_length
+      - windows_processor_queue_length
+    aggregation: avg
+    unit: count
+
+  - id: memory_usage
+    title: "Memory Committed & Available"
+    metrics:
+      - system.memory.usage
+      - system_memory_usage
+      - windows.memory.committed_bytes
+      - windows_memory_committed_bytes
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: windows.memory.committed_bytes
+      total: windows.memory.total_bytes
+      available: windows.memory.available_bytes
+
+  - id: pages_per_sec
+    title: "Memory Pages/sec"
+    metrics:
+      - windows.memory.pages_per_sec
+      - windows_memory_pages_per_sec
+    aggregation: avg
+    unit: pages/s
+
+  - id: disk_latency
+    title: "Disk Latency (Avg Sec/Read & Write)"
+    metrics:
+      - windows.disk.sec_read
+      - windows_disk_sec_read
+      - windows.disk.sec_write
+      - windows_disk_sec_write
+    aggregation: avg
+    unit: ms
+
+  - id: disk_queue
+    title: "Current Disk Queue Length"
+    metrics:
+      - windows.disk.queue_length
+      - windows_disk_queue_length
+    aggregation: avg
+    unit: count
+
+  - id: logical_disk_free
+    title: "Logical Disk Free Space"
+    metrics:
+      - windows.logical_disk.free_pct
+      - windows_logical_disk_free_pct
+    aggregation: avg
+    unit: "%"
+    capacity:
+      used: windows.logical_disk.used_bytes
+      total: windows.logical_disk.total_bytes
+      available: windows.logical_disk.free_bytes
+
+  - id: network_traffic
+    title: "Network Interface Bytes/sec"
+    metrics:
+      - windows.network.bytes_total_sec
+      - windows_network_bytes_total_sec
+    aggregation: avg
+    unit: bytes/s
+
+  - id: tcp_connections
+    title: "TCP Connections Established & Failures"
+    metrics:
+      - windows.tcp.connections_established
+      - windows_tcp_connections_established
+      - windows.tcp.connections_failures
+      - windows_tcp_connections_failures
+    aggregation: avg
+    unit: count
+
+k8s_cluster:
+  - id: nodes_ready
+    title: "Cluster Nodes Status"
+    metrics:
+      - k8s.node.status_ready
+      - k8s_node_status_ready
+      - k8s.node.count
+      - k8s_node_count
+    aggregation: avg
+    unit: nodes
+
+  - id: cpu_allocatable
+    title: "Cluster CPU Allocatable vs Used"
+    metrics:
+      - k8s.cluster.cpu.allocatable
+      - k8s_cluster_cpu_allocatable
+      - k8s.cluster.cpu.used
+      - k8s_cluster_cpu_used
+    aggregation: avg
+    unit: cores
+    capacity:
+      used: k8s.cluster.cpu.used
+      total: k8s.cluster.cpu.allocatable
+
+  - id: memory_allocatable
+    title: "Cluster Memory Allocatable vs Used"
+    metrics:
+      - k8s.cluster.memory.allocatable
+      - k8s_cluster_memory_allocatable
+      - k8s.cluster.memory.used
+      - k8s_cluster_memory_used
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: k8s.cluster.memory.used
+      total: k8s.cluster.memory.allocatable
+
+  - id: pod_phases
+    title: "Pod Phase Distribution"
+    metrics:
+      - k8s.pod.phase.running
+      - k8s_pod_phase_running
+      - k8s.pod.phase.pending
+      - k8s_pod_phase_pending
+      - k8s.pod.phase.failed
+      - k8s_pod_phase_failed
+    aggregation: sum
+    unit: pods
+
+k8s_namespace:
+  - id: cpu_quota
+    title: "CPU Requests vs Quota"
+    metrics:
+      - k8s.namespace.cpu.requests
+      - k8s_namespace_cpu_requests
+      - k8s.namespace.cpu.quota
+      - k8s_namespace_cpu_quota
+    aggregation: avg
+    unit: cores
+    capacity:
+      used: k8s.namespace.cpu.requests
+      total: k8s.namespace.cpu.quota
+
+  - id: memory_quota
+    title: "Memory Requests vs Quota"
+    metrics:
+      - k8s.namespace.memory.requests
+      - k8s_namespace_memory_requests
+      - k8s.namespace.memory.quota
+      - k8s_namespace_memory_quota
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: k8s.namespace.memory.requests
+      total: k8s.namespace.memory.quota
+
+  - id: restarts
+    title: "Pod Restarts Rate"
+    metrics:
+      - k8s.container.restarts
+      - k8s_container_restarts
+    aggregation: sum
+    unit: restarts
+
+  - id: abnormal_pods
+    title: "Pending & OOMKilled Pods"
+    metrics:
+      - k8s.pod.oom_killed
+      - k8s_pod_oom_killed
+      - k8s.pod.crash_loop_backoff
+      - k8s_pod_crash_loop_backoff
+    aggregation: sum
+    unit: pods
+
+k8s_pod:
+  - id: cpu_throttling
+    title: "CPU Throttling %"
+    metrics:
+      - container.cpu.throttling
+      - container_cpu_throttling
+    aggregation: avg
+    unit: "%"
+
+  - id: cpu_usage
+    title: "Pod CPU Usage vs Limit"
+    metrics:
+      - container.cpu.usage
+      - container_cpu_usage
+      - container.cpu.limit
+      - container_cpu_limit
+    aggregation: avg
+    unit: cores
+    capacity:
+      used: container.cpu.usage
+      total: container.cpu.limit
+
+  - id: memory_usage
+    title: "Pod Memory Usage vs Limit"
+    metrics:
+      - container.memory.usage
+      - container_memory_usage
+      - container.memory.limit
+      - container_memory_limit
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: container.memory.usage
+      total: container.memory.limit
+
+  - id: pvc_fill
+    title: "PVC Fill %"
+    metrics:
+      - k8s.pvc.fill_pct
+      - k8s_pvc_fill_pct
+    aggregation: avg
+    unit: "%"
+    capacity:
+      used: k8s.pvc.used_bytes
+      total: k8s.pvc.total_bytes
+      available: k8s.pvc.free_bytes
+
+storage_share:
+  - id: latency
+    title: "Share Read & Write Latency"
+    metrics:
+      - storage.share.read_latency_ms
+      - storage_share_read_latency_ms
+      - storage.share.write_latency_ms
+      - storage_share_write_latency_ms
+    aggregation: avg
+    unit: ms
+
+  - id: throughput
+    title: "Throughput & IOPS"
+    metrics:
+      - storage.share.throughput_bytes_sec
+      - storage_share_throughput_bytes_sec
+      - storage.share.iops
+      - storage_share_iops
+    aggregation: avg
+    unit: bytes/s
+
+  - id: space
+    title: "Share Storage Capacity"
+    metrics:
+      - storage.share.used_bytes
+      - storage_share_used_bytes
+      - storage.share.total_bytes
+      - storage_share_total_bytes
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: storage.share.used_bytes
+      total: storage.share.total_bytes
+      available: storage.share.free_bytes
+
+  - id: inodes
+    title: "Share Inode Utilization"
+    metrics:
+      - storage.share.used_inodes
+      - storage_share_used_inodes
+      - storage.share.total_inodes
+      - storage_share_total_inodes
+    aggregation: avg
+    unit: inodes
+    capacity:
+      used: storage.share.used_inodes
+      total: storage.share.total_inodes
+      available: storage.share.free_inodes
+
+db_postgresql:
+  - id: sessions
+    title: "Active & Total Connections"
+    metrics:
+      - postgresql.backends
+      - postgresql_backends
+      - postgresql.max_connections
+      - postgresql_max_connections
+    aggregation: avg
+    unit: sessions
+    capacity:
+      used: postgresql.backends
+      total: postgresql.max_connections
+
+  - id: transactions
+    title: "Transactions / Commits per Sec"
+    metrics:
+      - postgresql.commits
+      - postgresql_commits
+      - postgresql.rollbacks
+      - postgresql_rollbacks
+    aggregation: sum
+    unit: tx/s
+
+  - id: cache_hit
+    title: "Buffer Cache Hit Ratio"
+    metrics:
+      - postgresql.cache_hit_pct
+      - postgresql_cache_hit_pct
+    aggregation: avg
+    unit: "%"
+
+  - id: deadlocks
+    title: "Deadlock Count"
+    metrics:
+      - postgresql.deadlocks
+      - postgresql_deadlocks
+    aggregation: sum
+    unit: count
+
+  - id: replication_lag
+    title: "Replication Lag"
+    metrics:
+      - postgresql.replication_lag_bytes
+      - postgresql_replication_lag_bytes
+      - postgresql.replication_lag_seconds
+      - postgresql_replication_lag_seconds
+    aggregation: avg
+    unit: seconds
+
+  - id: database_size
+    title: "Database Size & Disk Space"
+    metrics:
+      - postgresql.database.size
+      - postgresql_database_size
+      - postgresql.tablespace.size
+      - postgresql_tablespace_size
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: postgresql.database.size
+      total: postgresql.tablespace.max_bytes
+      available: postgresql.tablespace.free_bytes
+
+db_oracle:
+  - id: sessions
+    title: "Sessions vs Max Sessions"
+    metrics:
+      - oracle.sessions
+      - oracle_sessions
+      - oracle.sessions.max
+      - oracle_sessions_max
+    aggregation: avg
+    unit: sessions
+    capacity:
+      used: oracle.sessions
+      total: oracle.sessions.max
+
+  - id: waits
+    title: "Wait Time & Enqueue Locks"
+    metrics:
+      - oracle.waits.time_ms
+      - oracle_waits_time_ms
+      - oracle.locks.blocked
+      - oracle_locks_blocked
+    aggregation: avg
+    unit: ms
+
+  - id: cache_hit
+    title: "Buffer Cache Hit Ratio"
+    metrics:
+      - oracle.cache_hit_pct
+      - oracle_cache_hit_pct
+    aggregation: avg
+    unit: "%"
+
+  - id: deadlocks
+    title: "Deadlock Rate"
+    metrics:
+      - oracle.deadlocks
+      - oracle_deadlocks
+    aggregation: sum
+    unit: count
+
+  - id: tablespace_space
+    title: "Tablespace Used vs Max Allocated"
+    metrics:
+      - oracle.tablespace.used_bytes
+      - oracle_tablespace_used_bytes
+      - oracle.tablespace.max_bytes
+      - oracle_tablespace_max_bytes
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: oracle.tablespace.used_bytes
+      total: oracle.tablespace.max_bytes
+      available: oracle.tablespace.free_bytes
+
+  - id: replication_lag
+    title: "Data Guard Lag"
+    metrics:
+      - oracle.dataguard.lag_seconds
+      - oracle_dataguard_lag_seconds
+    aggregation: avg
+    unit: seconds
+
+db_sqlserver:
+  - id: sessions
+    title: "User Connections"
+    metrics:
+      - sqlserver.user.connection.count
+      - sqlserver_user_connection_count
+      - sqlserver.sessions.max
+      - sqlserver_sessions_max
+    aggregation: avg
+    unit: connections
+    capacity:
+      used: sqlserver.user.connection.count
+      total: sqlserver.sessions.max
+
+  - id: waits
+    title: "Lock Wait Time & Blocked Processes"
+    metrics:
+      - sqlserver.lock.wait_time.avg
+      - sqlserver_lock_wait_time_avg
+      - sqlserver.processes.blocked
+      - sqlserver_processes_blocked
+    aggregation: avg
+    unit: ms
+
+  - id: cache_hit
+    title: "Page Life Expectancy & Buffer Hit Ratio"
+    metrics:
+      - sqlserver.buffer_cache_hit_pct
+      - sqlserver_buffer_cache_hit_pct
+      - sqlserver.page_life_expectancy
+      - sqlserver_page_life_expectancy
+    aggregation: avg
+    unit: "%"
+
+  - id: deadlocks
+    title: "Deadlock Rate"
+    metrics:
+      - sqlserver.deadlock.rate
+      - sqlserver_deadlock_rate
+    aggregation: sum
+    unit: count
+
+  - id: database_size
+    title: "Database & Log File Size"
+    metrics:
+      - sqlserver.database.size_bytes
+      - sqlserver_database_size_bytes
+      - sqlserver.database.max_bytes
+      - sqlserver_database_max_bytes
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: sqlserver.database.size_bytes
+      total: sqlserver.database.max_bytes
+      available: sqlserver.database.free_bytes
+
+  - id: replication_lag
+    title: "Always On Queue / Lag"
+    metrics:
+      - sqlserver.alwayson.redo_queue_bytes
+      - sqlserver_alwayson_redo_queue_bytes
+    aggregation: avg
+    unit: bytes
+
+sso:
+  - id: auth_latency
+    title: "Token Endpoint & Auth Latency"
+    metrics:
+      - sso.auth.latency_ms
+      - sso_auth_latency_ms
+    aggregation: avg
+    unit: ms
+
+  - id: ldap_bind_latency
+    title: "eLDAP Bind Latency"
+    metrics:
+      - sso.ldap.bind_latency_ms
+      - sso_ldap_bind_latency_ms
+    aggregation: avg
+    unit: ms
+
+  - id: errors
+    title: "Authentication Errors Rate"
+    metrics:
+      - sso.auth.errors
+      - sso_auth_errors
+    aggregation: sum
+    unit: errors
+
+  - id: cert_expiry
+    title: "SAML / IdP Signing Cert Days Left"
+    metrics:
+      - sso.idp_saml_cert_days_remaining
+      - sso_idp_saml_cert_days_remaining
+    aggregation: min
+    unit: days
+
+journey_step:
+  - id: duration
+    title: "Step Duration p50/p95/p99"
+    metrics:
+      - journey.step.duration_ms.p50
+      - journey_step_duration_ms_p50
+      - journey.step.duration_ms.p95
+      - journey_step_duration_ms_p95
+      - journey.step.duration_ms.p99
+      - journey_step_duration_ms_p99
+    aggregation: avg
+    unit: ms
+
+  - id: success_rate
+    title: "Step Success Rate"
+    metrics:
+      - journey.step.success_pct
+      - journey_step_success_pct
+    aggregation: avg
+    unit: "%"
+
+  - id: failure_count
+    title: "Step Failure Count"
+    metrics:
+      - journey.step.failures
+      - journey_step_failures
+    aggregation: sum
+    unit: count
+
+jvm:
+  - id: heap_memory
+    title: "JVM Heap Memory Usage"
+    metrics:
+      - jvm.memory.heap.used
+      - jvm_memory_heap_used
+      - jvm.memory.heap.max
+      - jvm_memory_heap_max
+    aggregation: avg
+    unit: bytes
+    capacity:
+      used: jvm.memory.heap.used
+      total: jvm.memory.heap.max
+
+  - id: non_heap_memory
+    title: "Non-Heap & Metaspace Usage"
+    metrics:
+      - jvm.memory.nonheap.used
+      - jvm_memory_nonheap_used
+    aggregation: avg
+    unit: bytes
+
+  - id: gc_pause
+    title: "GC Pause Duration & Collections"
+    metrics:
+      - jvm.gc.pause_ms
+      - jvm_gc_pause_ms
+      - jvm.gc.count
+      - jvm_gc_count
+    aggregation: avg
+    unit: ms
+
+  - id: threads
+    title: "JVM Thread Count & Deadlocks"
+    metrics:
+      - jvm.threads.count
+      - jvm_threads_count
+      - jvm.threads.deadlocked
+      - jvm_threads_deadlocked
+    aggregation: avg
+    unit: threads
+
+product:
+  - id: availability
+    title: "Product Overall Availability"
+    metrics:
+      - product.availability_pct
+      - product_availability_pct
+    aggregation: avg
+    unit: "%"
+
+  - id: journey_p95
+    title: "Golden Journey p95 Latency"
+    metrics:
+      - journey.p95_ms
+      - journey_p95_ms
+    aggregation: avg
+    unit: ms
+
+  - id: error_rate
+    title: "Product Error Rate"
+    metrics:
+      - product.error_rate_pct
+      - product_error_rate_pct
+    aggregation: avg
+    unit: "%"
+
+  - id: license_seats
+    title: "License Seat Utilization"
+    metrics:
+      - license.seats_used
+      - license_seats_used
+      - license.seats_total
+      - license_seats_total
+    aggregation: avg
+    unit: seats
+    capacity:
+      used: license.seats_used
+      total: license.seats_total
+      available: license.seats_available

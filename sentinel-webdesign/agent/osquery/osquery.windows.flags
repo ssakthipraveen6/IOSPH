@@ -1,0 +1,7 @@
+--config_path=C:\ProgramData\SentinelAgent\osquery\osquery.conf
+--logger_path=C:\ProgramData\SentinelAgent\osquery\log
+--pidfile=C:\ProgramData\SentinelAgent\osquery\osqueryd.pid
+--database_path=C:\ProgramData\SentinelAgent\osquery\osquery.db
+--disable_events=false
+--enable_ntfs_event_publisher=true
+--host_identifier=hostname

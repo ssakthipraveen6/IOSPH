@@ -1,345 +1,336 @@
-import React, { useState, useEffect } from 'react';
-import { getStatusColor } from '@sentinel/shared-constants';
+/**
+ * Fleet view: every host with agent status (reporting, silent, no agent) and agent version.
+ */
+import React, { useState, useEffect, useMemo } from 'react';
+import EmptyState from '../shared/EmptyState';
+import './FleetExplorerView.css';
 
-export default function FleetExplorerView({ environment = 'staging', onInspectEntity }) {
-  const [entities, setEntities] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [selectedRegion, setSelectedRegion] = useState('all');
-  const [selectedKind, setSelectedKind] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+/*
+ * Fleet view — Observe › Hosts (mode="hosts") and Govern › Agents (mode="agents").
+ *
+ * Reads GET /api/v2/fleet/overview: per host the OS, agent version, last heartbeat,
+ * silent flag and config-drift state written by the P10 fleet-health job; plus the
+ * version distribution and coverage against `fleet.expected_hosts`.
+ * No data → EmptyState. Nothing is synthesised here.
+ *
+ * `demoData` (Demo view) renders a supplied payload instead of calling the API. It
+ * accepts the overview shape ({ hosts, summary }) or the older { entities, summary }
+ * shape the Demo view adapter produces.
+ */
+
+const DRIFT_LABEL = { in_sync: 'In sync', drifted: 'Drifted', unknown: 'Unknown' };
+
+// Age of a timestamp as a short text (e.g. 5m, 2h).
+function formatAge(iso, nowMs) {
+  if (!iso) return '—';
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '—';
+  const s = Math.max(0, Math.round((nowMs - t) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+/** Older Demo view shape ({ entities, summary.agentsDiscoveredVsExpected }) → overview shape. */
+function fromLegacyDemo(data) {
+  const entities = Array.isArray(data.entities) ? data.entities : [];
+  const hosts = entities
+    .filter(e => !e.kind || e.kind === 'host')
+    .map(e => {
+      const labels = e.labels || {};
+      const version = labels.agent_version || labels.shipper_version || null;
+      return {
+        entity_id: e.entity_id,
+        host: e.name || e.entity_id,
+        os: labels.os || null,
+        agent_version: version,
+        has_agent: Boolean(version || labels.last_heartbeat),
+        last_seen: labels.last_heartbeat || e.last_seen || null,
+        silent: null,
+        drift: typeof labels.config_drift === 'boolean' ? (labels.config_drift ? 'drifted' : 'in_sync') : 'unknown',
+        config_hash: labels.config_hash || null,
+        status: e.status || null
+      };
+    });
+  if (hosts.length === 0) return { status: 'DATA_UNAVAILABLE', reason: 'No hosts in this demo payload.', hosts: [], summary: null };
+  const agents = hosts.filter(h => h.has_agent);
+  const counts = new Map();
+  agents.forEach(h => counts.set(h.agent_version, (counts.get(h.agent_version) || 0) + 1));
+  const cov = (data.summary && data.summary.agentsDiscoveredVsExpected) || {};
+  const expected = Number(cov.expected) > 0 ? Number(cov.expected) : null;
+  const reporting = Number.isFinite(Number(cov.discovered)) ? Number(cov.discovered) : agents.length;
+  return {
+    status: 'OK',
+    hosts,
+    summary: {
+      hosts_total: hosts.length,
+      agents_total: agents.length,
+      reporting,
+      silent: (data.summary && data.summary.staleEntitiesCount) || 0,
+      drifted: agents.filter(h => h.drift === 'drifted').length,
+      drift_unknown: agents.filter(h => h.drift === 'unknown').length,
+      last_seen: null,
+      version_distribution: [...counts.entries()].map(([version, count]) => ({ version, count })).sort((a, b) => b.count - a.count),
+      coverage: { reporting, expected, pct: expected ? Math.round((reporting / expected) * 1000) / 10 : null }
+    }
+  };
+}
+
+// Accepts both demo data shapes.
+function normaliseDemo(demoData) {
+  if (!demoData) return null;
+  if (Array.isArray(demoData.hosts)) return demoData;
+  return fromLegacyDemo(demoData);
+}
+
+// Agent state of a host for the status column.
+function hostState(h) {
+  if (!h.has_agent) return { key: 'none', label: 'No agent' };
+  if (h.silent === true) return { key: 'silent', label: 'Silent' };
+  if (h.silent === false) return { key: 'alive', label: 'Reporting' };
+  return { key: 'unknown', label: 'Unknown' };
+}
+
+// Fleet page; loads hosts or agents for the environment.
+export default function FleetExplorerView({ environment = 'staging', mode = 'hosts', onInspectEntity, demoData = null }) {
+  const [fetched, setFetched] = useState(null);
+  const [loadingLive, setLoadingLive] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedNodes, setExpandedNodes] = useState(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [fetchedAt, setFetchedAt] = useState(() => Date.now());
 
   const currentEnv = environment || 'staging';
+  const isAgents = mode === 'agents';
+
+  // Demo view: the supplied payload, never the live API.
+  const demoView = useMemo(() => normaliseDemo(demoData), [demoData]);
 
   useEffect(() => {
-    async function fetchFleetData() {
-      setLoading(true);
-      setError(null);
+    if (demoData) return undefined;
+    let cancelled = false;
+    async function load() {
       try {
-        const [entRes, sumRes] = await Promise.all([
-          fetch(`/api/v2/entities?environment=${currentEnv}&limit=500`),
-          fetch(`/api/v2/fleet/summary?environment=${currentEnv}`)
-        ]);
-
-        if (entRes.ok) {
-          const entData = await entRes.json();
-          setEntities(entData.entities || []);
-        }
-
-        if (sumRes.ok) {
-          const sumData = await sumRes.json();
-          setSummary(sumData);
-        }
+        const res = await fetch(`/api/v2/fleet/overview?environment=${encodeURIComponent(currentEnv)}`);
+        const body = await res.json().catch(() => null);
+        if (!res.ok) throw new Error((body && body.error) || `HTTP ${res.status}`);
+        if (!cancelled) { setFetched(body); setError(null); }
       } catch (err) {
-        setError(err.message);
+        if (!cancelled) setError(err.message);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setFetchedAt(Date.now());
+          setLoadingLive(false);
+        }
       }
     }
+    load();
+    return () => { cancelled = true; };
+  }, [currentEnv, demoData]);
 
-    fetchFleetData();
-  }, [currentEnv]);
+  const data = demoData ? demoView : fetched;
+  const loading = demoData ? false : loadingLive;
+  const nowMs = fetchedAt;
 
-  const toggleExpand = (id) => {
-    setExpandedNodes(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  const hosts = useMemo(() => {
+    const all = (data && Array.isArray(data.hosts)) ? data.hosts : [];
+    return isAgents ? all.filter(h => h.has_agent) : all;
+  }, [data, isAgents]);
+
+  const visible = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return hosts.filter(h => {
+      if (q && !(`${h.host} ${h.entity_id || ''} ${h.os || ''} ${h.agent_version || ''}`.toLowerCase().includes(q))) return false;
+      if (filter === 'silent') return h.silent === true;
+      if (filter === 'drifted') return h.drift === 'drifted';
+      if (filter === 'no_agent') return !h.has_agent;
+      return true;
     });
-  };
+  }, [hosts, searchQuery, filter]);
 
-  const filteredEntities = entities.filter(e => {
-    const matchesRegion = selectedRegion === 'all' || (e.region && e.region.toUpperCase() === selectedRegion.toUpperCase());
-    const matchesKind = selectedKind === 'all' || (e.kind && e.kind.toLowerCase() === selectedKind.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || (e.status && e.status.toUpperCase() === selectedStatus.toUpperCase());
-    const matchesSearch = !searchQuery.trim() ||
-      (e.name && e.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (e.entity_id && e.entity_id.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (e.app_id && e.app_id.toLowerCase().includes(searchQuery.toLowerCase()));
+  const title = isAgents ? 'Agent Fleet' : 'Hosts';
+  const subtitle = isAgents
+    ? 'SENTINEL agent versions, heartbeats and config drift (fleet-health job, P10)'
+    : 'Discovered hosts with their agent heartbeat, OS and version';
 
-    return matchesRegion && matchesKind && matchesStatus && matchesSearch;
-  });
+  const header = (
+    <div className="fleet-view__header">
+      <div>
+        <h2 className="fleet-view__title">{title}</h2>
+        <div className="fleet-view__subtitle">{subtitle} · {currentEnv.toUpperCase()}</div>
+      </div>
+    </div>
+  );
 
-  // Group into hierarchical tree: Apps -> Controllers -> Hosts/Agents
-  const appEntities = filteredEntities.filter(e => e.kind === 'application' || (!e.parent_id && !e.kind.includes('host')));
-  const childEntities = filteredEntities.filter(e => e.kind !== 'application');
+  if (loading) {
+    return (
+      <div className="fleet-view">
+        {header}
+        <div className="fleet-view__message">Loading fleet inventory…</div>
+      </div>
+    );
+  }
+
+  if (error && !demoData) {
+    return (
+      <div className="fleet-view">
+        {header}
+        <div className="fleet-view__message fleet-view__message--error">Failed to load fleet overview: {error}</div>
+      </div>
+    );
+  }
+
+  if (!data || data.status === 'DATA_UNAVAILABLE' || hosts.length === 0) {
+    return (
+      <div className="fleet-view">
+        {header}
+        <EmptyState
+          environment={currentEnv}
+          title={isAgents ? 'No agents reporting' : 'No hosts discovered'}
+          description={isAgents
+            ? 'No SENTINEL agent has sent a heartbeat in this environment yet.'
+            : 'No host has been discovered or has sent an agent heartbeat in this environment yet.'}
+          reason={(data && data.reason) || null}
+        />
+      </div>
+    );
+  }
+
+  const s = data.summary || {};
+  const coverage = s.coverage || {};
+  const versions = Array.isArray(s.version_distribution) ? s.version_distribution : [];
+  const maxVersionCount = versions.reduce((m, v) => Math.max(m, v.count), 0) || 1;
+  const filters = isAgents
+    ? [['all', 'All'], ['silent', 'Silent'], ['drifted', 'Drifted']]
+    : [['all', 'All'], ['silent', 'Silent'], ['drifted', 'Drifted'], ['no_agent', 'No agent']];
 
   return (
-    <div className="fleet-explorer-view" style={{ animation: 'fadeIn 0.2s ease-out' }}>
-      
-      {/* 1. Header & KPI Rollup Cards */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '1.5rem',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.3px' }}>
-            Fleet & Topology Inventory Explorer
-          </h2>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Multi-Tier Hierarchical Catalog: Applications → Controllers → Agent Nodes across Enterprise Clusters
+    <div className="fleet-view">
+      {header}
+
+      <div className="fleet-view__kpis">
+        <div className="fleet-kpi">
+          <div className="fleet-kpi__label">Coverage</div>
+          <div className="fleet-kpi__value">{coverage.pct === null || coverage.pct === undefined ? '—' : `${coverage.pct}%`}</div>
+          <div className="fleet-kpi__hint">
+            {coverage.expected
+              ? `${coverage.reporting} reporting of ${coverage.expected} expected`
+              : `${coverage.reporting ?? 0} reporting · fleet.expected_hosts not set`}
           </div>
         </div>
-
-        {summary && (
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <div style={{
-              background: 'rgba(20, 184, 166, 0.1)',
-              border: '1px solid rgba(20, 184, 166, 0.3)',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              color: 'var(--sentinel-teal, #14b8a6)',
-              fontWeight: 700
-            }}>
-              📡 AGENT COVERAGE: {summary.agentsDiscoveredVsExpected?.discovered} / {summary.agentsDiscoveredVsExpected?.expected} ({summary.agentsDiscoveredVsExpected?.coveragePct}%)
-            </div>
-            {summary.staleEntitiesCount > 0 && (
-              <div style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                color: '#ef4444',
-                fontWeight: 700
-              }}>
-                ⚠️ {summary.staleEntitiesCount} STALE ASSETS (&gt;24h)
-              </div>
-            )}
+        <div className="fleet-kpi">
+          <div className="fleet-kpi__label">{isAgents ? 'Agents' : 'Hosts'}</div>
+          <div className="fleet-kpi__value">{isAgents ? s.agents_total : s.hosts_total}</div>
+          <div className="fleet-kpi__hint">
+            {isAgents ? `${s.hosts_total ?? '—'} hosts discovered` : `${s.agents_total ?? 0} with an agent`}
           </div>
+        </div>
+        <div className={`fleet-kpi${s.silent > 0 ? ' fleet-kpi--critical' : ''}`}>
+          <div className="fleet-kpi__label">Silent</div>
+          <div className="fleet-kpi__value">{s.silent ?? 0}</div>
+          <div className="fleet-kpi__hint">No heartbeat within {data.silent_after_seconds ? `${Math.round(data.silent_after_seconds / 60)} min` : 'the threshold'}</div>
+        </div>
+        <div className={`fleet-kpi${s.drifted > 0 ? ' fleet-kpi--warning' : ''}`}>
+          <div className="fleet-kpi__label">Config drift</div>
+          <div className="fleet-kpi__value">{s.drifted ?? 0}</div>
+          <div className="fleet-kpi__hint">{s.drift_unknown ? `${s.drift_unknown} not yet evaluated` : 'All evaluated'}</div>
+        </div>
+        <div className="fleet-kpi">
+          <div className="fleet-kpi__label">Last heartbeat</div>
+          <div className="fleet-kpi__value fleet-kpi__value--sm">{formatAge(s.last_seen, nowMs)}</div>
+          <div className="fleet-kpi__hint">{s.last_seen ? new Date(s.last_seen).toLocaleString() : 'No heartbeat recorded'}</div>
+        </div>
+      </div>
+
+      <section className="fleet-view__panel">
+        <h3 className="fleet-view__panel-title">Agent version distribution</h3>
+        {versions.length === 0 ? (
+          <div className="fleet-view__muted">No agent has reported a version.</div>
+        ) : (
+          <ul className="fleet-versions">
+            {versions.map(v => (
+              <li key={v.version ?? '__none'} className="fleet-versions__row">
+                <span className="fleet-versions__name">{v.version ? `v${v.version}` : 'not reported'}</span>
+                <span className="fleet-versions__track">
+                  <span className="fleet-versions__bar" style={{ width: `${(v.count / maxVersionCount) * 100}%` }} />
+                </span>
+                <span className="fleet-versions__count">{v.count}</span>
+              </li>
+            ))}
+          </ul>
         )}
-      </div>
+      </section>
 
-      {/* 2. Filter Toolbar */}
-      <div style={{
-        background: 'var(--bg-panel)',
-        border: '1px solid var(--border-light)',
-        borderRadius: '10px',
-        padding: '1rem',
-        marginBottom: '1.5rem',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '12px',
-        alignItems: 'center'
-      }}>
-        {/* Search */}
-        <div style={{ flex: '1 1 240px' }}>
-          <input
-            type="text"
-            placeholder="Search assets by hostname, entity ID, or application..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              background: 'var(--bg-dark)',
-              border: '1px solid var(--border-light)',
-              color: 'var(--text-main)',
-              fontSize: '0.85rem'
-            }}
-          />
-        </div>
-
-        {/* Region Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Region:</span>
-          {['all', 'EMEA', 'AMER', 'APAC'].map(r => (
+      <div className="fleet-view__toolbar">
+        <input
+          type="text"
+          className="fleet-view__search"
+          placeholder="Search by host, OS or version…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <div className="fleet-view__filters" role="group" aria-label="Filter hosts">
+          {filters.map(([key, label]) => (
             <button
-              key={r}
-              onClick={() => setSelectedRegion(r)}
-              className="action-btn-sm"
-              style={{
-                padding: '4px 10px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                background: selectedRegion === r ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                color: selectedRegion === r ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                cursor: 'pointer'
-              }}
+              key={key}
+              type="button"
+              className={`fleet-chip${filter === key ? ' fleet-chip--active' : ''}`}
+              onClick={() => setFilter(key)}
             >
-              {r.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
-        {/* Asset Type Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Kind:</span>
-          {['all', 'application', 'controller', 'host', 'storage'].map(k => (
-            <button
-              key={k}
-              onClick={() => setSelectedKind(k)}
-              className="action-btn-sm"
-              style={{
-                padding: '4px 10px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                background: selectedKind === k ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                color: selectedKind === k ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              {k.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
-        {/* Status Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Status:</span>
-          {['all', 'HEALTHY', 'DEGRADED', 'CRITICAL'].map(s => (
-            <button
-              key={s}
-              onClick={() => setSelectedStatus(s)}
-              className="action-btn-sm"
-              style={{
-                padding: '4px 10px',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                background: selectedStatus === s ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                color: selectedStatus === s ? '#fff' : 'var(--text-muted)',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              {s}
+              {label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 3. Entity Tree Table */}
-      {loading ? (
-        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          🔄 Loading enterprise asset inventory...
-        </div>
-      ) : error ? (
-        <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>
-          ⚠️ Failed to load fleet entities: {error}
-        </div>
-      ) : filteredEntities.length === 0 ? (
-        <div style={{
-          padding: '3rem',
-          textAlign: 'center',
-          color: 'var(--text-muted)',
-          background: 'var(--bg-panel)',
-          borderRadius: '10px',
-          border: '1px dashed var(--border-light)'
-        }}>
-          No entities matched the current filters for <strong>{currentEnv.toUpperCase()}</strong>.
+      {visible.length === 0 ? (
+        <div className="fleet-view__message fleet-view__message--boxed">
+          No {isAgents ? 'agents' : 'hosts'} match the current filters.
         </div>
       ) : (
-        <div style={{
-          background: 'var(--bg-panel)',
-          border: '1px solid var(--border-light)',
-          borderRadius: '10px',
-          overflow: 'hidden'
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+        <div className="fleet-view__table-wrap">
+          <table className="fleet-table">
             <thead>
-              <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--border-light)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                <th style={{ padding: '10px 16px' }}>ENTITY / TOPOLOGY NODE</th>
-                <th style={{ padding: '10px 14px' }}>TYPE</th>
-                <th style={{ padding: '10px 14px' }}>REGION</th>
-                <th style={{ padding: '10px 14px' }}>STATUS</th>
-                <th style={{ padding: '10px 14px' }}>LABELS & SHIPPER VERSION</th>
-                <th style={{ padding: '10px 14px' }}>LAST OBSERVED</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right' }}>ACTIONS</th>
+              <tr>
+                <th>Host</th>
+                <th>OS</th>
+                <th>Agent version</th>
+                <th>Heartbeat</th>
+                <th>Last seen</th>
+                <th>Config</th>
+                <th className="fleet-table__right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredEntities.map(entity => {
-                const isExpanded = expandedNodes.has(entity.entity_id);
-                const statusColor = getStatusColor(entity.status);
-                const labels = entity.labels || {};
-
+              {visible.map(h => {
+                const state = hostState(h);
                 return (
-                  <tr
-                    key={entity.entity_id}
-                    style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      transition: 'background 0.15s ease'
-                    }}
-                    className="table-row-hover"
-                  >
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-main)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '1rem' }}>
-                          {entity.kind === 'application' ? '📦' : (entity.kind === 'storage' ? '💾' : (entity.kind === 'controller' ? '☸️' : '🖥️'))}
-                        </span>
-                        <div>
-                          <div>{entity.name}</div>
-                          <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
-                            {entity.entity_id}
-                          </div>
-                        </div>
-                      </div>
+                  <tr key={h.entity_id || h.host}>
+                    <td>
+                      <div className="fleet-table__host">{h.host}</div>
+                      {h.entity_id && <div className="fleet-table__id">{h.entity_id}</div>}
                     </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        background: 'rgba(255,255,255,0.06)',
-                        color: 'var(--text-muted)'
-                      }}>
-                        {entity.kind}
+                    <td className="fleet-table__muted">{h.os || '—'}</td>
+                    <td className="fleet-table__mono">{h.agent_version ? `v${h.agent_version}` : '—'}</td>
+                    <td>
+                      <span className={`fleet-badge fleet-badge--${state.key}`}>
+                        <span className="fleet-badge__dot" />
+                        {state.label}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>
-                      {entity.region || 'GLOBAL'}
-                    </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        color: statusColor,
-                        fontWeight: 700,
-                        fontSize: '0.75rem'
-                      }}>
-                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: statusColor }}></span>
-                        {entity.status || 'HEALTHY'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {labels.shipper_version ? (
-                        <span style={{ color: 'var(--sentinel-teal, #14b8a6)', fontFamily: 'monospace' }}>
-                          v{labels.shipper_version}
+                    <td className="fleet-table__muted" title={h.last_seen || ''}>{formatAge(h.last_seen, nowMs)}</td>
+                    <td>
+                      {h.has_agent ? (
+                        <span className={`fleet-badge fleet-badge--drift-${h.drift || 'unknown'}`} title={h.config_hash ? `reported ${h.config_hash}` : 'no config hash reported'}>
+                          {DRIFT_LABEL[h.drift] || DRIFT_LABEL.unknown}
                         </span>
-                      ) : (labels.appKey || 'managed')}
+                      ) : <span className="fleet-table__muted">—</span>}
                     </td>
-                    <td style={{ padding: '12px 14px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {entity.last_seen ? new Date(entity.last_seen).toLocaleTimeString() : 'Active'}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {onInspectEntity && (
-                        <button
-                          onClick={() => onInspectEntity(entity.entity_id)}
-                          style={{
-                            background: 'rgba(20, 184, 166, 0.15)',
-                            border: '1px solid rgba(20, 184, 166, 0.3)',
-                            color: 'var(--sentinel-teal, #14b8a6)',
-                            padding: '4px 10px',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            fontWeight: 600
-                          }}
-                        >
-                          Inspect ➔
+                    <td className="fleet-table__right">
+                      {onInspectEntity && h.entity_id && (
+                        <button type="button" className="fleet-inspect" onClick={() => onInspectEntity(h.entity_id)}>
+                          Inspect
                         </button>
                       )}
                     </td>

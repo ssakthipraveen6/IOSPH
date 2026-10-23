@@ -1,0 +1,236 @@
+# config/alerts/rules.yaml
+# M5 Task 5.3: Enterprise Alert Rules Configuration
+
+alerts:
+  - id: "rule_high_jvm_heap"
+    name: "JVM Heap Memory Saturation"
+    type: "threshold"
+    component: "jfrog_artifactory"
+    metric: "jvm.memory.heap.used_pct"
+    operator: ">"
+    threshold: 90.0
+    for_seconds: 120
+    severity: "critical"
+    description: "JVM Heap exceeded 90% utilization threshold"
+
+  - id: "rule_how_baseline_anomaly"
+    name: "Hour-of-Week Statistical Anomaly"
+    type: "baseline"
+    metric: "journey.step.duration_ms"
+    z_threshold: 3.0
+    consecutive_points: 3
+    severity: "critical"
+    description: "Step duration significantly deviates from 4-week hour-of-week median"
+
+  - id: "rule_host_heartbeat_absence"
+    name: "Agent Heartbeat Loss"
+    type: "absence"
+    metric: "agent.heartbeat"
+    absence_seconds: 300
+    severity: "critical"
+    description: "No heartbeat received from host for greater than 5 minutes"
+
+  - id: "rule_golden_journey_failure"
+    name: "Toolchain Golden Journey Failure"
+    type: "journey_failure"
+    consecutive_failures: 2
+    severity: "critical"
+    description: "Two consecutive canary journey executions failed"
+
+  - id: "rule_composite_avi_path_bottleneck"
+    name: "VIP Path Saturation (Composite)"
+    type: "composite"
+    operator: "AND"
+    conditions:
+      - metric: "vip.total_ms"
+        operator: ">"
+        threshold: 500
+      - metric: "agent.localhost_ms"
+        operator: "<"
+        threshold: 25
+    severity: "critical"
+    description: "VIP total latency degraded while localhost backend timing remains healthy"
+
+  # Phase O7: Certificate Expiry Alerts (60d Info, 30d Warning, 14d Critical, 7d Critical EMERGENCY)
+  - id: "rule_cert_expiry_60d"
+    name: "TLS Certificate Expiring within 60 Days"
+    type: "expiry"
+    item_kind: "tls_cert"
+    days_threshold: 60
+    severity: "info"
+    description: "Certificate expires in less than 60 days"
+
+  - id: "rule_cert_expiry_30d"
+    name: "TLS Certificate Expiring within 30 Days"
+    type: "expiry"
+    item_kind: "tls_cert"
+    days_threshold: 30
+    severity: "warning"
+    description: "Certificate expires in less than 30 days"
+
+  - id: "rule_cert_expiry_14d"
+    name: "TLS Certificate Expiring within 14 Days"
+    type: "expiry"
+    item_kind: "tls_cert"
+    days_threshold: 14
+    severity: "critical"
+    description: "Certificate expires in less than 14 days"
+
+  - id: "rule_cert_expiry_7d"
+    name: "EMERGENCY: TLS Certificate Expiring within 7 Days"
+    type: "expiry"
+    item_kind: "tls_cert"
+    days_threshold: 7
+    severity: "critical"
+    renotify_interval_hours: 24
+    description: "Certificate expires in less than 7 days"
+
+  # Phase O7: License Expiry Alerts (90d Info, 60d Warning, 30d Warning, 14d Critical, Capacity > 90% Critical)
+  - id: "rule_license_expiry_90d"
+    name: "Enterprise License Expiring within 90 Days"
+    type: "expiry"
+    item_kind: "license"
+    days_threshold: 90
+    severity: "info"
+    description: "License expires in less than 90 days"
+
+  - id: "rule_license_expiry_60d"
+    name: "Enterprise License Expiring within 60 Days"
+    type: "expiry"
+    item_kind: "license"
+    days_threshold: 60
+    severity: "warning"
+    description: "License expires in less than 60 days"
+
+  - id: "rule_license_expiry_30d"
+    name: "Enterprise License Expiring within 30 Days"
+    type: "expiry"
+    item_kind: "license"
+    days_threshold: 30
+    severity: "warning"
+    description: "License expires in less than 30 days"
+
+  - id: "rule_license_expiry_14d"
+    name: "Enterprise License Expiring within 14 Days"
+    type: "expiry"
+    item_kind: "license"
+    days_threshold: 14
+    severity: "critical"
+    description: "License expires in less than 14 days"
+
+  - id: "rule_license_capacity_saturation"
+    name: "Enterprise License Capacity Saturation"
+    type: "expiry"
+    item_kind: "license"
+    capacity_pct_threshold: 90
+    severity: "critical"
+    description: "License seat or quota utilization exceeds 90%"
+
+  # Phase O8: Process and Capacity Alerts
+  - id: "rule_runaway_cpu"
+    name: "Runaway Process CPU Utilization"
+    type: "threshold"
+    metric: "process.cpu.utilization"
+    operator: ">"
+    threshold: 85.0
+    for_seconds: 300
+    severity: "critical"
+    description: "Process CPU utilization exceeded 85% for more than 5 minutes"
+
+  - id: "rule_process_fd_saturation"
+    name: "Process File Descriptor Saturation"
+    type: "threshold"
+    metric: "process.open_file_descriptors.pct"
+    operator: ">"
+    threshold: 90.0
+    for_seconds: 60
+    severity: "critical"
+    description: "Process open file descriptors exceeded 90% of limit"
+
+  - id: "rule_process_memory_growth_24h"
+    name: "Process Memory Steady Growth Trend (24h)"
+    type: "trend"
+    metric: "process.memory.rss"
+    growth_pct_threshold: 20
+    r2_threshold: 0.8
+    for_seconds: 86400
+    severity: "warning"
+    description: "Process memory RSS demonstrated continuous growth (>20%, R2 >= 0.8) over 24 hours"
+
+  - id: "rule_disk_runway_7d"
+    name: "Disk Runway Depletion (< 7 Days)"
+    type: "runway"
+    metric: "system.filesystem.utilization"
+    limit_days: 7
+    severity: "critical"
+    runbook_url: "https://runbooks.internal.corp/capacity/disk-runway"
+    description: "Projected disk space exhaustion within less than 7 days"
+
+  # Phase O10: SRE Extras Rules (X1, X5, X10, X11)
+  - id: "rule_slo_burn_rate_fast"
+    name: "Fast SLO Budget Burn Rate (1h Window, 14.4x)"
+    type: "slo_burn_rate"
+    metric: "journey.success"
+    slo_target: 99.0
+    window_hours: 1
+    burn_rate_threshold: 14.4
+    severity: "critical"
+    runbook_url: "https://runbooks.internal.corp/slo/fast-burn"
+    description: "Golden journey error rate burns >2% of 30-day error budget in 1 hour (14.4x rate)"
+
+  - id: "rule_slo_burn_rate_slow"
+    name: "Slow SLO Budget Burn Rate (6h Window, 6x)"
+    type: "slo_burn_rate"
+    metric: "journey.success"
+    slo_target: 99.0
+    window_hours: 6
+    burn_rate_threshold: 6.0
+    severity: "warning"
+    runbook_url: "https://runbooks.internal.corp/slo/slow-burn"
+    description: "Golden journey error rate burns >5% of 30-day error budget in 6 hours (6.0x rate)"
+
+  - id: "rule_ntp_offset_warning"
+    name: "System NTP Clock Offset Warning (> 500ms)"
+    type: "threshold"
+    metric: "system.ntp.offset_ms"
+    operator: ">"
+    threshold: 500
+    for_seconds: 60
+    severity: "warning"
+    runbook_url: "https://runbooks.internal.corp/infra/ntp-offset"
+    description: "Host system clock NTP drift exceeds 500ms"
+
+  - id: "rule_ntp_offset_critical"
+    name: "System NTP Clock Offset Critical (> 2000ms)"
+    type: "threshold"
+    metric: "system.ntp.offset_ms"
+    operator: ">"
+    threshold: 2000
+    for_seconds: 60
+    severity: "critical"
+    runbook_url: "https://runbooks.internal.corp/infra/ntp-offset"
+    description: "Host system clock NTP drift exceeds 2000ms, risking TLS handshake and token verification failures"
+
+  - id: "rule_database_backup_age"
+    name: "Database Backup Stale (> 24h)"
+    type: "threshold"
+    metric: "database.backup_age_hours"
+    operator: ">"
+    threshold: 24
+    for_seconds: 60
+    severity: "warning"
+    runbook_url: "https://runbooks.internal.corp/db/stale-backup"
+    description: "Latest database backup completion timestamp is older than 24 hours"
+
+  - id: "rule_unapproved_config_change"
+    name: "Unapproved Product Configuration Drift"
+    type: "threshold"
+    metric: "security.unapproved_config_changes"
+    operator: ">"
+    threshold: 0
+    for_seconds: 0
+    severity: "warning"
+    runbook_url: "https://runbooks.internal.corp/security/unapproved-config"
+    description: "Tracked configuration files modified outside an approved ServiceNow/SENTINEL change window"
+
+

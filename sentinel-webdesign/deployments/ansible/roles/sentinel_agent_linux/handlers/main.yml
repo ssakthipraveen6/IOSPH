@@ -1,0 +1,16 @@
+---
+- name: Restart sentinel-agent
+  ansible.builtin.systemd:
+    name: sentinel-agent
+    state: restarted
+    daemon_reload: true
+
+- name: Restart sentinel-probe
+  ansible.builtin.systemd:
+    name: sentinel-probe
+    state: restarted
+
+- name: Restart sentinel-osquery
+  ansible.builtin.systemd:
+    name: sentinel-osquery
+    state: restarted

@@ -1,6 +1,7 @@
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 const { runSeleniumCheck } = require('../python_checks/runner');
+const { updateProductVersion } = require('../../shared/version_tracker');
 
 /**
  * artifactory_collector.js (T2b.2 REMEDIATED)
@@ -42,6 +43,25 @@ module.exports = {
         latency: null
       };
     }
+
+    // Capture product version from /system/version or /api/system/version
+    try {
+      let version = storageResult.data?.version || null;
+      if (!version) {
+        const versionResult = await fetchJsonWithFallback(
+          `${url}/system/version`,
+          { headers: { Accept: 'application/json' }, appId: 'jfrog_artifactory' },
+          2000
+        );
+        if (versionResult.success && versionResult.data?.version) {
+          version = versionResult.data.version;
+        }
+      }
+      if (version) {
+        const env = (global.runtimeEnvironment || config.ENVIRONMENT || 'staging').toLowerCase();
+        await updateProductVersion('artifactory', String(version), env, 'product_api');
+      }
+    } catch (_) {}
 
     let space = null;
     if (storageResult.success && storageResult.data?.storageSummary) {

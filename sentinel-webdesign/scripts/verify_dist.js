@@ -30,6 +30,7 @@ const EXTRA = [
   path.join(ROOT, 'shared', 'index.js')
 ];
 
+// Files of a folder (sorted).
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
@@ -40,6 +41,7 @@ function walk(dir, out = []) {
   return out;
 }
 
+// Fingerprint of the front-end sources.
 function fingerprint() {
   const hash = crypto.createHash('sha256');
   const files = walk(SRC).concat(EXTRA.filter(f => fs.existsSync(f)));
@@ -55,11 +57,27 @@ function fingerprint() {
 const mode = process.argv[2] === '--write' ? 'write' : 'check';
 const current = fingerprint();
 
+// Removes built assets no longer referenced.
+function cleanUnreferencedAssets() {
+  const assetsDir = path.join(DIST, 'assets');
+  const indexHtml = path.join(DIST, 'index.html');
+  if (!fs.existsSync(assetsDir) || !fs.existsSync(indexHtml)) return;
+  const htmlContent = fs.readFileSync(indexHtml, 'utf8');
+  const files = fs.readdirSync(assetsDir);
+  for (const file of files) {
+    if (!htmlContent.includes(file)) {
+      console.log(`[VERIFY-DIST] Removing unreferenced asset: assets/${file}`);
+      try { fs.unlinkSync(path.join(assetsDir, file)); } catch (_) {}
+    }
+  }
+}
+
 if (mode === 'write') {
   if (!fs.existsSync(DIST)) {
     console.error('[VERIFY-DIST] frontend/dist does not exist. Run: npm run build');
     process.exit(1);
   }
+  cleanUnreferencedAssets();
   fs.writeFileSync(HASH_FILE, current + '\n', 'utf8');
   console.log('[VERIFY-DIST] Recorded source fingerprint for this build.');
   process.exit(0);
@@ -68,6 +86,17 @@ if (mode === 'write') {
 if (!fs.existsSync(DIST) || !fs.existsSync(path.join(DIST, 'index.html'))) {
   console.error('[VERIFY-DIST] frontend/dist is missing or incomplete. Run: npm run build');
   process.exit(1);
+}
+
+const assetsDir = path.join(DIST, 'assets');
+if (fs.existsSync(assetsDir)) {
+  const htmlContent = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
+  const unreferenced = fs.readdirSync(assetsDir).filter(f => !htmlContent.includes(f));
+  if (unreferenced.length > 0) {
+    console.error(`[VERIFY-DIST] Unreferenced assets found in dist/assets: ${unreferenced.join(', ')}`);
+    console.error('              Rebuild bundle with: npm run build');
+    process.exit(1);
+  }
 }
 
 if (!fs.existsSync(HASH_FILE)) {
@@ -89,3 +118,4 @@ if (recorded !== current) {
 }
 
 console.log('[VERIFY-DIST] frontend/dist matches frontend/src.');
+

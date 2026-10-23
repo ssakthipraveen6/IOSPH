@@ -1,0 +1,20 @@
+---
+# Copy to group_vars/all.yml, fill in, then:  ansible-vault encrypt group_vars/all.yml
+# Keep prod and staging in separate inventories so a prod host can never get a staging key.
+
+sentinel_api_url: "https://sentinel.internal.corp"            # the Sentinel app (AVI VIP)
+sentinel_gateway_url: "https://sentinel-gateway.internal.corp:4318"   # OTel gateway the collector exports to
+
+# Create with:  npm run ingest-key   (scopes: agent, heartbeat, metrics). The key's environment decides prod vs staging.
+sentinel_ingest_key: "snk_REPLACE_ME"
+sentinel_gateway_token: "REPLACE_ME"
+
+sentinel_package_name: sentinel-agent                          # RPM/DEB name in your repository
+sentinel_probe_interval_seconds: 60
+sentinel_batch: "25%"                                          # hosts per wave
+
+# Windows only: signed MSI on a share or URL the hosts can read
+sentinel_msi_package_path: "\\\\fileserver\\software\\sentinel\\sentinel-agent-2.4.0.msi"
+
+# Set false to remove the agent from a host (per-host kill switch): host_vars/<host>.yml
+# sentinel_agent_enabled: false

@@ -138,7 +138,7 @@ async function runTests() {
     assert.strictEqual(initB.data.health.environment, 'staging', 'Client B must receive staging health');
     console.log('✔ Test 3 Passed: Multi-client initial frames accurately isolated (PROD vs STG)');
 
-    // Test 4: Client C switches to DEMO -> Assert A and B do not switch
+    // Test 4: Demo environment rejected via API and WebSocket falls back to staging
     const wsC = new WebSocket(`ws://localhost:${serverPort}/ws?environment=demo`);
     const messagesC = [];
     wsC.on('message', data => messagesC.push(JSON.parse(data)));
@@ -146,15 +146,16 @@ async function runTests() {
     await new Promise(r => setTimeout(r, 1000));
     const initC = messagesC.find(m => m.type === 'init');
     assert.ok(initC);
-    assert.strictEqual(initC.data.health.environment, 'demo');
+    // WebSocket rejects demo and defaults to staging
+    assert.strictEqual(initC.data.health.environment, 'staging');
 
-    // Make an API switch call to /api/environment
+    // Make an API switch call to /api/environment with demo -> must be rejected with 400
     const switchRes = await fetchJson(`http://localhost:${serverPort}/api/environment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: { environment: 'demo' }
     });
-    assert.strictEqual(switchRes.status, 200);
+    assert.strictEqual(switchRes.status, 400);
 
     // Wait for a metrics_tick cycle (5s)
     await new Promise(r => setTimeout(r, 6000));
@@ -170,8 +171,8 @@ async function runTests() {
 
     assert.strictEqual(tickA.data.health.environment, 'prod', 'Client A must remain on PROD');
     assert.strictEqual(tickB.data.health.environment, 'staging', 'Client B must remain on STG');
-    assert.strictEqual(tickC.data.health.environment, 'demo', 'Client C must remain on DEMO');
-    console.log('✔ Test 4 Passed: Third client on DEMO does not alter active PROD or STG sessions');
+    assert.strictEqual(tickC.data.health.environment, 'staging', 'Client C on staging');
+    console.log('✔ Test 4 Passed: Demo environment strictly rejected; WebSocket defaults to staging without altering PROD');
 
     // Test 5: OTLP metrics push with environment: prod tags metric as prod in DB
     const otlpRes = await fetchJson(`http://localhost:${serverPort}/v1/metrics`, {

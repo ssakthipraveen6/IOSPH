@@ -1,3 +1,6 @@
+/**
+ * On-call rota: loads, edits and saves the team rotas (.runtime/team_rota.json).
+ */
 const fs = require('fs');
 const path = require('path');
 
@@ -166,6 +169,7 @@ const INITIAL_ROTAS = {
   }
 };
 
+// Loads all rotas.
 function loadAllRotas() {
   try {
     if (fs.existsSync(ROTA_FILE)) {
@@ -188,6 +192,7 @@ function loadAllRotas() {
   return INITIAL_ROTAS;
 }
 
+// Saves all rotas.
 function saveAllRotas(rotas) {
   try {
     fs.writeFileSync(ROTA_FILE, JSON.stringify(rotas, null, 2), 'utf8');

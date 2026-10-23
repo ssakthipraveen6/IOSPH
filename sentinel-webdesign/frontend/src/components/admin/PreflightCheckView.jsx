@@ -1,5 +1,11 @@
+/**
+ * Runs the preflight check (reachability of every configured endpoint) and shows the result table.
+ */
 import React, { useState, useEffect } from 'react';
+import './PreflightCheckView.css';
 
+// Preflight panel: calls the preflight API and lists REACHABLE / AUTH_FAILED / UNREACHABLE per
+// endpoint.
 export default function PreflightCheckView({ environment = 'staging' }) {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
@@ -45,40 +51,39 @@ export default function PreflightCheckView({ environment = 'staging' }) {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'REACHABLE':
-        return <span style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid #10b981', padding: '3px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>✔ REACHABLE</span>;
+        return <span className="pf-badge pf-badge--reachable">✔ REACHABLE</span>;
       case 'AUTH_FAILED':
-        return <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid #f59e0b', padding: '3px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>⚠ AUTH_FAILED</span>;
+        return <span className="pf-badge pf-badge--auth-failed">⚠ AUTH_FAILED</span>;
       case 'NOT_CONFIGURED':
-        return <span style={{ background: 'rgba(148,163,184,0.15)', color: '#94a3b8', border: '1px solid #94a3b8', padding: '3px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>⚪ NOT CONFIGURED</span>;
+        return <span className="pf-badge pf-badge--not-configured">⚪ NOT CONFIGURED</span>;
       case 'UNREACHABLE':
       default:
-        return <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid #ef4444', padding: '3px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 700 }}>✖ UNREACHABLE</span>;
+        return <span className="pf-badge pf-badge--unreachable">✖ UNREACHABLE</span>;
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div className="pf-root">
       
       {/* Header and Action Banner */}
-      <div className="console-panel" style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="console-panel pf-panel">
+        <div className="pf-header">
           <div>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 className="pf-title">
               🔍 Endpoint Preflight Verification Engine
-              <span style={{ fontSize: '0.75rem', background: 'var(--primary)', color: '#fff', padding: '2px 8px', borderRadius: '4px' }}>
+              <span className="pf-env-tag">
                 {environment.toUpperCase()}
               </span>
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <p className="pf-desc">
               Probes every configured application and infrastructure API endpoint live to verify connectivity, TLS certificates, and CyberArk credential injection before dashboard activation.
             </p>
           </div>
 
           <button
-            className="remediate-trigger-btn"
+            className="remediate-trigger-btn pf-run-btn"
             onClick={runCheck}
             disabled={loading}
-            style={{ padding: '8px 18px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             {loading ? '⏳ Verifying Endpoints...' : '🚀 Re-run Preflight Check'}
           </button>
@@ -86,26 +91,26 @@ export default function PreflightCheckView({ environment = 'staging' }) {
 
         {/* KPI Counter Cards */}
         {report && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem', marginTop: '1.25rem' }}>
-            <div style={{ background: 'var(--bg-dark)', padding: '12px', borderRadius: '6px', textAlign: 'center', border: '1px solid var(--border-light)' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{report.totalTargets}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Total Targets</div>
+          <div className="pf-kpis">
+            <div className="pf-kpi">
+              <div className="pf-kpi__value">{report.totalTargets}</div>
+              <div className="pf-kpi__label">Total Targets</div>
             </div>
-            <div style={{ background: 'rgba(16,185,129,0.08)', padding: '12px', borderRadius: '6px', textAlign: 'center', border: '1px solid rgba(16,185,129,0.3)' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#10b981' }}>{report.reachable}</div>
-              <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Reachable (OK)</div>
+            <div className="pf-kpi pf-kpi--reachable">
+              <div className="pf-kpi__value">{report.reachable}</div>
+              <div className="pf-kpi__label">Reachable (OK)</div>
             </div>
-            <div style={{ background: 'rgba(245,158,11,0.08)', padding: '12px', borderRadius: '6px', textAlign: 'center', border: '1px solid rgba(245,158,11,0.3)' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f59e0b' }}>{report.authFailed}</div>
-              <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Auth Challenges</div>
+            <div className="pf-kpi pf-kpi--auth-failed">
+              <div className="pf-kpi__value">{report.authFailed}</div>
+              <div className="pf-kpi__label">Auth Challenges</div>
             </div>
-            <div style={{ background: 'rgba(239,68,68,0.08)', padding: '12px', borderRadius: '6px', textAlign: 'center', border: '1px solid rgba(239,68,68,0.3)' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ef4444' }}>{report.unreachable}</div>
-              <div style={{ fontSize: '0.7rem', color: '#ef4444' }}>Unreachable</div>
+            <div className="pf-kpi pf-kpi--unreachable">
+              <div className="pf-kpi__value">{report.unreachable}</div>
+              <div className="pf-kpi__label">Unreachable</div>
             </div>
-            <div style={{ background: 'rgba(148,163,184,0.08)', padding: '12px', borderRadius: '6px', textAlign: 'center', border: '1px solid rgba(148,163,184,0.3)' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#94a3b8' }}>{report.notConfigured}</div>
-              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Not Configured</div>
+            <div className="pf-kpi pf-kpi--not-configured">
+              <div className="pf-kpi__value">{report.notConfigured}</div>
+              <div className="pf-kpi__label">Not Configured</div>
             </div>
           </div>
         )}
@@ -113,29 +118,20 @@ export default function PreflightCheckView({ environment = 'staging' }) {
 
       {/* Error state */}
       {error && (
-        <div style={{ padding: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', borderRadius: '6px', color: '#ef4444', fontSize: '0.85rem' }}>
+        <div className="pf-error">
           ❌ Preflight check execution failed: {error}
         </div>
       )}
 
       {/* Results Table Panel */}
-      <div className="console-panel" style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
+      <div className="console-panel pf-panel">
+        <div className="pf-toolbar">
+          <div className="pf-filters">
             {['ALL', 'REACHABLE', 'AUTH_FAILED', 'UNREACHABLE', 'NOT_CONFIGURED'].map(s => (
               <button
                 key={s}
                 onClick={() => setFilter(s)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: filter === s ? 'var(--primary)' : 'var(--bg-dark)',
-                  color: filter === s ? '#fff' : 'var(--text-muted)',
-                  border: '1px solid var(--border-light)'
-                }}
+                className={`pf-filter-btn${filter === s ? ' pf-filter-btn--active' : ''}`}
               >
                 {s.replace('_', ' ')}
               </button>
@@ -147,43 +143,43 @@ export default function PreflightCheckView({ environment = 'staging' }) {
             placeholder="Search target, endpoint or reason..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.8rem', width: '260px' }}
+            className="pf-search"
           />
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+        <table className="pf-table">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-light)', textAlign: 'left', color: 'var(--text-muted)' }}>
-              <th style={{ padding: '10px 8px' }}>Target Name</th>
-              <th style={{ padding: '10px 8px' }}>Endpoint URL</th>
-              <th style={{ padding: '10px 8px' }}>Status</th>
-              <th style={{ padding: '10px 8px' }}>HTTP Code</th>
-              <th style={{ padding: '10px 8px' }}>Latency</th>
-              <th style={{ padding: '10px 8px' }}>Diagnostic Reason</th>
+            <tr className="pf-table__head-row">
+              <th className="pf-table__cell">Target Name</th>
+              <th className="pf-table__cell">Endpoint URL</th>
+              <th className="pf-table__cell">Status</th>
+              <th className="pf-table__cell">HTTP Code</th>
+              <th className="pf-table__cell">Latency</th>
+              <th className="pf-table__cell">Diagnostic Reason</th>
             </tr>
           </thead>
           <tbody>
             {filteredResults.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                <td colSpan="6" className="pf-table__empty">
                   {loading ? 'Performing live probes...' : 'No targets matching current filter.'}
                 </td>
               </tr>
             ) : (
               filteredResults.map((r, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <td style={{ padding: '10px 8px', fontWeight: 600 }}>{r.target}</td>
-                  <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: r.url ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                <tr key={i} className="pf-table__row">
+                  <td className="pf-table__cell pf-table__cell--target">{r.target}</td>
+                  <td className={`pf-table__cell pf-table__cell--url${r.url ? ' pf-table__cell--url-set' : ''}`}>
                     {r.url || '(none)'}
                   </td>
-                  <td style={{ padding: '10px 8px' }}>{getStatusBadge(r.status)}</td>
-                  <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)' }}>
+                  <td className="pf-table__cell">{getStatusBadge(r.status)}</td>
+                  <td className="pf-table__cell pf-table__cell--mono">
                     {r.httpStatus ? r.httpStatus : '-'}
                   </td>
-                  <td style={{ padding: '10px 8px' }}>
+                  <td className="pf-table__cell">
                     {r.latencyMs !== null ? `${r.latencyMs} ms` : '-'}
                   </td>
-                  <td style={{ padding: '10px 8px', color: r.status === 'REACHABLE' ? '#10b981' : 'var(--text-muted)', fontSize: '0.75rem' }}>
+                  <td className={`pf-table__cell pf-table__cell--reason${r.status === 'REACHABLE' ? ' pf-table__cell--reason-ok' : ''}`}>
                     {r.reason}
                   </td>
                 </tr>

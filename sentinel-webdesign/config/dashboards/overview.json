@@ -1,0 +1,42 @@
+{
+  "id": "dash-overview-001",
+  "slug": "toolchain-overview",
+  "title": "DevOps Toolchain Overview",
+  "description": "Executive latency percentiles, error log volumes, and span latencies across DevOps products",
+  "tags": ["executive", "golden-journeys", "overview"],
+  "environment": "production",
+  "panels": [
+    {
+      "id": "p-1",
+      "title": "Journey P95 Duration by Step",
+      "type": "time_series",
+      "query": "metrics where metric = \"journey.step.duration_ms\" | percentile(95) by step every 5m since 24h",
+      "layout": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "options": { "unit": "ms", "sparkline": true }
+    },
+    {
+      "id": "p-2",
+      "title": "Error Log Distribution",
+      "type": "bar",
+      "query": "logs where level = \"error\" | count() by level every 1h since 24h",
+      "layout": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "options": { "unit": "count" }
+    },
+    {
+      "id": "p-3",
+      "title": "Journey Errors (1h)",
+      "type": "stat",
+      "query": "spans where status = \"error\" | count() since 1h",
+      "layout": { "x": 0, "y": 4, "w": 4, "h": 3 },
+      "options": { "unit": "errors", "thresholds": { "warn": 1, "critical": 5 } }
+    },
+    {
+      "id": "p-4",
+      "title": "Slowest Spans (>1000ms)",
+      "type": "table",
+      "query": "spans where duration_ms > 1000 since 1h limit 20",
+      "layout": { "x": 4, "y": 4, "w": 8, "h": 3 },
+      "options": { "columns": ["service", "name", "duration_ms", "status"] }
+    }
+  ]
+}

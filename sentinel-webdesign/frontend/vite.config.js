@@ -1,3 +1,6 @@
+/**
+ * Vite build configuration for the front end (React plugin, dev proxy to the backend).
+ */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -14,6 +17,7 @@ export default defineConfig({
     include: ['@sentinel/shared-constants'],
   },
   build: {
+    emptyOutDir: true,
     commonjsOptions: {
       include: [/shared/, /node_modules/],
     },

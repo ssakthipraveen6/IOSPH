@@ -1,3 +1,6 @@
+/**
+ * Test: ingest throughput and storage under load.
+ */
 const assert = require('assert');
 const { performance } = require('perf_hooks');
 const db = require('../database/db');

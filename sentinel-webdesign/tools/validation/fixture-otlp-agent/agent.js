@@ -1,5 +1,9 @@
+/**
+ * Validation tool: sends a sample OTLP metric payload to Sentinel.
+ */
 const http = require('http');
 
+// Builds the OTLP payload.
 function buildOtlpPayload({
   serviceName = 'cloudbees_jenkins',
   hostName = 'build-agent-win-01.corp',
@@ -40,6 +44,7 @@ function buildOtlpPayload({
   };
 }
 
+// Posts the payload.
 function pushMetrics({
   targetUrl = 'http://localhost:3001/v1/metrics',
   payload = null,

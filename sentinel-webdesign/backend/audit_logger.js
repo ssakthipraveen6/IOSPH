@@ -1,3 +1,7 @@
+/**
+ * Append-only audit log of every mutating API call: written to logs/sentinel_audit.log (and
+ * PostgreSQL when configured), read back by the governance and admin views.
+ */
 const fs = require('fs');
 const path = require('path');
 const postgres = require('../database/postgres');
@@ -85,6 +89,7 @@ async function getAuditLogFromDb(limit = 200) {
   }));
 }
 
+// Returns the newest audit entries from the log file.
 function getAuditLog(limit = 200) {
   try {
     if (!fs.existsSync(AUDIT_LOG_PATH)) return [];

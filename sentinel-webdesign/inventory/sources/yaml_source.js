@@ -9,6 +9,7 @@ const yamlConfig = require('@sentinel/config/yaml_config');
 const resolver = require('../entity_resolver');
 const store = require('../store');
 
+// Builds the inventory (applications, layers, hosts, VIPs, relations) from the YAML manifests.
 async function syncYamlTopology() {
   const apps = yamlConfig.loadAllApplications();
   const infra = yamlConfig.loadAllInfrastructureLayers();
@@ -190,6 +191,181 @@ async function syncYamlTopology() {
           });
           edgeCount++;
         }
+      }
+    }
+
+    // Process layers: vip, hosts[], shares[], databases[], clusters[] (M3 Task 3.2)
+    if (app.layers || (app.endpoints && (app.endpoints[env]?.vip || app.endpoints.prod?.vip))) {
+      const layers = app.layers || {};
+      const vipUrl = (typeof layers.vip === 'string' ? layers.vip : null)
+        || app.endpoints?.[env]?.vip
+        || app.endpoints?.prod?.vip;
+
+      if (vipUrl) {
+        try {
+          const parsedVip = new URL(vipUrl);
+          const vipEntityId = `vip:${parsedVip.hostname}`;
+          await store.upsertEntity({
+            entity_id: vipEntityId,
+            kind: 'vip',
+            name: `VIP: ${parsedVip.hostname}`,
+            app_id: appId,
+            environment: env,
+            labels: { url: vipUrl, layer: 'network' },
+            source: 'yaml',
+            status: 'Active'
+          });
+          entityCount++;
+
+          await store.upsertEdge({
+            from_entity: vipEntityId,
+            to_entity: appEntityId,
+            edge_type: 'routes_traffic_to',
+            confidence: 1.0,
+            source: 'yaml'
+          });
+          edgeCount++;
+        } catch (_) {}
+      }
+
+      // Hosts layer: VIP -> Product -> Hosts
+      const hostList = Array.isArray(layers.hosts) ? layers.hosts : [];
+      const createdHostIds = [];
+      for (const hostName of hostList) {
+        if (!hostName) continue;
+        const hostEntityId = resolver.host(hostName);
+        createdHostIds.push(hostEntityId);
+        await store.upsertEntity({
+          entity_id: hostEntityId,
+          kind: 'host',
+          name: hostName,
+          app_id: appId,
+          environment: env,
+          labels: { layer: 'host' },
+          source: 'yaml',
+          status: 'Active'
+        });
+        entityCount++;
+
+        await store.upsertEdge({
+          from_entity: appEntityId,
+          to_entity: hostEntityId,
+          edge_type: 'runs_on',
+          confidence: 1.0,
+          source: 'yaml'
+        });
+        edgeCount++;
+      }
+
+      // Shares layer: Hosts -> Shares (and Product -> Shares)
+      const rawShares = Array.isArray(layers.shares) ? layers.shares : (layers.nfs?.mount ? [layers.nfs.mount] : []);
+      const createdShareIds = [];
+      for (const sharePath of rawShares) {
+        if (!sharePath) continue;
+        const cleanShare = String(sharePath).replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+        const shareEntityId = `share:${cleanShare}`;
+        createdShareIds.push(shareEntityId);
+        await store.upsertEntity({
+          entity_id: shareEntityId,
+          kind: 'storage',
+          name: `Share: ${sharePath}`,
+          app_id: appId,
+          environment: env,
+          labels: { path: sharePath, layer: 'storage' },
+          source: 'yaml',
+          status: 'Active'
+        });
+        entityCount++;
+
+        // Edge from each host to share (hosts mount shares)
+        for (const hid of createdHostIds) {
+          await store.upsertEdge({
+            from_entity: hid,
+            to_entity: shareEntityId,
+            edge_type: 'mounts',
+            confidence: 1.0,
+            source: 'yaml'
+          });
+          edgeCount++;
+        }
+
+        // Edge from product to share
+        await store.upsertEdge({
+          from_entity: appEntityId,
+          to_entity: shareEntityId,
+          edge_type: 'mounts',
+          confidence: 1.0,
+          source: 'yaml'
+        });
+        edgeCount++;
+      }
+
+      // Databases layer: Shares/Hosts/Product -> Databases
+      const rawDbs = Array.isArray(layers.databases) ? layers.databases : (layers.db?.jdbc ? [layers.db.jdbc] : []);
+      for (const dbConn of rawDbs) {
+        if (!dbConn) continue;
+        const cleanDb = String(dbConn).replace(/[^a-zA-Z0-9._-]/g, '_').toLowerCase();
+        const dbEntityId = `database:${cleanDb}`;
+        await store.upsertEntity({
+          entity_id: dbEntityId,
+          kind: 'database',
+          name: `Database: ${dbConn}`,
+          app_id: appId,
+          environment: env,
+          labels: { connection: dbConn, layer: 'database' },
+          source: 'yaml',
+          status: 'Active'
+        });
+        entityCount++;
+
+        // Edge from product to DB
+        await store.upsertEdge({
+          from_entity: appEntityId,
+          to_entity: dbEntityId,
+          edge_type: 'reads_writes',
+          confidence: 1.0,
+          source: 'yaml'
+        });
+        edgeCount++;
+
+        // Edge from each share/host to DB if applicable
+        for (const sid of createdShareIds) {
+          await store.upsertEdge({
+            from_entity: sid,
+            to_entity: dbEntityId,
+            edge_type: 'persists_to',
+            confidence: 0.9,
+            source: 'yaml'
+          });
+          edgeCount++;
+        }
+      }
+
+      // Clusters layer: Product -> Clusters
+      const rawClusters = Array.isArray(layers.clusters) ? layers.clusters : [];
+      for (const clusterName of rawClusters) {
+        if (!clusterName) continue;
+        const clusterEntityId = resolver.k8sCluster(clusterName);
+        await store.upsertEntity({
+          entity_id: clusterEntityId,
+          kind: 'k8s_cluster',
+          name: clusterName,
+          app_id: appId,
+          environment: env,
+          labels: { cluster: clusterName, layer: 'compute' },
+          source: 'yaml',
+          status: 'Active'
+        });
+        entityCount++;
+
+        await store.upsertEdge({
+          from_entity: appEntityId,
+          to_entity: clusterEntityId,
+          edge_type: 'depends_on',
+          confidence: 1.0,
+          source: 'yaml'
+        });
+        edgeCount++;
       }
     }
 

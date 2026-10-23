@@ -1,59 +1,126 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: Bitbucket External Vendor SCM
-# =========================================================================
-id: "bitbucket_external"
-kind: "application"
-display_name: "Bitbucket External Vendor SCM"
-category: "source_control"
-tier: "Tier-2 Operational"
-log_tag: "[BB-EXT]"
-
+id: bitbucket_external
+kind: application
+display_name: Bitbucket External Vendor SCM
+category: source_control
+tier: Tier-2 Operational
+log_tag: '[BB-EXT]'
 endpoints:
   prod:
-    api: "https://bitbucket-external-prod.internal.corp/rest/api/1.0"
+    api: https://bitbucket-external-prod.internal.corp/rest/api/1.0
+    vip: https://bitbucket-external-prod.internal.corp
   stg:
-    api: "https://bitbucket-external-stg.internal.corp/rest/api/1.0"
-
+    api: https://bitbucket-external-stg.internal.corp/rest/api/1.0
+    vip: https://bitbucket-external-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://bitbucket-external-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "bitbucket-external-prod.internal.corp:443" }
 layers:
   db:
-    jdbc: "jdbc:postgresql://db-prod-bitbucket-ext.internal.corp:5432/bitbucket_ext_db"
-    credential_purpose: "db"
+    jdbc: jdbc:postgresql://db-prod-bitbucket-ext.internal.corp:5432/bitbucket_ext_db
+    credential_purpose: db
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-bitbucket-ext.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-bitbucket-ext.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://bitbucket-external-prod.internal.corp
+  hosts:
+    - bitbucket-external-node-01.internal.corp
+    - bitbucket-external-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/bitbucket-external
+  databases:
+    - jdbc:postgresql://db-prod-bitbucket-ext.internal.corp:5432/bitbucket_ext_db
+  clusters:
+    - k8s-prod-bitbucket-external
 servers:
   unix:
-    - node: "bitbucket-ext-node-1"
-      api: "https://linux-compute-prod-bitbucket-ext-1.internal.corp/api/v1/metrics"
+    - node: bitbucket-ext-node-1
+      api: https://linux-compute-prod-bitbucket-ext-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 90
   successRate: 99.7
   requests: 35
-
 logs:
-  log_tag: "[BB-EXT]"
-  log_path: "d:\\production_shares\\nas_logs\\bitbucket_external.log"
-
+  log_tag: '[BB-EXT]'
+  log_path: d:\production_shares\nas_logs\bitbucket_external.log
 credentials:
-  safe: "SF-BITBUCKET-EXT-PROD"
+  safe: SF-BITBUCKET-EXT-PROD
   objects:
-    db: "BITBUCKET-EXT-DB-SVC"
-    api_token: "BITBUCKET-EXT-API-TOKEN"
+    db: BITBUCKET-EXT-DB-SVC
+    api_token: BITBUCKET-EXT-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_BITBUCKET_EXT
+journeys:
+  - id: bitbucket_ext_health
+    name: Bitbucket External Status & Projects
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: status_ping
+        name: Application Status
+        type: http
+        layer: network
+        url: /status
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: projects_query
+        name: List External Projects
+        type: http
+        layer: app
+        url: /projects
+        assert:
+          status: 200
+          max_ms: 2000
+  - id: bitbucket_ext_git_probe
+    name: Bitbucket External Git Operations
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: git_ls_remote
+        name: Git ls-remote Vendor Canary
+        type: git
+        layer: storage
+        repo_url: https://bitbucket-external-prod.internal.corp/scm/ext/vendor-canary.git
+        action: ls-remote
+        assert:
+          max_ms: 3000
+      - id: repos_list
+        name: Repositories List
+        type: http
+        layer: app
+        url: /repos
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_BITBUCKET_EXT"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/var/atlassian/application-data/bitbucket/shared/%.properties"
+    - "/opt/atlassian/bitbucket/%%/conf/%%"
+  windows: []

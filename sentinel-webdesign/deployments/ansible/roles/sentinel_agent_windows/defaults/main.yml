@@ -1,0 +1,7 @@
+---
+# Same variables as sentinel_agent_linux (secrets in Ansible Vault), plus:
+#   sentinel_msi_package_path  path or URL of the signed sentinel-agent MSI
+sentinel_probe_interval_seconds: 60
+sentinel_db_env: {}
+sentinel_data_dir: C:\ProgramData\SentinelAgent
+sentinel_install_dir: C:\Program Files\SentinelAgent

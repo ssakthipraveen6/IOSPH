@@ -1,0 +1,81 @@
+# SQL Server read-only monitoring queries for sqlquery receiver
+# All queries MUST start with SELECT or WITH.
+# Credentials provided via environment variables.
+
+queries:
+  cache_hit_ratio:
+    name: sqlserver.cache_hit_ratio
+    interval: 60s
+    statement: >-
+      SELECT
+        round(cast(a.cntr_value as float) / b.cntr_value * 100, 2) AS buffer_cache_hit_pct
+      FROM sys.dm_os_performance_counters a
+      CROSS JOIN (
+        SELECT cntr_value FROM sys.dm_os_performance_counters
+        WHERE counter_name = 'Buffer cache hit ratio base'
+      ) b
+      WHERE a.counter_name = 'Buffer cache hit ratio';
+
+  tablespace_usage:
+    name: sqlserver.tablespace_usage
+    interval: 60s
+    statement: >-
+      SELECT
+        df.name AS data_file_name,
+        cast(FILEPROPERTY(df.name, 'SpaceUsed') as bigint) * 8192 AS bytes_used,
+        cast(df.size as bigint) * 8192 AS bytes_allocated,
+        CASE WHEN df.max_size = -1 THEN cast(2147483648 as bigint) * 8192
+             ELSE cast(df.max_size as bigint) * 8192 END AS autoextend_max_bytes
+      FROM sys.database_files df;
+
+  replication_lag:
+    name: sqlserver.replication_lag
+    interval: 60s
+    statement: >-
+      SELECT
+        secondary_server AS partner_server,
+        secondary_database AS partner_database,
+        COALESCE(DATEDIFF(second, last_restored_date, GETDATE()), 0) AS lag_seconds
+      FROM msdb.dbo.log_shipping_monitor_secondary;
+
+  top_long_running_statements:
+    name: sqlserver.long_running_statements
+    interval: 60s
+    statement: >-
+      SELECT TOP 10
+        r.session_id,
+        s.login_name AS db_user,
+        CONVERT(varchar(64), HASHBYTES('MD5', r.sql_handle), 2) AS query_id_hash,
+        round(r.total_elapsed_time / 1000.0, 2) AS duration_seconds,
+        r.status
+      FROM sys.dm_exec_requests r
+      JOIN sys.dm_exec_sessions s ON r.session_id = s.session_id
+      WHERE r.status NOT IN ('background', 'sleeping')
+      ORDER BY r.total_elapsed_time DESC;
+
+  idle_in_transaction_locks:
+    name: sqlserver.idle_in_transaction_locks
+    interval: 60s
+    statement: >-
+      WITH locked_sessions AS (
+        SELECT DISTINCT request_session_id AS session_id
+        FROM sys.dm_tran_locks
+      )
+      SELECT
+        s.session_id,
+        s.login_name AS db_user,
+        round(DATEDIFF(second, s.last_request_end_time, GETDATE()), 2) AS idle_duration_seconds
+      FROM sys.dm_exec_sessions s
+      JOIN locked_sessions l ON s.session_id = l.session_id
+      WHERE s.open_transaction_count > 0
+        AND s.status = 'sleeping'
+        AND DATEDIFF(minute, s.last_request_end_time, GETDATE()) > 30;
+
+  backup_age:
+    name: sqlserver.backup_age
+    interval: 300s
+    statement: >-
+      SELECT
+        COALESCE(DATEDIFF(second, MAX(backup_finish_date), GETDATE()), 0) AS backup_age_seconds
+      FROM msdb.dbo.backupset
+      WHERE type IN ('D', 'I');

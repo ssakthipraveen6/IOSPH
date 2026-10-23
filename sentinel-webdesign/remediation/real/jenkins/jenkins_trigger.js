@@ -1,3 +1,6 @@
+/**
+ * Triggers a Jenkins self-healing job for a component and reports its progress.
+ */
 const config = require('@sentinel/config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 
@@ -37,6 +40,7 @@ const jenkinsJobSteps = {
   ]
 };
 
+// Starts the Jenkins job and follows it until it finishes.
 async function triggerJenkinsSelfHealingJob(component, jobName, writeNasLog, onStepProgress, onComplete) {
   const masterUrl = config.ACTIVE_URLS.jenkins_master_url || config.PROD_URLS.jenkins_master_url || config.STG_URLS.jenkins_master_url;
   if (!masterUrl) {

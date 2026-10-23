@@ -1,6 +1,10 @@
+/**
+ * SLO and error budget per service.
+ */
 import React, { useState, useEffect } from 'react';
 import './SloErrorBudget.css';
 
+// SLO page; loads SLO data for the environment.
 export default function SloErrorBudget({ environment = 'prod' }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +33,7 @@ export default function SloErrorBudget({ environment = 'prod' }) {
   if (loading && !data) {
     return (
       <div className="slo-dashboard-container">
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+        <div className="slo-loading">
           Loading SLO &amp; Error Budget telemetry...
         </div>
       </div>
@@ -45,11 +49,11 @@ export default function SloErrorBudget({ environment = 'prod' }) {
       <div className="slo-header-banner">
         <div>
           <div className="slo-header-title">
-            <span style={{ fontSize: '1.8rem' }}>🎯</span>
+            <span className="slo-header-icon">🎯</span>
             <div>
               <h2>Service Level Objectives &amp; Error Budgets</h2>
               <div className="slo-header-meta">
-                Environment: <strong style={{ color: 'var(--primary)' }}>{environment.toUpperCase()}</strong> · Rolling Window: <strong>{data?.window_days || 30} Days</strong> · Auto-evaluating every 15s
+                Environment: <strong className="slo-env-name">{environment.toUpperCase()}</strong> · Rolling Window: <strong>{data?.window_days || 30} Days</strong> · Auto-evaluating every 15s
               </div>
             </div>
           </div>
@@ -57,10 +61,10 @@ export default function SloErrorBudget({ environment = 'prod' }) {
 
         {anyFreeze && (
           <div className="slo-freeze-alert">
-            <span style={{ fontSize: '1.4rem' }}>🛑</span>
+            <span className="slo-freeze-icon">🛑</span>
             <div>
               <div>DEPLOYMENT FREEZE RECOMMENDED</div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 'normal', opacity: 0.9 }}>
+              <div className="slo-freeze-note">
                 One or more critical SLO error budgets exhausted. Emergency CAB required.
               </div>
             </div>
@@ -71,7 +75,11 @@ export default function SloErrorBudget({ environment = 'prod' }) {
       {/* Grid of SLO Cards */}
       <div className="slo-grid">
         {slos.map(slo => {
-          const budgetPercent = Math.max(0, Math.min(100, slo.error_budget_remaining_percent));
+          // Unknown SLOs (no measurements yet) show a dash, never a made-up 0.0% budget.
+          const hasSli = Number.isFinite(Number(slo.current_sli)) && slo.current_sli !== null;
+          const hasBudget = hasSli && Number.isFinite(Number(slo.error_budget_remaining_percent)) && slo.error_budget_remaining_percent !== null;
+          const hasBurn = hasSli && Number.isFinite(Number(slo.burn_rate)) && slo.burn_rate !== null;
+          const budgetPercent = hasBudget ? Math.max(0, Math.min(100, Number(slo.error_budget_remaining_percent))) : 0;
           let fillColor = '#10b981';
           if (budgetPercent < 25) fillColor = '#ef4444';
           else if (budgetPercent < 50) fillColor = '#f59e0b';
@@ -81,7 +89,7 @@ export default function SloErrorBudget({ environment = 'prod' }) {
               <div className="slo-card-header">
                 <div>
                   <div className="slo-card-name">{slo.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  <div className="slo-card-id">
                     ID: {slo.id}
                   </div>
                 </div>
@@ -92,8 +100,8 @@ export default function SloErrorBudget({ environment = 'prod' }) {
 
               <div className="slo-metrics-row">
                 <div>
-                  <span className="slo-big-num" style={{ color: slo.current_sli >= slo.target_percentage ? '#10b981' : '#ef4444' }}>
-                    {slo.current_sli}%
+                  <span className={`slo-big-num ${!hasSli ? 'slo-big-num--none' : slo.current_sli >= slo.target_percentage ? 'slo-big-num--ok' : 'slo-big-num--breach'}`}>
+                    {hasSli ? `${slo.current_sli}%` : '—'}
                   </span>
                 </div>
                 <div className="slo-target-tag">
@@ -105,12 +113,12 @@ export default function SloErrorBudget({ environment = 'prod' }) {
               <div className="error-budget-bar-wrapper">
                 <div className="error-budget-labels">
                   <span>Error Budget Remaining</span>
-                  <strong>{budgetPercent.toFixed(1)}%</strong>
+                  <strong>{hasBudget ? `${budgetPercent.toFixed(1)}%` : '—'}</strong>
                 </div>
                 <div className="error-budget-track">
                   <div 
                     className="error-budget-fill" 
-                    style={{ width: `${budgetPercent}%`, backgroundColor: fillColor }}
+                    style={{ width: hasBudget ? `${budgetPercent}%` : '0%', backgroundColor: fillColor }}
                   />
                 </div>
               </div>
@@ -119,13 +127,9 @@ export default function SloErrorBudget({ environment = 'prod' }) {
                 <span>
                   Burn Rate:{' '}
                   <span 
-                    className="burn-rate-chip"
-                    style={{
-                      background: slo.burn_rate > 2.0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                      color: slo.burn_rate > 2.0 ? '#ef4444' : '#10b981'
-                    }}
+                    className={`burn-rate-chip ${!hasBurn ? 'slo-burn--none' : slo.burn_rate > 2.0 ? 'slo-burn--hot' : 'slo-burn--ok'}`}
                   >
-                    {slo.burn_rate}x
+                    {hasBurn ? `${slo.burn_rate}x` : '—'}
                   </span>
                 </span>
                 <span>30-Day Target</span>

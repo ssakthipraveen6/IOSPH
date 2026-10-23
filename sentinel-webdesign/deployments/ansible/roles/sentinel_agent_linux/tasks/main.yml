@@ -1,0 +1,101 @@
+---
+# deployments/ansible/roles/sentinel_agent_linux/tasks/main.yml
+# Auth convention (Phase A1): X-Sentinel-Api-Key to the SENTINEL app,
+# Authorization: Bearer to the OTel gateway. The environment comes from the key.
+- name: Verify per-host kill switch
+  ansible.builtin.set_fact:
+    agent_enabled: "{{ sentinel_agent_enabled | default(true) }}"
+
+- name: Stop and disable agent if kill-switch is active
+  when: not agent_enabled
+  block:
+    - name: Stop SENTINEL services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop: [sentinel-probe, sentinel-agent, sentinel-osquery]
+      ignore_errors: true
+    - name: Output kill switch status
+      ansible.builtin.debug:
+        msg: "SENTINEL Agent deactivated via per-host kill switch on {{ inventory_hostname }}"
+
+- name: Deploy and configure SENTINEL Agent (Linux)
+  when: agent_enabled
+  block:
+    - name: Install sentinel-agent package (collector, probe, osquery)
+      ansible.builtin.package:
+        name: "{{ sentinel_package_name }}"
+        state: present
+
+    - name: Write the ingest key (read by sentinel-probe)
+      ansible.builtin.copy:
+        content: "{{ sentinel_ingest_key }}"
+        dest: /etc/sentinel/ingest.key
+        owner: root
+        group: sentinel
+        mode: '0640'
+      no_log: true
+      notify: Restart sentinel-probe
+
+    - name: Write gateway and database credentials for the collector
+      ansible.builtin.copy:
+        content: |
+          SENTINEL_GATEWAY_URL={{ sentinel_gateway_url }}
+          SENTINEL_GATEWAY_TOKEN={{ sentinel_gateway_token }}
+          {% for k, v in sentinel_db_env.items() %}
+          {{ k }}={{ v }}
+          {% endfor %}
+        dest: /etc/sentinel/agent.env
+        owner: root
+        group: sentinel
+        mode: '0640'
+      no_log: true
+      notify: Restart sentinel-agent
+
+    - name: Write sentinel-probe configuration
+      ansible.builtin.copy:
+        content: "{{ probe_config | to_nice_json }}"
+        dest: /etc/sentinel/probe.json
+        owner: root
+        group: sentinel
+        mode: '0640'
+      vars:
+        probe_config:
+          sentinel_url: "{{ sentinel_api_url }}"
+          api_key_file: /etc/sentinel/ingest.key
+          host: "{{ inventory_hostname }}"
+          interval_seconds: "{{ sentinel_probe_interval_seconds | int }}"
+          otlp_endpoint: "http://127.0.0.1:4318"
+          otlp_auth: none
+          collector_config_path: /etc/sentinel/collector.yaml
+          osquery_results_path: /var/log/osquery/osqueryd.results.log
+          state_file: /var/lib/sentinel/probe-state.json
+      notify: Restart sentinel-probe
+
+    - name: Fetch dynamic host configuration from SENTINEL API
+      ansible.builtin.uri:
+        url: "{{ sentinel_api_url }}/api/v2/agent/config?host={{ inventory_hostname | urlencode }}&os=linux"
+        headers:
+          X-Sentinel-Api-Key: "{{ sentinel_ingest_key }}"
+        return_content: true
+      register: host_config
+      failed_when: host_config.status != 200
+      no_log: true
+
+    - name: Deploy host-rendered collector configuration
+      ansible.builtin.copy:
+        content: "{{ host_config.json.config_yaml }}"
+        dest: /etc/sentinel/collector.yaml
+        owner: root
+        group: sentinel
+        mode: '0640'
+      notify: Restart sentinel-agent
+
+    - name: Ensure SENTINEL services are running and enabled
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+        daemon_reload: true
+      loop: [sentinel-osquery, sentinel-agent, sentinel-probe]

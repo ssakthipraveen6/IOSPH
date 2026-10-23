@@ -1,0 +1,7 @@
+{
+  "name": "@sentinel/sentinelql",
+  "version": "1.0.0",
+  "description": "SentinelQL read-only analytical query language compiler and execution engine",
+  "main": "index.js",
+  "private": true
+}

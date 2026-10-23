@@ -14,7 +14,9 @@ const MAX_BACKOFF_MS = 300000;          // 5 minutes ceiling
 
 const breakers = new Map();
 
+// Circuit breaker for one target: stops calling it after repeated failures, retries with backoff.
 class TargetBreaker {
+  // Creates a closed breaker.
   constructor(targetKey) {
     this.targetKey = targetKey;
     this.state = 'CLOSED';
@@ -27,6 +29,7 @@ class TargetBreaker {
     this.totalTripped = 0;
   }
 
+  // True when a call is allowed now.
   canExecute() {
     const now = Date.now();
     if (this.state === 'CLOSED') {
@@ -49,6 +52,7 @@ class TargetBreaker {
     return true;
   }
 
+  // Records a success.
   recordSuccess() {
     this.consecutiveSuccesses++;
     this.lastSuccessTime = Date.now();
@@ -57,6 +61,7 @@ class TargetBreaker {
     this.state = 'CLOSED';
   }
 
+  // Records a failure.
   recordFailure(error) {
     this.consecutiveFailures++;
     this.lastFailureTime = Date.now();
@@ -71,6 +76,7 @@ class TargetBreaker {
     }
   }
 
+  // Breaker status.
   getStatus() {
     return {
       target: this.targetKey,
@@ -83,6 +89,7 @@ class TargetBreaker {
   }
 }
 
+// Breaker of a target.
 function getBreaker(targetKey) {
   if (!breakers.has(targetKey)) {
     breakers.set(targetKey, new TargetBreaker(targetKey));
@@ -90,18 +97,22 @@ function getBreaker(targetKey) {
   return breakers.get(targetKey);
 }
 
+// True when the target may be called.
 function canExecute(targetKey) {
   return getBreaker(targetKey).canExecute();
 }
 
+// Records a success for a target.
 function recordSuccess(targetKey) {
   getBreaker(targetKey).recordSuccess();
 }
 
+// Records a failure for a target.
 function recordFailure(targetKey, error) {
   getBreaker(targetKey).recordFailure(error);
 }
 
+// Status of every breaker.
 function getAllBreakerStatuses() {
   const result = {};
   for (const [key, breaker] of breakers.entries()) {
@@ -110,6 +121,7 @@ function getAllBreakerStatuses() {
   return result;
 }
 
+// Clears every breaker.
 function resetAll() {
   breakers.clear();
 }

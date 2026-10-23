@@ -1,3 +1,5 @@
+@import './tokens.css';
+
 /* Clean slate override for Vite template defaults */
 html, body, #root {
   margin: 0;

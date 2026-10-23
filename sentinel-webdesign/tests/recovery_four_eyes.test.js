@@ -1,3 +1,6 @@
+/**
+ * Test: remediation needs two approvers; bypass attempts are refused.
+ */
 const assert = require('assert');
 const db = require('../database/db');
 const { triggerRecovery, approveRecovery } = require('../remediation/recovery');

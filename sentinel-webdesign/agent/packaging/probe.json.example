@@ -1,0 +1,11 @@
+{
+  "sentinel_url": "https://sentinel.internal.corp",
+  "api_key_file": "/etc/sentinel/ingest.key",
+  "interval_seconds": 60,
+  "config_refresh_seconds": 300,
+  "otlp_endpoint": "http://127.0.0.1:4318",
+  "otlp_auth": "none",
+  "collector_config_path": "/etc/sentinel/collector.yaml",
+  "osquery_results_path": "/var/log/osquery/osqueryd.results.log",
+  "state_file": "/var/lib/sentinel/probe-state.json"
+}

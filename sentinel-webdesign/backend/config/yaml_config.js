@@ -1,3 +1,7 @@
+/**
+ * Loads, validates and saves the YAML configuration: config/global.yaml, config/apps/*.yaml
+ * (application manifests) and config/infra/*.yaml (infrastructure layers).
+ */
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -29,6 +33,7 @@ let cachedInfra = null;
 // actually came from, so lookups never have to guess a filename from an id.
 let cachedSourceFiles = null;
 
+// Map of application id to the manifest file it came from.
 function getSourceFileMap() {
   if (!cachedSourceFiles) {
     cachedSourceFiles = {};
@@ -38,6 +43,7 @@ function getSourceFileMap() {
   return cachedSourceFiles;
 }
 
+// Remembers which file an application was loaded from.
 function recordSourceFile(parsed, filePath) {
   if (!cachedSourceFiles) cachedSourceFiles = {};
   cachedSourceFiles[parsed.id] = filePath;
@@ -48,6 +54,7 @@ function recordSourceFile(parsed, filePath) {
   }
 }
 
+// Drops the cached configuration so the next read reloads the files.
 function clearConfigCache() {
   cachedGlobal = null;
   cachedApps = null;
@@ -55,6 +62,7 @@ function clearConfigCache() {
   cachedSourceFiles = null;
 }
 
+// Reads config/global.yaml (cached).
 function loadGlobalConfig(forceReload = false) {
   if (cachedGlobal && !forceReload) return cachedGlobal;
   const targetGlobal = fs.existsSync(ROOT_GLOBAL_YAML) ? ROOT_GLOBAL_YAML : GLOBAL_YAML_PATH;
@@ -69,6 +77,7 @@ function loadGlobalConfig(forceReload = false) {
   return {};
 }
 
+// Reads every application manifest in config/apps (cached), including aliases.
 function loadAllApplications(forceReload = false) {
   if (cachedApps && !forceReload) return cachedApps;
   const apps = {};
@@ -123,6 +132,7 @@ function loadAllApplications(forceReload = false) {
   return apps;
 }
 
+// One application by id (also accepts its aliases).
 function getApplication(appId) {
   if (!appId) return null;
   const apps = loadAllApplications();
@@ -136,6 +146,7 @@ function getApplication(appId) {
   return null;
 }
 
+// Reads every infrastructure layer in config/infra (cached).
 function loadAllInfrastructureLayers(forceReload = false) {
   if (cachedInfra && !forceReload) return cachedInfra;
   const layers = {};
@@ -177,6 +188,7 @@ function loadAllInfrastructureLayers(forceReload = false) {
   return layers;
 }
 
+// Validates manifests and the CyberArk registry; returns errors and warnings.
 function validateConfig() {
   const apps = loadAllApplications();
   let registry = {};
@@ -214,6 +226,35 @@ function validateConfig() {
         }
       });
     }
+
+    if (Array.isArray(cfg.journeys)) {
+      const VALID_STEP_TYPES = ['http', 'browser', 'git', 'upload_download', 'jenkins'];
+      const VALID_LAYERS = ['network', 'app', 'db', 'storage'];
+      cfg.journeys.forEach((j, jIdx) => {
+        const jName = j.id || `journey[${jIdx}]`;
+        if (!j.id) {
+          errors.push(`App "${appId}" journey at index ${jIdx} missing "id".`);
+        }
+        if (j.interval_seconds !== undefined && Number(j.interval_seconds) < 30) {
+          errors.push(`App "${appId}" journey "${jName}" interval_seconds (${j.interval_seconds}) must be >= 30.`);
+        }
+        if (!Array.isArray(j.steps) || j.steps.length === 0) {
+          errors.push(`App "${appId}" journey "${jName}" has no steps.`);
+        } else {
+          j.steps.forEach((s, sIdx) => {
+            const sName = s.id || `step[${sIdx}]`;
+            if (!s.type || !VALID_STEP_TYPES.includes(s.type)) {
+              errors.push(`App "${appId}" journey "${jName}" step "${sName}" has unknown type "${s.type}".`);
+            }
+            if (!s.layer) {
+              errors.push(`App "${appId}" journey "${jName}" step "${sName}" missing required field "layer".`);
+            } else if (!VALID_LAYERS.includes(s.layer)) {
+              errors.push(`App "${appId}" journey "${jName}" step "${sName}" has invalid layer "${s.layer}".`);
+            }
+          });
+        }
+      });
+    }
   });
 
   if (errors.length > 0) {
@@ -225,6 +266,7 @@ function validateConfig() {
   return true;
 }
 
+// Checks an application id is safe to use in a file name.
 function sanitizeAppId(appId) {
   if (!appId) return null;
   const sanitized = String(appId).trim();
@@ -234,6 +276,7 @@ function sanitizeAppId(appId) {
   return sanitized;
 }
 
+// Writes config/global.yaml.
 function saveGlobalConfig(data) {
   clearConfigCache();
   const yamlStr = yaml.dump(data);
@@ -244,6 +287,7 @@ function saveGlobalConfig(data) {
   }
 }
 
+// Writes one application manifest.
 function saveApplicationConfig(appId, data) {
   clearConfigCache();
   const safeAppId = sanitizeAppId(appId);
@@ -277,6 +321,7 @@ function saveApplicationConfig(appId, data) {
   fs.writeFileSync(targetFile, yaml.dump(data), 'utf8');
 }
 
+// Raw YAML text of the global config or one manifest.
 function getRawYaml(appId) {
   if (!appId) {
     const globalPath = fs.existsSync(ROOT_GLOBAL_YAML) ? ROOT_GLOBAL_YAML : GLOBAL_YAML_PATH;
@@ -327,6 +372,7 @@ function getRawYaml(appId) {
   return null;
 }
 
+// Replaces a YAML file after checking its syntax.
 function updateRawYaml(appId, rawContent) {
   clearConfigCache();
   yaml.load(rawContent); // Validate YAML syntax

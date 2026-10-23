@@ -1,7 +1,11 @@
+/**
+ * Root-cause analysis dashboard: correlated incidents and their probable cause.
+ */
 import React, { useEffect, useState } from 'react';
 import { MAINTENANCE_CONFIG } from '../../maintenanceConfig';
 import { MaintenanceBadge, MaintenanceBanner } from '../shared/MaintenanceNotice';
 import DriftRcaCorrelationFeed from '../correlation/DriftRcaCorrelationFeed';
+import './RcaDashboard.css';
 import { SEVERITY, SEVERITY_COLORS, getStatusColor, normalizeSeverity } from '@sentinel/shared-constants';
 
 const appDisplayNames = {
@@ -21,6 +25,8 @@ const appDisplayNames = {
   performance_center: "Performance Center"
 };
 
+// RCA dashboard component; loads correlations for the environment and lets the user drill into an
+// entity.
 export default function RcaDashboard({ environment = 'staging', onInspectEntity, onNavigateToTimeline }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,9 +40,10 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
     fetch(`/api/infra-tickets?environment=${encodeURIComponent(environment)}`)
       .then(res => res.json())
       .then(t => {
-        setChanges(t);
-        if (t && t.length > 0) {
-          setSelectedChange(t[0]);
+        const list = Array.isArray(t) ? t : (t && Array.isArray(t.tickets) ? t.tickets : []);
+        setChanges(list);
+        if (list.length > 0) {
+          setSelectedChange(list[0]);
         } else {
           setSelectedChange(null);
         }
@@ -103,8 +110,8 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      
+    <div className="rca-root">
+
       {/* Overview Block */}
       <div className="section-header-group">
         <h3 className="section-subtitle">ROOT CAUSE & TICKET CORRELATION ENGINE</h3>
@@ -118,11 +125,11 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
       </div>
 
       {/* Interactive E2E Flow Dependency Mapper */}
-      <div className="metrics-panel-card" style={{ padding: '1.5rem' }}>
-        <div className="panel-header" style={{ marginBottom: '1.25rem' }}>
+      <div className="metrics-panel-card rca-pad-lg">
+        <div className="panel-header rca-header-lg">
           <div>
             <h3>Application End-to-End Dependency Flow Mapper</h3>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <p className="rca-hint">
               Select an application below to visualize status propagation and performance deviations from identity proxies down to NAS/S3 storage mounts.
             </p>
           </div>
@@ -130,20 +137,12 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
         </div>
 
         {/* Application Selector Tabs */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '2rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '1rem' }}>
+        <div className="rca-app-tabs">
           {Object.keys(data.flows).map(appKey => (
             <button
               key={appKey}
               onClick={() => setSelectedFlowApp(appKey)}
-              className="nav-tab-btn"
-              style={{
-                width: 'auto',
-                padding: '0.4rem 1rem',
-                fontSize: '0.75rem',
-                background: selectedFlowApp === appKey ? 'var(--primary)' : 'rgba(255,255,255,0.02)',
-                color: selectedFlowApp === appKey ? '#ffffff' : 'var(--text-muted)',
-                borderColor: selectedFlowApp === appKey ? 'var(--primary)' : 'var(--border-light)',
-              }}
+              className={`nav-tab-btn rca-app-tab${selectedFlowApp === appKey ? ' rca-app-tab--active' : ''}`}
             >
               {appDisplayNames[appKey] || appKey.toUpperCase()}
             </button>
@@ -151,49 +150,34 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
         </div>
 
         {/* Horizontal Node Flow Visualizer */}
-        <div style={{ overflowX: 'auto', padding: '1rem 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: '950px' }}>
+        <div className="rca-flow-scroll">
+          <div className="rca-flow-row">
             {activeFlow.map((node, index) => {
               const normStatus = normalizeSeverity(node.status);
               const isAnomaly = normStatus === SEVERITY.CRITICAL || normStatus === SEVERITY.WARNING;
               return (
                 <React.Fragment key={index}>
-                  <div 
-                    style={{
-                      flex: '1',
-                      background: 'var(--bg-panel)',
-                      border: isAnomaly ? '1.5px solid #ef4444' : '1px solid var(--border-light)',
-                      borderTop: `4px solid ${getStatusColor(node.status)}`,
-                      borderRadius: '8px',
-                      padding: '1rem',
-                      textAlign: 'center',
-                      boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
-                      animation: normStatus === SEVERITY.CRITICAL ? 'pulse-ring 2.5s infinite' : 'none',
-                      minWidth: '160px'
-                    }}
+                  <div
+                    className={`rca-flow-node${isAnomaly ? ' rca-flow-node--anomaly' : ''}${normStatus === SEVERITY.CRITICAL ? ' rca-flow-node--critical' : ''}`}
+                    style={{ borderTopColor: getStatusColor(node.status) }}
                   >
-                    <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                    <span className="rca-flow-layer">
                       Layer {index + 1}
                     </span>
-                    <h4 style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
+                    <h4 className="rca-flow-name">
                       {node.name}
                     </h4>
-                    <span style={{ 
-                      fontFamily: 'var(--font-mono)', 
-                      fontSize: '0.75rem', 
-                      color: isAnomaly ? getStatusColor(node.status) : 'var(--primary)',
-                      fontWeight: '700'
-                    }}>
+                    <span className="rca-flow-value" style={isAnomaly ? { color: getStatusColor(node.status) } : undefined}>
                       {node.value}
                     </span>
                     {isAnomaly && (
-                      <div style={{ fontSize: '0.6rem', color: '#ef4444', marginTop: '6px', fontWeight: 'bold' }}>
+                      <div className="rca-flow-deviation">
                         ⚠️ Deviation Detected
                       </div>
                     )}
                   </div>
                   {index < activeFlow.length - 1 && (
-                    <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)', fontSize: '1.25rem' }}>
+                    <div className="rca-flow-arrow">
                       ➜
                     </div>
                   )}
@@ -206,58 +190,58 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
 
       {/* AI Root Cause & Correlation Intelligence Panel */}
       {selectedCorrelation && (
-        <div className="metrics-panel-card" style={{ padding: '1.25rem', background: 'linear-gradient(135deg, rgba(13,148,136,0.06) 0%, rgba(15,23,42,0.4) 100%)', border: '1px solid rgba(13,148,136,0.3)' }}>
-          <div className="panel-header" style={{ marginBottom: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.25rem' }}>🧠</span>
+        <div className="metrics-panel-card rca-ai-card">
+          <div className="panel-header rca-header-sm">
+            <div className="rca-ai-title-row">
+              <span className="rca-ai-icon">🧠</span>
               <div>
-                <h3 style={{ fontSize: '0.95rem' }}>AI Root Cause Correlation: {selectedCorrelation.title}</h3>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Target: <strong>{appDisplayNames[selectedFlowApp] || selectedFlowApp.toUpperCase()}</strong> | Correlation Confidence: <strong style={{ color: '#10b981' }}>{selectedCorrelation.confidence}%</strong></span>
+                <h3 className="rca-ai-title">AI Root Cause Correlation: {selectedCorrelation.title}</h3>
+                <span className="rca-ai-meta">Target: <strong>{appDisplayNames[selectedFlowApp] || selectedFlowApp.toUpperCase()}</strong> | Correlation Confidence: <strong className="rca-confidence">{selectedCorrelation.confidence}%</strong></span>
               </div>
             </div>
             <span className="panel-badge-green">AI Verified</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '8px' }}>
-            <div style={{ background: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🔍 Root Cause Diagnosis</span>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-main)', marginTop: '4px', lineHeight: 1.4 }}>{selectedCorrelation.rootCause}</p>
+          <div className="rca-ai-grid">
+            <div className="rca-ai-box">
+              <span className="rca-ai-label rca-ai-label--diagnosis">🔍 Root Cause Diagnosis</span>
+              <p className="rca-ai-text">{selectedCorrelation.rootCause}</p>
             </div>
-            <div style={{ background: 'var(--bg-dark)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⚡ Recommended Remediation Action</span>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-main)', marginTop: '4px', lineHeight: 1.4 }}>{selectedCorrelation.recommendation}</p>
+            <div className="rca-ai-box">
+              <span className="rca-ai-label rca-ai-label--action">⚡ Recommended Remediation Action</span>
+              <p className="rca-ai-text">{selectedCorrelation.recommendation}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Row 2: Performance Telemetry & Anomaly Deviations */}
-      <div className="metrics-panel-card" style={{ padding: '1.5rem' }}>
-        <div className="panel-header" style={{ marginBottom: '1.25rem' }}>
+      <div className="metrics-panel-card rca-pad-lg">
+        <div className="panel-header rca-header-lg">
           <div>
             <h3>Telemetry Deviation Timeline: {appDisplayNames[selectedFlowApp] || selectedFlowApp.toUpperCase()} vs Baseline</h3>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            <p className="rca-hint">
               Comparison of live observed metrics (Red) against historical predictive baseline models (Teal).
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <span style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
-              <span style={{ width: '10px', height: '10px', background: 'var(--primary)', display: 'inline-block', borderRadius: '50%' }}></span> Expected Baseline
+          <div className="rca-legend">
+            <span className="rca-legend-item">
+              <span className="rca-legend-dot rca-legend-dot--expected"></span> Expected Baseline
             </span>
-            <span style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
-              <span style={{ width: '10px', height: '10px', background: '#ef4444', display: 'inline-block', borderRadius: '50%' }}></span> Live Observed Telemetry
+            <span className="rca-legend-item">
+              <span className="rca-legend-dot rca-legend-dot--actual"></span> Live Observed Telemetry
             </span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem', background: 'var(--bg-dark)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-light)', overflowX: 'auto' }}>
+        <div className="rca-chart-frame">
           {timelineData.length === 0 ? (
-            <div style={{ height: '200px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>⏱️</div>
-              <strong style={{ color: 'var(--text-main)' }}>Value Not Available</strong>
-              <span style={{ fontSize: '0.72rem', marginTop: '4px' }}>Telemetry deviation timeline is not collected yet for {environment ? environment.toUpperCase() : 'this environment'}.</span>
+            <div className="rca-chart-empty">
+              <div className="rca-chart-empty-icon">⏱️</div>
+              <strong className="rca-text-main">Value Not Available</strong>
+              <span className="rca-chart-empty-note">Telemetry deviation timeline is not collected yet for {environment ? environment.toUpperCase() : 'this environment'}.</span>
             </div>
           ) : (
-            <svg width={width} height={height} style={{ minWidth: '800px' }}>
+            <svg width={width} height={height} className="rca-chart-svg">
               {[0, 1, 2, 3].map((g, idx) => (
                 <line key={idx} x1={padding} y1={padding + (chartHeight / 3) * idx} x2={width - padding} y2={padding + (chartHeight / 3) * idx} stroke="var(--border-light)" strokeDasharray="4,4" />
               ))}
@@ -286,50 +270,39 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
       </div>
 
       {/* Row 3: ServiceNow 2-Week Change & Incident timelines */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem', alignItems: 'start' }}>
-        
+      <div className="rca-changes-grid">
+
         {/* ServiceNow Changes List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <h4 style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="rca-col-sm">
+          <h4 className="rca-changes-title">
             ServiceNow Change Records & Incident Correlation
             {MAINTENANCE_CONFIG.tiles.serviceNowTile && <MaintenanceBadge />}
           </h4>
           {MAINTENANCE_CONFIG.tiles.serviceNowTile && (
-            <div style={{ fontSize: '0.7rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '6px 10px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)', marginBottom: '8px', fontWeight: 600 }}>
+            <div className="rca-maint-note">
               🛠️ Under Maintenance — ServiceNow ITSM change ticket sync in progress.
             </div>
           )}
-          
+
           {changes.length === 0 ? (
-            <div style={{ padding: '15px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', background: 'var(--bg-panel)', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+            <div className="rca-empty-box">
               Value Not Available
             </div>
           ) : (
             changes.map(chg => (
-              <div 
+              <div
                 key={chg.id}
                 onClick={() => setSelectedChange(chg)}
-                className="metrics-panel-card"
-                style={{
-                  cursor: 'pointer',
-                  borderColor: selectedChange?.id === chg.id ? 'var(--primary)' : 'var(--border-light)',
-                  background: selectedChange?.id === chg.id ? 'var(--primary-glow)' : 'var(--bg-panel)',
-                  padding: '1rem',
-                  transition: 'all 0.2s ease'
-                }}
+                className={`metrics-panel-card rca-chg-card${selectedChange?.id === chg.id ? ' rca-chg-card--selected' : ''}`}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.8rem', color: 'var(--primary)' }}>{chg.id}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{chg.date}</span>
+                <div className="rca-chg-head">
+                  <span className="rca-chg-id">{chg.id}</span>
+                  <span className="rca-chg-date">{chg.date}</span>
                 </div>
-                <h4 style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '8px', lineHeight: '1.3' }}>{chg.title}</h4>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <span className="badge-gray" style={{ fontSize: '0.6rem' }}>{chg.component.toUpperCase()}</span>
-                  <span className="status-badge-inline" style={{ 
-                    background: chg.risk === 'High' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                    color: chg.risk === 'High' ? '#ef4444' : '#f59e0b',
-                    fontSize: '0.6rem'
-                  }}>{chg.risk} Risk</span>
+                <h4 className="rca-chg-title">{chg.title}</h4>
+                <div className="rca-chg-tags">
+                  <span className="badge-gray rca-tag-xs">{chg.component.toUpperCase()}</span>
+                  <span className={`status-badge-inline rca-risk${chg.risk === 'High' ? ' rca-risk--high' : ''}`}>{chg.risk} Risk</span>
                 </div>
               </div>
             ))
@@ -338,39 +311,39 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
 
         {/* 2-Week Timeline before & after ticket mapping */}
         {selectedChange ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div className="metrics-panel-card" style={{ padding: '1.25rem' }}>
-              <div className="panel-header" style={{ marginBottom: '1rem' }}>
+          <div className="rca-col-lg">
+            <div className="metrics-panel-card rca-pad-md">
+              <div className="panel-header rca-header-md">
                 <h3>ServiceNow Specification Details: {selectedChange.id}</h3>
                 <span className="panel-badge-green">{selectedChange.status}</span>
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+              <div className="rca-spec">
                 <p><strong>Title:</strong> {selectedChange.title}</p>
-                <p style={{ marginTop: '4px' }}><strong>Engineer:</strong> {selectedChange.engineer} | <strong>Risk Level:</strong> {selectedChange.risk}</p>
-                <p style={{ marginTop: '6px', color: 'var(--text-main)', background: 'var(--bg-dark)', padding: '8px', borderRadius: '4px' }}>{selectedChange.description}</p>
+                <p className="rca-mt-1"><strong>Engineer:</strong> {selectedChange.engineer} | <strong>Risk Level:</strong> {selectedChange.risk}</p>
+                <p className="rca-spec-desc">{selectedChange.description}</p>
               </div>
             </div>
 
             {/* Split panel: 2 weeks before vs 2 weeks after */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-              
+            <div className="rca-split">
+
               {/* 2 Weeks Before */}
-              <div className="metrics-panel-card" style={{ padding: '1.25rem' }}>
-                <div className="panel-header" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
-                  <h4 style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 800 }}>📉 2 Weeks BEFORE Change</h4>
+              <div className="metrics-panel-card rca-pad-md">
+                <div className="panel-header rca-window-header">
+                  <h4 className="rca-window-title rca-window-title--before">📉 2 Weeks BEFORE Change</h4>
                 </div>
                 {selectedChange.beforeTickets.length === 0 ? (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Value Not Available</p>
+                  <p className="rca-window-empty">Value Not Available</p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div className="rca-ticket-list">
                     {selectedChange.beforeTickets.map(t => (
-                      <div key={t.id} style={{ padding: '8px', background: 'var(--bg-dark)', borderRadius: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                          <span style={{ color: 'var(--primary)' }}>{t.id} ({t.type})</span>
-                          <span style={{ color: 'var(--text-muted)' }}>{t.date}</span>
+                      <div key={t.id} className="rca-ticket">
+                        <div className="rca-ticket-head">
+                          <span className="rca-ticket-id">{t.id} ({t.type})</span>
+                          <span className="rca-text-muted">{t.date}</span>
                         </div>
-                        <div style={{ fontSize: '0.75rem', marginTop: '4px', color: 'var(--text-main)' }}>{t.title}</div>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>Source: {t.source}</span>
+                        <div className="rca-ticket-title">{t.title}</div>
+                        <span className="rca-ticket-source">Source: {t.source}</span>
                       </div>
                     ))}
                   </div>
@@ -378,22 +351,22 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
               </div>
 
               {/* 2 Weeks After */}
-              <div className="metrics-panel-card" style={{ padding: '1.25rem' }}>
-                <div className="panel-header" style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
-                  <h4 style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 800 }}>📈 2 Weeks AFTER Change</h4>
+              <div className="metrics-panel-card rca-pad-md">
+                <div className="panel-header rca-window-header">
+                  <h4 className="rca-window-title rca-window-title--after">📈 2 Weeks AFTER Change</h4>
                 </div>
                 {selectedChange.afterTickets.length === 0 ? (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '10px' }}>Value Not Available</p>
+                  <p className="rca-window-empty">Value Not Available</p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div className="rca-ticket-list">
                     {selectedChange.afterTickets.map(t => (
-                      <div key={t.id} style={{ padding: '8px', background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.1)', borderRadius: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                          <span style={{ color: '#ef4444' }}>{t.id} ({t.type})</span>
-                          <span style={{ color: 'var(--text-muted)' }}>{t.date}</span>
+                      <div key={t.id} className="rca-ticket rca-ticket--after">
+                        <div className="rca-ticket-head">
+                          <span className="rca-ticket-id rca-ticket-id--after">{t.id} ({t.type})</span>
+                          <span className="rca-text-muted">{t.date}</span>
                         </div>
-                        <div style={{ fontSize: '0.75rem', marginTop: '4px', color: 'var(--text-main)' }}>{t.title}</div>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>Source: {t.source}</span>
+                        <div className="rca-ticket-title">{t.title}</div>
+                        <span className="rca-ticket-source">Source: {t.source}</span>
                       </div>
                     ))}
                   </div>
@@ -403,26 +376,26 @@ export default function RcaDashboard({ environment = 'staging', onInspectEntity,
             </div>
           </div>
         ) : (
-          <p style={{ color: 'var(--text-muted)' }}>Select a change record to view ServiceNow impact timelines.</p>
+          <p className="rca-text-muted">Select a change record to view ServiceNow impact timelines.</p>
         )}
       </div>
 
-      {/* 
+      {/*
         Colleague Integration Placeholder: RcaDashboard
         -------------------------------------------------
         To integrate your colleague's custom module or root cause analytics here:
         1. Import the component (e.g., import ColleagueRcaModule from './ColleagueRcaModule';)
         2. Render it inside this container with the appropriate RCA / Change telemetry data props.
-        
-        Example:
-        <div className="colleague-module-container" style={{ marginTop: '2rem', border: '1px dashed var(--border-light)', padding: '15px', borderRadius: '6px' }}>
-          <h4 style={{ fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '8px' }}>Colleague RCA Analytics Module</h4>
+
+        Example (add matching rules to RcaDashboard.css):
+        <div className="colleague-module-container rca-colleague-module">
+          <h4 className="rca-colleague-module-title">Colleague RCA Analytics Module</h4>
           Example: ColleagueRcaModule selectedFlowApp={selectedFlowApp} data={data} changes={changes}
         </div>
       {/* Connective Architecture Layer: Drift-Linked Incidents Feed */}
-      <DriftRcaCorrelationFeed 
-        onSelectEntity={onInspectEntity} 
-        onNavigateToTimeline={onNavigateToTimeline} 
+      <DriftRcaCorrelationFeed
+        onSelectEntity={onInspectEntity}
+        onNavigateToTimeline={onNavigateToTimeline}
         environment={environment}
       />
     </div>

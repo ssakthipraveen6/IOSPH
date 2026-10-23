@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const postgres = require('@sentinel/database/postgres');
 
-const RUNTIME_DIR = path.resolve(__dirname, '../.runtime');
+const RUNTIME_DIR = process.env.SENTINEL_RUNTIME_DIR ? path.resolve(process.env.SENTINEL_RUNTIME_DIR) : path.resolve(__dirname, '../.runtime');
 const INVENTORY_CACHE_FILE = path.join(RUNTIME_DIR, 'inventory_cache.json');
 
 // In-memory inventory state
@@ -45,12 +45,14 @@ const DEMO_EDGES = [
   { from_entity: 'app:artifactory', to_entity: 'infra:database', edge_type: 'reads_writes', confidence: 1.0, source: 'demo' }
 ];
 
+// Creates the .runtime folder.
 function ensureRuntimeDir() {
   if (!fs.existsSync(RUNTIME_DIR)) {
     try { fs.mkdirSync(RUNTIME_DIR, { recursive: true }); } catch (_) {}
   }
 }
 
+// Loads the inventory cache file.
 function loadCache() {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -84,7 +86,16 @@ function loadCache() {
   }
 }
 
-function saveCache() {
+let saveTimer = null;
+let lastSaveTime = 0;
+const SAVE_DEBOUNCE_MS = Number(process.env.INVENTORY_SAVE_DEBOUNCE_MS ?? 5000);
+
+// Writes the cache now.
+function flushCacheSync() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
   ensureRuntimeDir();
   const data = {
     entities: Array.from(state.entities.values()),
@@ -101,11 +112,79 @@ function saveCache() {
       fs.writeFileSync(INVENTORY_CACHE_FILE, content, 'utf8');
     } catch (_) {}
   }
+  lastSaveTime = Date.now();
+}
+
+// Writes the cache (debounced).
+function saveCache() {
+  const now = Date.now();
+  if (now - lastSaveTime >= SAVE_DEBOUNCE_MS) {
+    flushCacheSync();
+  } else if (!saveTimer) {
+    const delay = Math.max(SAVE_DEBOUNCE_MS - (now - lastSaveTime), 10);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      flushCacheSync();
+    }, delay);
+    if (saveTimer.unref) saveTimer.unref();
+  }
 }
 
 loadCache();
 
+// [M1.10] Both app nodes write entities through to Postgres; each node also reads
+// them back periodically so an agent registered on one node appears on the other.
+const SYNC_INTERVAL_MS = 60 * 1000;
+
+// ISO date.
+function iso(v) {
+  return v instanceof Date ? v.toISOString() : (v || null);
+}
+
+// Loads entities from PostgreSQL.
+async function syncFromPostgres() {
+  try {
+    const pool = await postgres.getPool();
+    if (!pool) return false;
+    const ents = await pool.query(
+      `SELECT entity_id, kind, name, app_id, region, environment, parent_id, labels, source, status, first_seen, last_seen
+         FROM entity WHERE last_seen > now() - interval '7 days'`
+    );
+    ents.rows.forEach(r => {
+      const existing = state.entities.get(r.entity_id);
+      const lastSeen = iso(r.last_seen);
+      if (!existing || (lastSeen && existing.last_seen && lastSeen > existing.last_seen)) {
+        state.entities.set(r.entity_id, {
+          entity_id: r.entity_id, kind: r.kind, name: r.name, app_id: r.app_id, region: r.region,
+          environment: r.environment, parent_id: r.parent_id, labels: r.labels || {}, source: r.source,
+          status: r.status, first_seen: iso(r.first_seen), last_seen: lastSeen
+        });
+      }
+    });
+    const edges = await pool.query(
+      `SELECT from_entity, to_entity, edge_type, confidence, source, last_seen
+         FROM entity_edge WHERE last_seen > now() - interval '7 days'`
+    );
+    edges.rows.forEach(r => {
+      const key = `${r.from_entity}|${r.to_entity}|${r.edge_type}`;
+      if (!state.edges.has(key)) {
+        state.edges.set(key, { ...r, confidence: Number(r.confidence), last_seen: iso(r.last_seen) });
+      }
+    });
+    return true;
+  } catch (_) {
+    return false; // database unreachable: keep serving the local cache
+  }
+}
+
+// Repeats the PostgreSQL sync in the background.
+const syncTimer = setInterval(() => { syncFromPostgres(); }, SYNC_INTERVAL_MS);
+syncTimer.unref();
+setImmediate(() => { syncFromPostgres(); });
+
 const inventoryStore = {
+  syncFromPostgres,
+
   /**
    * Upserts an entity into the store.
    * Writes through to PostgreSQL if available, otherwise commits to local cache.
@@ -226,6 +305,43 @@ const inventoryStore = {
   },
 
   /**
+   * [Q4] Removes one edge (memory, cache and Postgres). Used by sources that own
+   * a replace-on-refresh set of edges (inventory/sources/vip_discovery.js) so stale
+   * discoveries do not linger. Returns true when the edge existed locally.
+   */
+  async removeEdge(fromEntity, toEntity, edgeType) {
+    const key = `${fromEntity}|${toEntity}|${edgeType}`;
+    const existed = state.edges.delete(key);
+    if (existed) saveCache();
+    try {
+      const pool = await postgres.getPool();
+      if (pool) {
+        await pool.query('DELETE FROM entity_edge WHERE from_entity = $1 AND to_entity = $2 AND edge_type = $3', [fromEntity, toEntity, edgeType]);
+      }
+    } catch (_) {
+      // Degrades gracefully to local state
+    }
+    return existed;
+  },
+
+  /**
+   * [Q4] Removes one entity (memory, cache and Postgres). Callers remove its edges first.
+   */
+  async removeEntity(entityId) {
+    const existed = state.entities.delete(entityId);
+    if (existed) saveCache();
+    try {
+      const pool = await postgres.getPool();
+      if (pool) {
+        await pool.query('DELETE FROM entity WHERE entity_id = $1', [entityId]);
+      }
+    } catch (_) {
+      // Degrades gracefully to local state
+    }
+    return existed;
+  },
+
+  /**
    * Queries entities with optional filtering and pagination.
    */
   async getEntities({
@@ -308,6 +424,10 @@ const inventoryStore = {
         incoming
       }
     };
+  },
+
+  async getEntity(entityId) {
+    return this.getEntityById(entityId);
   },
 
   /**

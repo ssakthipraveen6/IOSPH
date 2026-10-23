@@ -1,3 +1,7 @@
+/**
+ * Runs scripts/cyberark_fetch.py to read one secret from the CyberArk Central Credential Provider
+ * and returns its value.
+ */
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');

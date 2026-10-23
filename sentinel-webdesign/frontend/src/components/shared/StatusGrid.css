@@ -1,0 +1,95 @@
+/* frontend/src/components/shared/StatusGrid.css */
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3, 12px);
+  width: 100%;
+}
+
+.status-grid--empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-6, 24px);
+  background: var(--surface-bg);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+}
+
+.status-grid__empty-text {
+  color: var(--text-muted);
+  font-size: var(--text-sm, 13px);
+  margin: 0;
+}
+
+.status-grid__card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-3, 12px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease);
+}
+
+.status-grid__card--clickable {
+  cursor: pointer;
+}
+
+.status-grid__card--clickable:hover {
+  border-color: var(--border-default);
+  transform: translateY(-1px);
+}
+
+.status-grid__card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.status-grid__name {
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-grid__card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2, 8px);
+}
+
+.status-grid__metric {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.status-grid__metric-val {
+  font-family: var(--font-mono);
+  font-size: var(--text-base, 14px);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.status-grid__metric-unit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status-grid__secondary {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

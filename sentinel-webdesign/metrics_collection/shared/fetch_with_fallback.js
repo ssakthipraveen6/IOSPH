@@ -25,6 +25,15 @@ try {
 } catch (e) {
   try {
     yamlConfig = require('@sentinel/config/yaml_config');
+
+// Same warning for the same thing at most once every 5 minutes (a poll cycle used to print it per request).
+const _authWarned = new Map();
+function warnAuthOnce(key, message) {
+  const now = Date.now();
+  if ((_authWarned.get(key) || 0) > now - 300000) return;
+  _authWarned.set(key, now);
+  console.warn(message);
+}
   } catch (_) {}
 }
 
@@ -143,7 +152,7 @@ async function applyAuthentication(url, options = {}, authConfig = null, appId =
       }
     }
   } catch (err) {
-    console.warn(`[AUTH FETCH] Failed applying credential for ${effectiveAppId}: ${err.message}`);
+    warnAuthOnce(`${effectiveAppId}:${err.message}`, `[AUTH FETCH] Failed applying credential for ${effectiveAppId}: ${err.message}`);
   }
 
   return mergedOptions;

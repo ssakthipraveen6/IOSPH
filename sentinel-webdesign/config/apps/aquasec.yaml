@@ -1,57 +1,120 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: Aqua Security Container Scanner
-# Per Constraint C6: Collection is URL and exposed-metrics only (no agents)
-# =========================================================================
-id: "aquasec"
-kind: "application"
-display_name: "Aqua Security Scanner"
-category: "security_scanner"
-tier: "Tier-2 Operational"
-log_tag: "[AQUASEC]"
-regions: ["emea"]
-
+id: aquasec
+kind: application
+display_name: Aqua Security Scanner
+category: security_scanner
+tier: Tier-2 Operational
+log_tag: '[AQUASEC]'
+regions:
+  - emea
 endpoints:
   prod:
-    api: "https://aquasec-prod.internal.corp/api/v1"
+    api: https://aquasec-prod.internal.corp/api/v1
+    vip: https://aquasec-prod.internal.corp
   stg:
-    api: "https://aquasec-stg.internal.corp/api/v1"
-
+    api: https://aquasec-stg.internal.corp/api/v1
+    vip: https://aquasec-stg.internal.corp
 auth:
-  scheme: "none"
+  scheme: none
   credential_purpose: null
   cert_purpose: null
   username_purpose: null
   session: null
-
 topology:
   servers:
-    scanner_endpoint: "https://aquasec-prod.internal.corp/api/v1"
-
+    scanner_endpoint: https://aquasec-prod.internal.corp/api/v1
 lifecycle:
-  refweb_url: { url: "https://aquasec.internal.corp", expiry: "2027-09-30" }
-  license: { type: "Aqua Security Enterprise", expiry: "2027-06-01" }
-
+  refweb_url:
+    url: https://aquasec.internal.corp
+    expiry: '2027-09-30'
+  license:
+    type: Aqua Security Enterprise
+    expiry: '2027-06-01'
+  certificates:
+    - { name: vip-tls, probe: "aquasec-prod.internal.corp:443" }
 layers:
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-aquasec.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-aquasec.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://aquasec-prod.internal.corp
+  hosts:
+    - aquasec-node-01.internal.corp
+    - aquasec-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/aquasec
+  databases:
+    - jdbc:postgresql://db-prod-aquasec.internal.corp:5432/aquasec_db
+  clusters:
+    - k8s-prod-aquasec
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "60s"
-
+  provider: opentelemetry
+  scrape_interval: 60s
 metrics_baseline:
   responseTime: 160
   successRate: 99.2
   requests: 25
-
 logs:
-  log_tag: "[AQUASEC]"
-  log_path: "d:\\production_shares\\nas_logs\\aquasec.log"
-
+  log_tag: '[AQUASEC]'
+  log_path: d:\production_shares\nas_logs\aquasec.log
 credentials:
-  safe: "SF-AQUASEC-PROD"
+  safe: SF-AQUASEC-PROD
   objects:
-    api_token: "AQUASEC-API-TOKEN"
+    api_token: AQUASEC-API-TOKEN
+journeys:
+  - id: aquasec_scanner_status
+    name: AquaSec Scanner Server Status & Nodes
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: scanner_ping
+        name: Ping Scanner API
+        type: http
+        layer: network
+        url: /ping
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: enforcers_list
+        name: Enforcers Health List
+        type: http
+        layer: app
+        url: /enforcers
+        assert:
+          status: 200
+          max_ms: 2000
+  - id: aquasec_vulnerabilities_read
+    name: AquaSec Image Scanning & Vulnerabilities
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: images_summary
+        name: Scanned Images Overview
+        type: http
+        layer: app
+        url: /images
+        assert:
+          status: 200
+          max_ms: 2500
+      - id: scan_queue
+        name: Scan Queue Backlog
+        type: http
+        layer: storage
+        url: /scanqueue
+        assert:
+          status: 200
+          max_ms: 2500
+
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/opt/aquasec/conf/%%"
+    - "/etc/aquasec/%%"
+  windows: []

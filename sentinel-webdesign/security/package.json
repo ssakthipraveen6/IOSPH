@@ -1,0 +1,7 @@
+{
+  "name": "@sentinel/security",
+  "version": "1.0.0",
+  "description": "SENTINEL Security Scanner & Package Vulnerability Evaluator",
+  "main": "index.js",
+  "dependencies": {}
+}

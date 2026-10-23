@@ -1,0 +1,88 @@
+# Oracle read-only monitoring queries for sqlquery receiver
+# All queries MUST start with SELECT or WITH.
+# Credentials provided via environment variables.
+
+queries:
+  cache_hit_ratio:
+    name: oracle.cache_hit_ratio
+    interval: 60s
+    statement: >-
+      SELECT
+        round((1 - (phy.value / (cur.value + con.value))) * 100, 2) AS buffer_cache_hit_pct
+      FROM v$sysstat phy, v$sysstat cur, v$sysstat con
+      WHERE phy.name = 'physical reads'
+        AND cur.name = 'db block gets'
+        AND con.name = 'consistent gets';
+
+  tablespace_usage:
+    name: oracle.tablespace_usage
+    interval: 60s
+    statement: >-
+      SELECT
+        d.tablespace_name,
+        NVL(a.bytes - NVL(f.bytes, 0), 0) AS bytes_used,
+        NVL(a.bytes, 0) AS bytes_allocated,
+        NVL(a.maxbytes, a.bytes) AS autoextend_max_bytes
+      FROM dba_tablespaces d
+      LEFT JOIN (
+        SELECT tablespace_name, SUM(bytes) bytes, SUM(CASE WHEN maxbytes = 0 THEN bytes ELSE maxbytes END) maxbytes
+        FROM dba_data_files GROUP BY tablespace_name
+      ) a ON d.tablespace_name = a.tablespace_name
+      LEFT JOIN (
+        SELECT tablespace_name, SUM(bytes) bytes
+        FROM dba_free_space GROUP BY tablespace_name
+      ) f ON d.tablespace_name = f.tablespace_name;
+
+  replication_lag:
+    name: oracle.replication_lag
+    interval: 60s
+    statement: >-
+      SELECT
+        dest_id,
+        status,
+        applied_seq# AS applied_sequence,
+        (SELECT sequence# FROM v$log WHERE status = 'CURRENT') - applied_seq# AS sequence_lag
+      FROM v$archive_dest_status
+      WHERE type = 'PHYSICAL';
+
+  top_long_running_statements:
+    name: oracle.long_running_statements
+    interval: 60s
+    statement: >-
+      SELECT * FROM (
+        SELECT
+          sid,
+          username,
+          sql_id AS query_id_hash,
+          round(last_call_et, 2) AS duration_seconds,
+          status
+        FROM v$session
+        WHERE status = 'ACTIVE' AND type = 'USER' AND sql_id IS NOT NULL
+        ORDER BY last_call_et DESC
+      ) WHERE ROWNUM <= 10;
+
+  idle_in_transaction_locks:
+    name: oracle.idle_in_transaction_locks
+    interval: 60s
+    statement: >-
+      WITH locked_sessions AS (
+        SELECT DISTINCT sid FROM v$lock WHERE lmode > 1
+      )
+      SELECT
+        s.sid,
+        s.username,
+        round(s.last_call_et, 2) AS idle_duration_seconds
+      FROM v$session s
+      JOIN locked_sessions l ON s.sid = l.sid
+      WHERE s.status = 'INACTIVE'
+        AND s.last_call_et > 1800
+        AND s.type = 'USER';
+
+  backup_age:
+    name: oracle.backup_age
+    interval: 300s
+    statement: >-
+      SELECT
+        NVL(round((SYSDATE - MAX(completion_time)) * 86400, 0), 0) AS backup_age_seconds
+      FROM v$backup_set
+      WHERE status = 'A';

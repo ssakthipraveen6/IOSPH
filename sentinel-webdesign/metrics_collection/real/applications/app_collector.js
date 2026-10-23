@@ -1,3 +1,6 @@
+/**
+ * Runs the per-application collectors listed in the manifests and merges their metrics.
+ */
 const fs = require('fs');
 const path = require('path');
 const yamlConfig = require('@sentinel/config/yaml_config');
@@ -79,29 +82,17 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
           state = 'AUTH_FAILED';
           data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'AUTH_FAILED' };
         } else if (!data || data.error === 'Data Not Available' || Object.values(data).every(v => v === null)) {
-          if (currentEnv === 'demo') {
-            data = generateBaselineMetrics(base);
-          } else {
-            data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' };
-            state = 'DATA_UNAVAILABLE';
-          }
-        }
-      } catch (e) {
-        if (currentEnv === 'demo') {
-          data = generateBaselineMetrics(base);
-        } else {
-          console.warn(`[APP COLLECTOR ${currentEnv.toUpperCase()}] Live feed unreachable for ${key}: ${e.message}`);
           data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' };
           state = 'DATA_UNAVAILABLE';
         }
-      }
-    } else {
-      if (currentEnv === 'demo') {
-        data = generateBaselineMetrics(base);
-      } else {
+      } catch (e) {
+        console.warn(`[APP COLLECTOR ${currentEnv.toUpperCase()}] Live feed unreachable for ${key}: ${e.message}`);
         data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' };
         state = 'DATA_UNAVAILABLE';
       }
+    } else {
+      data = { responseTime: null, successRate: null, requests: null, isLive: false, error: 'Data Not Available' };
+      state = 'DATA_UNAVAILABLE';
     }
 
     // Record metrics into DB tagged by current environment across canonical id and all aliases
@@ -123,6 +114,7 @@ async function collectAppMetrics(simulations, db, writeNasLog, targetEnv = null)
   return currentMetrics;
 }
 
+// Metric map with every value null (nothing measured yet).
 function generateBaselineMetrics(base) {
   const result = {};
   Object.keys(base).forEach(k => {

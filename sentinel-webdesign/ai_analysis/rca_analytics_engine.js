@@ -1,3 +1,6 @@
+/**
+ * Root-cause analysis: builds RCA flows from alerts and events.
+ */
 const db = require('@sentinel/database');
 const eventStore = require('../database/event_store');
 const { SEVERITY, normalizeSeverity } = require('@sentinel/shared-constants');
@@ -125,6 +128,7 @@ const APP_RCA_PROFILES = {
   }
 };
 
+// Builds the RCA flow for an application from its alerts and events.
 async function generateRcaFlows(selectedApp = 'jenkins', env = null) {
   const targetEnv = env || global.runtimeEnvironment || 'staging';
   const alerts = db.getAlerts(targetEnv) || [];
@@ -253,70 +257,42 @@ async function generateRcaFlows(selectedApp = 'jenkins', env = null) {
     }
   });
 
-  // App-specific timeline generation based on environment
+  // Timeline: read real events from eventStore (empty if none exist)
   let timeline = [];
-  const appSeed = (selectedApp.charCodeAt(0) + selectedApp.length * 7) % 50;
-
-  if (targetEnv === 'demo') {
-    timeline = [
-      { time: "00:00", expected: 120 + appSeed, nasIops: 135 + appSeed, note: null },
-      { time: "04:00", expected: 80 + appSeed,  nasIops: 90 + appSeed,  note: null },
-      { time: "08:00", expected: 320 + appSeed, nasIops: 365 + appSeed, note: null },
-      { time: "12:00", expected: 480 + appSeed, nasIops: 580 + appSeed, note: null },
-      { time: "14:00", expected: 460 + appSeed, nasIops: 1650 + appSeed * 5, note: `[DEMO] ${selectedApp.toUpperCase()} Load Anomaly` },
-      { time: "16:00", expected: 440 + appSeed, nasIops: 2150 + appSeed * 4, note: `[DEMO] ${selectedApp.toUpperCase()} Root Cause Deviation` },
-      { time: "20:00", expected: 260 + appSeed, nasIops: 295 + appSeed, note: null }
-    ];
-  } else {
-    // PROD & STAGING: read real events from eventStore (empty if none exist)
-    try {
-      const realEvents = await eventStore.getEvents({ environment: targetEnv, limit: 15 });
-      timeline = (realEvents || []).map(e => ({
-        time: new Date(e.ts).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-        expected: 0,
-        nasIops: 0,
-        note: `[${(e.severity || 'info').toUpperCase()}] ${e.title} (${e.entity_id || 'system'})`
-      }));
-    } catch (_) {
-      timeline = [];
-    }
+  try {
+    const realEvents = await eventStore.getEvents({ environment: targetEnv, limit: 15 });
+    timeline = (realEvents || []).map(e => ({
+      time: new Date(e.ts).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+      expected: 0,
+      nasIops: 0,
+      note: `[${(e.severity || 'info').toUpperCase()}] ${e.title} (${e.entity_id || 'system'})`
+    }));
+  } catch (_) {
+    timeline = [];
   }
 
-  // App-specific correlation insights
+  // Correlations: read strictly from real rca_hypothesis in eventStore (empty if none exist)
   let correlations = [];
-  if (targetEnv === 'demo') {
-    correlations = [
-      {
-        id: `CORR-DEMO-${selectedApp.toUpperCase()}-0891`,
-        title: `[DEMO] ${selectedApp.toUpperCase()} Root Cause Anomaly Analysis`,
-        confidence: 94.8,
-        rootCause: profile.demoRootCause,
-        recommendation: profile.demoRecommendation
-      }
-    ];
-  } else {
-    // PROD & STAGING: read strictly from real rca_hypothesis in eventStore (empty if none exist)
-    try {
-      const hypotheses = await eventStore.getHypotheses({ environment: targetEnv });
-      correlations = (hypotheses || []).map(h => {
-        const primaryClaim = Array.isArray(h.rationale) && h.rationale.length > 0
-          ? (h.rationale[h.rationale.length - 1].observation || h.rationale[0].claim || JSON.stringify(h.rationale[0]))
-          : `Suspect infrastructure degradation on ${h.suspect_entity_id}`;
-        return {
-          id: h.hypothesis_id,
-          title: `RCA: ${h.suspect_entity_id} (${Math.round(h.confidence * 100)}% Confidence)`,
-          confidence: Math.round(h.confidence * 1000) / 10,
-          rootCause: primaryClaim,
-          recommendation: `Inspect and isolate ${h.suspect_entity_id}. Blast radius impacts ${h.blast_radius} nodes.`,
-          blastRadius: h.blast_radius,
-          suspectEntityId: h.suspect_entity_id,
-          status: h.status,
-          rationale: h.rationale
-        };
-      });
-    } catch (_) {
-      correlations = [];
-    }
+  try {
+    const hypotheses = await eventStore.getHypotheses({ environment: targetEnv });
+    correlations = (hypotheses || []).map(h => {
+      const primaryClaim = Array.isArray(h.rationale) && h.rationale.length > 0
+        ? (h.rationale[h.rationale.length - 1].observation || h.rationale[0].claim || JSON.stringify(h.rationale[0]))
+        : `Suspect infrastructure degradation on ${h.suspect_entity_id}`;
+      return {
+        id: h.hypothesis_id,
+        title: `RCA: ${h.suspect_entity_id} (${Math.round(h.confidence * 100)}% Confidence)`,
+        confidence: Math.round(h.confidence * 1000) / 10,
+        rootCause: primaryClaim,
+        recommendation: `Inspect and isolate ${h.suspect_entity_id}. Blast radius impacts ${h.blast_radius} nodes.`,
+        blastRadius: h.blast_radius,
+        suspectEntityId: h.suspect_entity_id,
+        status: h.status,
+        rationale: h.rationale
+      };
+    });
+  } catch (_) {
+    correlations = [];
   }
 
   return {
@@ -330,30 +306,8 @@ async function generateRcaFlows(selectedApp = 'jenkins', env = null) {
   };
 }
 
+// ServiceNow tickets (none until ServiceNow is connected).
 function getServiceNowTickets(env = null) {
-  const targetEnv = env || global.runtimeEnvironment || 'staging';
-
-  if (targetEnv === 'demo') {
-    return [
-      {
-        id: "CHG-DEMO-001",
-        title: "[DEMO] Shared NAS Mount & Storage Pool IOPS Rebalance Walkthrough",
-        date: "2026-08-15",
-        status: "Closed",
-        component: "nas_storage",
-        risk: "Low",
-        engineer: "Platform Storage SRE (Demo)",
-        description: "Applied asynchronous stat caching and optimized SMB UNC connection concurrency for high-load build nodes.",
-        beforeTickets: [
-          { ticket: "INC0049219", summary: "Intermittent timeouts during parallel Maven builds" },
-          { ticket: "INC0049204", summary: "Bitbucket git-upload-pack process delay > 3s" }
-        ],
-        afterTickets: [],
-        impactMetrics: "100% resolution rate of storage queue contention"
-      }
-    ];
-  }
-
   // PROD & STAGING: Telemetry not collected yet
   return [];
 }

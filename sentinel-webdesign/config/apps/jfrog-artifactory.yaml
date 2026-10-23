@@ -1,29 +1,28 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: JFrog Artifactory Enterprise
-# =========================================================================
-id: "jfrog_artifactory"
-kind: "application"
-display_name: "JFrog Artifactory Enterprise"
-category: "artifact_repository"
-tier: "Tier-1 Mission Critical"
-log_tag: "[ARTIFACTORY]"
-regions: ["emea", "apac", "amer"]
+id: jfrog_artifactory
+kind: application
+display_name: JFrog Artifactory Enterprise
+category: artifact_repository
+tier: Tier-1 Mission Critical
+log_tag: '[ARTIFACTORY]'
+regions:
+  - emea
+  - apac
+  - amer
 aliases:
-  - "artifactory"
-
+  - artifactory
 endpoints:
   prod:
-    api: "https://artifactory-prod.internal.corp/artifactory/api"
+    api: https://artifactory-prod.internal.corp/artifactory/api
+    vip: https://jfrog-artifactory-prod.internal.corp
   stg:
-    api: "https://artifactory-stg.internal.corp/artifactory/api"
-
+    api: https://artifactory-stg.internal.corp/artifactory/api
+    vip: https://jfrog-artifactory-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
 topology:
   nodes:
     emea:
@@ -36,62 +35,147 @@ topology:
       app_nodes: 2
       xray_nodes: 2
   jump_servers:
-    - { host: "artifactory-jump-01.internal.corp", os: "linux" }
-
+    - host: artifactory-jump-01.internal.corp
+      os: linux
 lifecycle:
-  refweb_url: { url: "https://artifactory.internal.corp", expiry: "2027-05-31" }
-  license: { type: "JFrog Enterprise Plus", expiry: "2027-03-01" }
-
+  refweb_url:
+    url: https://artifactory.internal.corp
+    expiry: '2027-05-31'
+  license:
+    type: JFrog Enterprise Plus
+    expiry: '2027-03-01'
+  certificates:
+    - { name: vip-tls, probe: "jfrog-artifactory-prod.internal.corp:443" }
 layers:
   s3:
-    endpoint: "https://s3.prod-artifactory-us-east-1.amazonaws.com"
-    credential_purpose: "s3"
+    endpoint: https://s3.prod-artifactory-us-east-1.amazonaws.com
+    credential_purpose: s3
   db:
-    jdbc: "jdbc:postgresql://db-prod-artifactory.internal.corp:5432/artifactory_db"
-    credential_purpose: "db"
+    jdbc: jdbc:postgresql://db-prod-artifactory.internal.corp:5432/artifactory_db
+    credential_purpose: db
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   nfs:
-    mount: "/mnt/nfs/production_shares/artifactory"
+    mount: /mnt/nfs/production_shares/artifactory
     credential_purpose: null
   avi:
-    api: "https://avi-prod-artifactory.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-artifactory.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://jfrog-artifactory-prod.internal.corp
+  hosts:
+    - jfrog-artifactory-node-01.internal.corp
+    - jfrog-artifactory-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/artifactory
+  databases:
+    - jdbc:postgresql://db-prod-artifactory.internal.corp:5432/artifactory_db
+  clusters:
+    - k8s-prod-jfrog-artifactory
 servers:
   unix:
-    - node: "artifactory-node-1"
-      api: "https://linux-compute-prod-artifactory-1.internal.corp/api/v1/metrics"
+    - node: artifactory-node-1
+      api: https://linux-compute-prod-artifactory-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
+  provider: opentelemetry
+  scrape_interval: 30s
   health_thresholds:
     jvm_heap_warning_pct: 82
     jvm_heap_critical_pct: 92
     storage_capacity_warning_pct: 85
   monitored_metrics:
-    - "artifactory.storage.used_bytes"
-    - "jvm.memory.heap.used"
-    - "http.server.requests"
-
+    - artifactory.storage.used_bytes
+    - jvm.memory.heap.used
+    - http.server.requests
 metrics_baseline:
   responseTime: 95
   successRate: 99.9
   requests: 120
-
 logs:
-  log_tag: "[ARTIFACTORY]"
-  log_path: "d:\\production_shares\\nas_logs\\artifactory_service.log"
+  log_tag: '[ARTIFACTORY]'
+  log_path: d:\production_shares\nas_logs\artifactory_service.log
   retention_days: 30
-  rotation_size: "10M"
-
+  rotation_size: 10M
 credentials:
-  safe: "SF-ARTIFACTORY-PROD"
+  safe: SF-ARTIFACTORY-PROD
   objects:
-    db: "ARTIFACTORY-DB-SVC"
-    api_token: "ARTIFACTORY-API-TOKEN"
-    s3: "ARTIFACTORY-S3-KEY"
+    db: ARTIFACTORY-DB-SVC
+    api_token: ARTIFACTORY-API-TOKEN
+    s3: ARTIFACTORY-S3-KEY
+jenkins_remediation_job: JOB_RESTART_ARTIFACTORY_SERVICE
+journeys:
+  - id: artifactory_end_to_end
+    name: Artifactory End-to-End Artifact Pipeline
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: ping_api
+        name: Ping System Endpoint
+        type: http
+        layer: app
+        url: /system/ping
+        assert:
+          status: 200
+          body_contains: OK
+          max_ms: 1500
+      - id: search_artifacts
+        name: AQL Quick Search
+        type: http
+        layer: app
+        url: /search/artifact?name=canary.jar
+        assert:
+          status: 200
+          max_ms: 2500
+      - id: download_canary
+        name: Canary Artifact Download
+        type: upload_download
+        layer: storage
+        url: /canary-repo/canary-artifact.bin
+        action: download
+        assert:
+          status: 200
+          max_ms: 3000
+      - id: upload_delete_canary
+        name: Upload & Purge Temporary Canary
+        type: upload_download
+        layer: storage
+        url: /canary-repo/canary-temp.bin
+        action: roundtrip
+        assert:
+          status: 200
+          max_ms: 4000
+  - id: artifactory_system_health
+    name: Artifactory Core Health & Storage Info
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: system_ping
+        name: Gateway VIP Ping
+        type: http
+        layer: network
+        url: /system/ping
+        assert:
+          status: 200
+          max_ms: 1000
+      - id: storage_info
+        name: Storage Summary
+        type: http
+        layer: storage
+        url: /storage/info
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_ARTIFACTORY_SERVICE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/opt/jfrog/artifactory/var/etc/%%"
+    - "/opt/jfrog/artifactory/app/bin/%%"
+  windows: []
