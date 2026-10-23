@@ -1,0 +1,161 @@
+# =============================================================================
+# SENTINEL OpenTelemetry Collector gateway (otelcol-contrib)
+# Runs on both SENTINEL Windows nodes as the "SentinelOtelGateway" service.
+#
+#   agents (~1000 servers) --OTLP grpc:4317 / http:4318, Bearer token-->  gateway
+#   gateway --metrics, logs (OTLP/HTTP JSON, X-Sentinel-Api-Key)--> SENTINEL app (AVI VIP)
+#   gateway --traces (native TCP)--> ClickHouse  (optional pipeline)
+#
+# No secrets live in this file. Every credential is an environment variable set
+# at machine level by install_otel_gateway.ps1:
+#   SENTINEL_GATEWAY_TOKEN   bearer token agents must present
+#   SENTINEL_APP_URL         base URL of the SENTINEL app VIP, e.g. https://sentinel-observability.internal.corp
+#                            (the exporter appends /v1/metrics and /v1/logs itself)
+#   SENTINEL_INGEST_API_KEY  value sent as X-Sentinel-Api-Key to the app
+#   CLICKHOUSE_TCP_ENDPOINT  e.g. tcp://10.0.0.5:9000?dial_timeout=10s
+#   CLICKHOUSE_USER / CLICKHOUSE_PASSWORD   ClickHouse writer account (traces only)
+#
+# Validate after edits:  otelcol-contrib.exe validate --config=otel-gateway.yaml
+# =============================================================================
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # Persistent sending queue: survives gateway restarts and SENTINEL app outages.
+  file_storage:
+    directory: C:/ProgramData/SentinelOtelGateway/queue
+    timeout: 10s
+    compaction:
+      on_start: true
+      on_rebound: true
+      directory: C:/ProgramData/SentinelOtelGateway/queue
+
+  bearertokenauth:
+    token: ${env:SENTINEL_GATEWAY_TOKEN}
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 16
+        auth:
+          authenticator: bearertokenauth
+        # A bearer token over plaintext is readable on the wire. Terminate TLS here
+        # (or on AVI in front of the gateway) before production:
+        # tls:
+        #   cert_file: C:/ProgramData/SentinelOtelGateway/tls/gateway.crt
+        #   key_file:  C:/ProgramData/SentinelOtelGateway/tls/gateway.key
+      http:
+        endpoint: 0.0.0.0:4318
+        auth:
+          authenticator: bearertokenauth
+        # tls: (same as above)
+
+processors:
+  # First in every pipeline: refuse data before the process runs out of memory.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+
+  # SENTINEL's express.json() caps a request at 5 MB (after gzip inflation); OTLP JSON
+  # runs roughly 0.3-1 KB per data point / log record, so keep app-bound batches small.
+  batch/sentinel:
+    send_batch_size: 2000
+    send_batch_max_size: 2000
+    timeout: 5s
+
+  batch/traces:
+    send_batch_size: 8192
+    send_batch_max_size: 10000
+    timeout: 5s
+
+  resource:
+    attributes:
+      - key: sentinel.gateway.host
+        value: ${env:COMPUTERNAME}
+        action: insert
+
+exporters:
+  otlphttp/sentinel:
+    endpoint: ${env:SENTINEL_APP_URL}
+    encoding: json          # SENTINEL's /v1/metrics and /v1/logs parse OTLP/HTTP JSON
+    compression: gzip
+    timeout: 30s
+    # The ingest key DECIDES the environment SENTINEL stores the data under
+    # (backend/auth/ingest_keys.js) - agent attributes cannot override it. One gateway
+    # with one key therefore serves ONE environment. Run a separate gateway (or a second
+    # exporter + routing connector) with the staging key for staging agents.
+    headers:
+      X-Sentinel-Api-Key: ${env:SENTINEL_INGEST_API_KEY}
+    # tls:
+    #   ca_file: C:/ProgramData/SentinelOtelGateway/tls/corp-root-ca.pem
+    sending_queue:
+      enabled: true
+      storage: file_storage
+      num_consumers: 8
+      queue_size: 20000     # batches; bounded by disk under C:/ProgramData/SentinelOtelGateway/queue
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 60s
+      max_elapsed_time: 30m  # a batch older than this is dropped (counted in otelcol_exporter_send_failed_*)
+
+  # Traces -> ClickHouse. OPTIONAL: nothing in SENTINEL reads traces yet.
+  # The contrib exporter writes ITS OWN schema (Timestamp, TraceId, ..., Duration in ns,
+  # Events/Links nested), which differs from SENTINEL's `spans` table. So it writes to
+  # `otel_traces` (created by database/clickhouse/migrations/004_otel_traces.sql with the
+  # exporter's column set) and a materialized view copies each span into `spans`.
+  # create_schema stays false so the exporter never issues DDL. If an otelcol-contrib
+  # upgrade changes the exporter schema, inserts will fail with a column error: adjust
+  # 004 (new migration) to match. To drop traces entirely, remove the traces pipeline.
+  clickhouse:
+    endpoint: ${env:CLICKHOUSE_TCP_ENDPOINT}
+    database: sentinel
+    username: ${env:CLICKHOUSE_USER}
+    password: ${env:CLICKHOUSE_PASSWORD}
+    create_schema: false
+    traces_table_name: otel_traces
+    timeout: 10s
+    sending_queue:
+      enabled: true
+      storage: file_storage
+      queue_size: 5000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 10m
+
+service:
+  extensions: [health_check, file_storage, bearertokenauth]
+
+  telemetry:
+    logs:
+      level: info
+    # Collector self-metrics (queue size, refused/sent/failed counts) on :8888/metrics.
+    # On otelcol-contrib older than v0.111 use instead:   metrics: { address: 0.0.0.0:8888 }
+    metrics:
+      level: normal
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch/sentinel]
+      exporters: [otlphttp/sentinel]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch/sentinel]
+      exporters: [otlphttp/sentinel]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch/traces]
+      exporters: [clickhouse]

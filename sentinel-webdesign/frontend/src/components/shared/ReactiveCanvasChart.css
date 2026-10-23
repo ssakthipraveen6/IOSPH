@@ -1,0 +1,11 @@
+/* ReactiveCanvasChart — co-located styles (U4). */
+.shr-canvas-chart {
+  width: 100%;
+  position: relative;
+}
+
+.shr-canvas-chart__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

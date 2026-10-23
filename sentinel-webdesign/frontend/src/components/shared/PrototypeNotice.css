@@ -1,0 +1,58 @@
+/* PrototypeNotice — co-located styles (U4). */
+.shr-unavailable {
+  background: var(--bg-glass-card);
+  border: 1px dashed var(--border-light);
+  border-radius: 14px;
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.shr-unavailable--compact {
+  border-radius: var(--radius-md);
+  padding: 0.9rem var(--space-4);
+}
+
+.shr-unavailable__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.shr-unavailable--compact .shr-unavailable__title { font-size: 0.85rem; }
+
+.shr-unavailable__reason {
+  font-size: 0.82rem;
+  max-width: 640px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.shr-unavailable--compact .shr-unavailable__reason { font-size: var(--font-xs); }
+
+.shr-loading {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.shr-proto-banner {
+  border: 1px solid var(--warning);
+  background: var(--warning-glass);
+  color: var(--warning);
+  border-radius: 10px;
+  padding: 0.55rem var(--space-4);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.shr-proto-banner__note {
+  font-weight: 500;
+  color: var(--text-muted);
+}

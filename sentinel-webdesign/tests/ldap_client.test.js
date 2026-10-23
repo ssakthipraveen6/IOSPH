@@ -1,3 +1,6 @@
+/**
+ * Test: LDAP sign-in and mapping of directory groups to roles.
+ */
 const assert = require('assert');
 const ldapClient = require('../backend/auth/ldap_client');
 

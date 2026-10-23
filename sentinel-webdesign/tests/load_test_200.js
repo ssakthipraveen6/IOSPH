@@ -1,3 +1,6 @@
+/**
+ * Test: scale test with 200 simulated hosts.
+ */
 const { performance } = require('perf_hooks');
 const assert = require('assert');
 const config = require('../backend/config/config');

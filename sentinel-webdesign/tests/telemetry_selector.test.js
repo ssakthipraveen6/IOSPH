@@ -1,3 +1,6 @@
+/**
+ * Test: telemetry profile selection.
+ */
 const assert = require('assert');
 const providerSelector = require('../metrics_collection/telemetry_provider_selector');
 

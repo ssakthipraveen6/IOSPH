@@ -14,6 +14,7 @@ const teamcitySource = require('./sources/teamcity_source');
 const k8sSource = require('./sources/k8s_source');
 const aviSource = require('./sources/avi_source');
 
+// Runs every inventory source (YAML, OTLP, Jenkins, TeamCity, Kubernetes, AVI).
 async function syncAllSources() {
   console.log('[INVENTORY] Triggering full inventory sync cycle...');
   try {
@@ -21,6 +22,12 @@ async function syncAllSources() {
     console.log(`[INVENTORY] YAML topology sync completed: ${yamlResult.entityCount} entities, ${yamlResult.edgeCount} edges.`);
   } catch (err) {
     console.warn('[INVENTORY] YAML topology sync warning:', err.message);
+  }
+  try {
+    const k8s = await k8sSource.discover();
+    if (k8s.status !== 'NOT_CONFIGURED') console.log(`[INVENTORY] K8s discovery: ${JSON.stringify(k8s)}`);
+  } catch (err) {
+    console.warn('[INVENTORY] K8s discovery warning:', err.message);
   }
 }
 

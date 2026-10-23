@@ -13,6 +13,7 @@ const yamlConfig = require('@sentinel/config/yaml_config');
 const { fetchJsonWithFallback } = require('../metrics_collection/shared/fetch_with_fallback');
 const { performance } = require('perf_hooks');
 
+// Probes one URL (REACHABLE, AUTH_FAILED, UNREACHABLE).
 async function checkUrl(name, url, appId = null, options = {}) {
   if (!url || typeof url !== 'string' || url.trim() === '') {
     return {
@@ -83,6 +84,7 @@ async function checkUrl(name, url, appId = null, options = {}) {
   }
 }
 
+// Probes every configured endpoint.
 async function runPreflightCheck(targetEnv = null) {
   const env = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
   const activeUrls = config.ACTIVE_URLS || {};

@@ -65,6 +65,27 @@ const COMBINATION_STRATEGIES = {
       'k8s'
     ],
     skippedCollectors: ['linux_servers', 'windows_servers', 'dynatrace']
+  },
+
+  // Profile 4 (M1.12): every source runs and the source arbiter picks, per metric,
+  // the highest-priority source that is still fresh (Dynatrace -> OTel -> probe).
+  4: {
+    id: 'arbitrated_production',
+    name: 'Profile 4: Arbitrated sources (Dynatrace when available, else OTel, else Sentinel probes)',
+    arbitrated: true,
+    allowedCollectors: [
+      'dynatrace',
+      'app_collector',
+      'avi_load_balancer',
+      'database',
+      'nas_performance',
+      's3_storage',
+      'sso_gateway',
+      'network_latency',
+      'docker',
+      'k8s'
+    ],
+    skippedCollectors: ['linux_servers', 'windows_servers', 'node_exporter']
   }
 };
 
@@ -79,9 +100,12 @@ const ALIAS_MAP = {
   dynatrace_production: 2,
   node_exporter: 3,
   node_exporter_production: 3,
+  arbitrated: 4,
+  arbitrated_production: 4,
   hybrid: 1
 };
 
+// Loads config/telemetry.yaml.
 function loadProfilesYaml() {
   const candidatePaths = [
     path.resolve(__dirname, '../config/telemetry.yaml'),
@@ -100,6 +124,7 @@ function loadProfilesYaml() {
   return {};
 }
 
+// Selected telemetry profile number.
 function getActiveProfileNumber() {
   const profilesYaml = loadProfilesYaml();
   let raw = process.env.TELEMETRY_PROFILE || profilesYaml.selected_profile || config.TELEMETRY_PROVIDER || 1;
@@ -120,11 +145,13 @@ function getActiveProfileNumber() {
   return 1; // Default to Profile 1: OpenTelemetry Collector Fleet + Sentinel Prober
 }
 
+// Collector strategy of the profile.
 function getActiveStrategy() {
   const profileNum = getActiveProfileNumber();
   return COMBINATION_STRATEGIES[profileNum] || COMBINATION_STRATEGIES[1];
 }
 
+// True when a collector should run for the profile.
 function shouldRunCollector(collectorKey) {
   // 1. Check if collector/component is explicitly disabled via global config toggles
   if (collectorKey === 'dynatrace') {
@@ -143,6 +170,7 @@ function shouldRunCollector(collectorKey) {
 }
 
 
+// Details of the active profile.
 function getProviderDetails() {
   const profileNum = getActiveProfileNumber();
   const strategy = getActiveStrategy();
@@ -151,11 +179,13 @@ function getProviderDetails() {
     id: strategy.id,
     displayName: strategy.name,
     allowedCollectors: strategy.allowedCollectors,
-    skippedCollectors: strategy.skippedCollectors
+    skippedCollectors: strategy.skippedCollectors,
+    arbitrated: !!strategy.arbitrated
   };
 }
 
 module.exports = {
+  loadProfilesYaml,
   getActiveProfileNumber,
   getActiveStrategy,
   shouldRunCollector,

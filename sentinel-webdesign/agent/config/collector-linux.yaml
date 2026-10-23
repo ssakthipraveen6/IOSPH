@@ -1,0 +1,72 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:4317
+      http:
+        endpoint: 127.0.0.1:4318
+
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      load:
+      disk:
+      filesystem:
+      network:
+      paging:
+      processes:
+      tcp:
+
+  process:
+    collection_interval: 30s
+
+  filelog:
+    include:
+      - /var/log/messages
+      - /var/log/secure
+      - /opt/*/logs/*.log
+    start_at: end
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 2s
+
+  resource:
+    attributes:
+      - key: sentinel.agent.version
+        value: "2.4.0"
+        action: upsert
+      - key: sentinel.agent.os
+        value: "linux"
+        action: upsert
+
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+
+exporters:
+  otlphttp:
+    endpoint: ${env:SENTINEL_GATEWAY_URL}
+    headers:
+      Authorization: "Bearer ${env:SENTINEL_GATEWAY_TOKEN}"
+    compression: gzip
+    timeout: 10s
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, hostmetrics, process]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [filelog]
+      processors: [memory_limiter, resourcedetection, resource, batch]
+      exporters: [otlphttp]

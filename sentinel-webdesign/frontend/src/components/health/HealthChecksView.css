@@ -1,0 +1,161 @@
+/* HealthChecksView.css (Phase O6.1) */
+
+.health-checks-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  width: 100%;
+}
+
+.hc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--bg-panel-subtle, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  padding: 16px;
+}
+
+.hc-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main, #f8fafc);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hc-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+  font-family: var(--font-mono, monospace);
+  margin-top: 4px;
+}
+
+.hc-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hc-btn-primary {
+  background: var(--primary, #14b8a6);
+  color: #041212;
+  border: 1px solid var(--primary, #14b8a6);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hc-btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.hc-table-card {
+  background: var(--bg-panel-solid, #0b1329);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+.hc-table-container {
+  overflow-x: auto;
+}
+
+.hc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.hc-table th {
+  background: var(--bg-panel-subtle, rgba(255, 255, 255, 0.03));
+  color: var(--text-muted, #94a3b8);
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+}
+
+.hc-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.05));
+  color: var(--text-main, #f8fafc);
+}
+
+.hc-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.hc-name-cell {
+  font-weight: 700;
+}
+
+.hc-endpoint-cell {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hc-latency-cell {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+}
+
+.hc-strip {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.hc-strip-tick {
+  width: 4px;
+  height: 16px;
+  border-radius: 1px;
+}
+
+.hc-strip-tick--success {
+  background: var(--healthy, #10b981);
+}
+
+.hc-strip-tick--failed {
+  background: var(--critical, #ef4444);
+}
+
+.hc-run-btn {
+  background: var(--bg-panel-subtle, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.1));
+  color: var(--text-main, #f8fafc);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hc-history-drawer {
+  background: var(--bg-panel-subtle, rgba(255, 255, 255, 0.02));
+  border-top: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+  padding: 16px;
+}
+
+.hc-history-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-main, #f8fafc);
+  margin-bottom: 8px;
+}

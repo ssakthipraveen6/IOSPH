@@ -1,3 +1,6 @@
+/**
+ * Validation tool: fake upstream tools (Artifactory, TeamCity, ...) with switchable failure modes.
+ */
 const express = require('express');
 const app = express();
 const PORT = process.env.FIXTURE_PORT || 9099;
@@ -60,6 +63,7 @@ app.get(['/sonarqube/api/system/status', '/api/system/status'], (req, res) => {
 app.get(['/artifactory/api/system/ping', '/api/system/ping'], (req, res) => {
   res.type('text/plain').send('OK');
 });
+// Fake Artifactory storage summary.
 app.get(['/artifactory/api/system/storage', '/api/system/storage'], (req, res) => {
   res.json({
     binariesSummary: {
@@ -95,6 +99,7 @@ app.get(['/teamcity/app/rest/agents', '/app/rest/agents'], (req, res) => {
     agent: Array(100).fill({ id: 1, name: 'tc-agent', connected: true, authorized: true })
   });
 });
+// Fake TeamCity build queue.
 app.get(['/teamcity/app/rest/buildQueue', '/app/rest/buildQueue'], (req, res) => {
   res.json({
     count: 5,

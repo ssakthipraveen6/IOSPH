@@ -1,0 +1,113 @@
+---
+# deployments/ansible/roles/sentinel_agent_windows/tasks/main.yml
+# Auth convention (Phase A1): X-Sentinel-Api-Key to the SENTINEL app,
+# Authorization: Bearer to the OTel gateway. The environment comes from the key.
+- name: Verify per-host kill switch
+  ansible.builtin.set_fact:
+    agent_enabled: "{{ sentinel_agent_enabled | default(true) }}"
+
+- name: Stop and disable agent if kill-switch is active
+  when: not agent_enabled
+  block:
+    - name: Stop SENTINEL Windows services
+      ansible.windows.win_service:
+        name: "{{ item }}"
+        state: stopped
+        start_mode: disabled
+      loop: [SentinelAgent, SentinelOsquery]
+      ignore_errors: true
+    - name: Disable the probe task
+      community.windows.win_scheduled_task:
+        name: SentinelProbe
+        enabled: false
+      ignore_errors: true
+
+- name: Deploy and configure SENTINEL Agent (Windows)
+  when: agent_enabled
+  block:
+    - name: Install SentinelAgent MSI package (collector, probe, osquery)
+      ansible.windows.win_package:
+        path: "{{ sentinel_msi_package_path }}"
+        state: present
+
+    - name: Set gateway and database credentials as machine environment variables
+      ansible.windows.win_environment:
+        level: machine
+        variables: "{{ {'SENTINEL_GATEWAY_URL': sentinel_gateway_url, 'SENTINEL_GATEWAY_TOKEN': sentinel_gateway_token} | combine(sentinel_db_env) }}"
+      no_log: true
+      notify: Restart SentinelAgent Windows
+
+    - name: Write the ingest key (read by sentinel-probe)
+      ansible.windows.win_copy:
+        content: "{{ sentinel_ingest_key }}"
+        dest: "{{ sentinel_data_dir }}\\config\\ingest.key"
+      no_log: true
+
+    - name: Restrict the ingest key to SYSTEM and Administrators
+      ansible.windows.win_shell: >-
+        icacls "{{ sentinel_data_dir }}\\config\\ingest.key" /inheritance:r
+        /grant:r "*S-1-5-18:F" "*S-1-5-32-544:F"
+      changed_when: false
+
+    - name: Write sentinel-probe configuration
+      ansible.windows.win_copy:
+        content: "{{ probe_config | to_nice_json }}"
+        dest: "{{ sentinel_data_dir }}\\config\\probe.json"
+      vars:
+        probe_config:
+          sentinel_url: "{{ sentinel_api_url }}"
+          api_key_file: "{{ sentinel_data_dir }}\\config\\ingest.key"
+          host: "{{ inventory_hostname }}"
+          os: windows
+          interval_seconds: "{{ sentinel_probe_interval_seconds | int }}"
+          otlp_endpoint: "http://127.0.0.1:4318"
+          otlp_auth: none
+          collector_config_path: "{{ sentinel_data_dir }}\\config\\collector.yaml"
+          osquery_results_path: "{{ sentinel_data_dir }}\\osquery\\log\\osqueryd.results.log"
+          state_file: "{{ sentinel_data_dir }}\\probe-state.json"
+      notify: Restart SentinelProbe task
+
+    - name: Fetch dynamic host configuration from SENTINEL API
+      ansible.windows.win_uri:
+        url: "{{ sentinel_api_url }}/api/v2/agent/config?host={{ inventory_hostname | urlencode }}&os=windows"
+        headers:
+          X-Sentinel-Api-Key: "{{ sentinel_ingest_key }}"
+        return_content: true
+      register: win_host_config
+      failed_when: win_host_config.status_code != 200
+      no_log: true
+
+    - name: Deploy host-rendered collector configuration
+      ansible.windows.win_copy:
+        content: "{{ win_host_config.json.config_yaml }}"
+        dest: "{{ sentinel_data_dir }}\\config\\collector.yaml"
+      notify: Restart SentinelAgent Windows
+
+    - name: Run sentinel-probe as a SYSTEM scheduled task at startup
+      community.windows.win_scheduled_task:
+        name: SentinelProbe
+        description: SENTINEL probe (localhost/share checks, heartbeat, file-change forwarding)
+        actions:
+          - path: "{{ sentinel_install_dir }}\\bin\\node.exe"
+            arguments: "\"{{ sentinel_install_dir }}\\probe\\index.js\" --config \"{{ sentinel_data_dir }}\\config\\probe.json\""
+        triggers:
+          - type: boot
+        username: SYSTEM
+        run_level: highest
+        restart_count: 999
+        restart_interval: PT1M
+        execution_time_limit: PT0S
+        multiple_instances: 2
+        enabled: true
+        state: present
+
+    - name: Ensure SENTINEL services are running and automatic
+      ansible.windows.win_service:
+        name: "{{ item }}"
+        state: started
+        start_mode: auto
+      loop: [SentinelOsquery, SentinelAgent]
+
+    - name: Start the probe task
+      ansible.windows.win_shell: Start-ScheduledTask -TaskName SentinelProbe
+      changed_when: false

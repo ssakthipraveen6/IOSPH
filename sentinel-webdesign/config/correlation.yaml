@@ -10,3 +10,50 @@ correlation:
   thresholds:
     min_hypothesis_confidence: 0.50
     high_confidence: 0.75
+  rules:
+    network_avi:
+      id: "rule_network_avi"
+      name: "Multiple products concurrent DNS/TCP/TLS degradation"
+      target_layer: "network/AVI"
+      enabled: true
+      min_affected_products: 2
+      confidence: 0.88
+    avi_path:
+      id: "rule_avi_path"
+      name: "VIP total slow but localhost agent timing normal"
+      target_layer: "AVI/path"
+      enabled: true
+      confidence: 0.85
+    storage:
+      id: "rule_storage_shared"
+      name: "Storage-heavy steps slow across products sharing a share"
+      target_layer: "storage"
+      enabled: true
+      min_affected_products: 2
+      confidence: 0.90
+    product:
+      id: "rule_product_isolated"
+      name: "Single product degraded across all steps"
+      target_layer: "product"
+      enabled: true
+      confidence: 0.80
+    change:
+      id: "rule_recent_change"
+      name: "Version change or file modification within correlation window"
+      target_layer: "change"
+      enabled: true
+      confidence: 0.92
+    k8s_workload:
+      id: "rule_k8s_workload"
+      name: "Kubernetes Warning events: OOM, crash loop, eviction, scheduling, image pull"
+      target_layer: "k8s"
+      enabled: true
+      min_events: 1
+      confidence: 0.85
+    storage_mount:
+      id: "rule_storage_mount"
+      name: "Volume mount / Trident provisioning failure behind a PVC"
+      target_layer: "storage"
+      enabled: true
+      min_events: 1
+      confidence: 0.90

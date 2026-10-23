@@ -9,12 +9,15 @@
 const config = require('@sentinel/config');
 const dynatraceCollector = require('../real/dynatrace/dynatrace_collector');
 
+// Base telemetry source.
 class TelemetrySource {
+  // Creates a source.
   constructor(id, name) {
     this.id = id;
     this.name = name;
   }
 
+  // True when enabled.
   isEnabled(env = 'staging') {
     if (typeof config.isCollectorEnabled === 'function') {
       return config.isCollectorEnabled(this.id);
@@ -27,17 +30,20 @@ class TelemetrySource {
   }
 }
 
+// Dynatrace as a telemetry source.
 class DynatraceTelemetrySource extends TelemetrySource {
   constructor() {
     super('dynatrace', 'Dynatrace API v2 Telemetry Source');
   }
 
+  // True when Dynatrace is allowed.
   isEnabled(env = 'staging') {
     // Check global collector toggle and profile
     const providerSelector = require('../telemetry_provider_selector');
     return providerSelector.isCollectorAllowed('dynatrace') && super.isEnabled(env);
   }
 
+  // Collects from Dynatrace.
   async collect(db, writeNasLog, env = 'staging') {
     if (!this.isEnabled(env)) {
       return { status: 'DISABLED', source: 'dynatrace', metrics: {} };
@@ -46,11 +52,13 @@ class DynatraceTelemetrySource extends TelemetrySource {
   }
 }
 
+// OTLP push as a telemetry source.
 class OtlpTelemetrySource extends TelemetrySource {
   constructor() {
     super('otlp', 'OpenTelemetry OTLP Push Ingestion Source');
   }
 
+  // True when OTLP is allowed.
   isEnabled(env = 'staging') {
     const providerSelector = require('../telemetry_provider_selector');
     return providerSelector.isCollectorAllowed('app_collector');
@@ -61,16 +69,19 @@ class OtlpTelemetrySource extends TelemetrySource {
   }
 }
 
+// Prometheus node exporter as a telemetry source.
 class NodeExporterTelemetrySource extends TelemetrySource {
   constructor() {
     super('node_exporter', 'Prometheus Node Exporter Scrape Source');
   }
 
+  // True when node exporter is allowed.
   isEnabled(env = 'staging') {
     const providerSelector = require('../telemetry_provider_selector');
     return providerSelector.isCollectorAllowed('node_exporter');
   }
 
+  // Scrapes node exporters.
   async collect(db, writeNasLog, env = 'staging') {
     if (!this.isEnabled(env)) {
       return { status: 'DISABLED', source: 'node_exporter', metrics: {} };
@@ -86,10 +97,12 @@ const registry = {
   node_exporter: new NodeExporterTelemetrySource()
 };
 
+// One source by id.
 function getTelemetrySource(id) {
   return registry[id] || null;
 }
 
+// All sources.
 function getAllTelemetrySources() {
   return Object.values(registry);
 }

@@ -1,4 +1,5 @@
-﻿Write-Host "========================================================" -ForegroundColor Green
+﻿# Shows the state of the ProjectSentinelDaemon scheduled task and calls /api/health on port 3001.
+Write-Host "========================================================" -ForegroundColor Green
 Write-Host "     Project Sentinel: Service Status Check" -ForegroundColor Green
 Write-Host "========================================================" -ForegroundColor Green
 

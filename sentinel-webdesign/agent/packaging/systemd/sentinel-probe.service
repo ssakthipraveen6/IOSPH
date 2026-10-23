@@ -1,0 +1,20 @@
+[Unit]
+Description=SENTINEL probe (localhost and share checks, heartbeat, file-change forwarding)
+After=network-online.target sentinel-agent.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sentinel
+Group=sentinel
+EnvironmentFile=-/etc/sentinel/agent.env
+ExecStart=/usr/bin/node /opt/sentinel/probe/index.js --config /etc/sentinel/probe.json
+Restart=always
+RestartSec=15s
+CPUQuota=2%
+MemoryMax=128M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

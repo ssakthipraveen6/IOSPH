@@ -1,7 +1,21 @@
+/**
+ * Credential lookup for every integration: finds the safe/object in config/cyberark.yaml, fetches
+ * it through CyberArk (cached), and falls back to an <APPID>_<PURPOSE> environment variable.
+ */
 const fs = require('fs');
 const yaml = require('js-yaml');
 const path = require('path');
 const { fetchFromCyberArk } = require('./cyberark_client');
+
+// Same warning for the same thing at most once every 5 minutes (a poll cycle used to print it per request).
+const _warned = new Map();
+// Logs a warning at most once every 5 minutes per key.
+function warnOnce(key, message) {
+  const now = Date.now();
+  if ((_warned.get(key) || 0) > now - 300000) return;
+  _warned.set(key, now);
+  console.warn(message);
+}
 
 const ROOT_CONFIG_DIR = path.resolve(__dirname, '../../../config');
 const ROOT_REGISTRY_PATH = path.join(ROOT_CONFIG_DIR, 'cyberark.yaml');
@@ -9,6 +23,7 @@ const LEGACY_REGISTRY_PATH = path.join(__dirname, 'registry.yaml');
 const REGISTRY_PATH = fs.existsSync(ROOT_REGISTRY_PATH) ? ROOT_REGISTRY_PATH : LEGACY_REGISTRY_PATH;
 let registry = null;
 
+// Loads config/cyberark.yaml once.
 function getRegistry() {
   if (!registry) {
     const targetPath = fs.existsSync(ROOT_REGISTRY_PATH) ? ROOT_REGISTRY_PATH : REGISTRY_PATH;
@@ -24,6 +39,7 @@ function getRegistry() {
 const CACHE = new Map(); // `${appId}:${purpose}` -> { value, expiresAt }
 let CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes default TTL
 
+// Safe and object name for an application and purpose.
 function resolveRegistryEntry(appId, purpose) {
   const reg = getRegistry();
   
@@ -99,10 +115,10 @@ async function getCredential(appId, purpose, options = {}) {
     try {
       value = await fetchFromCyberArk(entry.safe, entry.object, options);
     } catch (e) {
-      console.warn(`[CRED] CyberArk fetch failed for ${appId}/${purpose}: ${e.message}. Falling back.`);
+      warnOnce(`fail:${appId}/${purpose}`, `[CRED] CyberArk fetch failed for ${appId}/${purpose}: ${e.message}. Falling back.`);
     }
   } else {
-    console.warn(`[CRED] No registry entry for ${appId}/${purpose} — skipping CyberArk, trying fallback.`);
+    warnOnce(`noreg:${appId}/${purpose}`, `[CRED] No registry entry for ${appId}/${purpose} — skipping CyberArk, trying fallback.`);
   }
 
   // Fallback: Strictly namespaced Environment Variables (${APPID}_${PURPOSE})
@@ -122,6 +138,7 @@ async function getCredential(appId, purpose, options = {}) {
   return value;
 }
 
+// Clears one cached credential or all of them.
 function clearCache(appId = null, purpose = null) {
   if (appId && purpose) {
     CACHE.delete(`${appId}:${purpose}`);
@@ -134,6 +151,7 @@ function clearCache(appId = null, purpose = null) {
   }
 }
 
+// Re-reads config/cyberark.yaml.
 function reloadRegistry() {
   registry = null;
   getRegistry();

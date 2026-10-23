@@ -30,13 +30,16 @@ const ENV_FILE = fs.existsSync(CONFIG_DIR)
 const RUNTIME_DIR = path.join(ROOT, '.runtime');
 const IS_PROD = process.env.NODE_ENV === 'production';
 
+// Prints a message.
 function log(msg) { console.log(`[BOOTSTRAP] ${msg}`); }
+// Prints a warning.
 function warn(msg) { console.warn(`[BOOTSTRAP] ${msg}`); }
 
 // Both locations are honoured so an existing root .env is never duplicated into
 // config/. New installs get config/.env; existing ones keep what they have.
 const ENV_CANDIDATES = [path.join(CONFIG_DIR, '.env'), path.join(ROOT, '.env')];
 
+// True when a file holds SENTINEL_JWT_SECRET.
 function secretIn(file) {
   if (!fs.existsSync(file)) return false;
   const line = fs.readFileSync(file, 'utf8')
@@ -45,11 +48,13 @@ function secretIn(file) {
   return Boolean(line) && line.split('=').slice(1).join('=').trim().length >= 32;
 }
 
+// True when a JWT secret is available.
 function hasSecret() {
   if (process.env.SENTINEL_JWT_SECRET && process.env.SENTINEL_JWT_SECRET.length >= 32) return true;
   return ENV_CANDIDATES.some(secretIn);
 }
 
+// Creates a dev JWT secret when missing (never in production).
 function ensureSecret() {
   if (hasSecret()) {
     log('SENTINEL_JWT_SECRET present.');
@@ -90,6 +95,7 @@ function ensureSecret() {
   warn('This secret is for local development only. .env is gitignored.');
 }
 
+// Creates .runtime and logs folders.
 function ensureRuntimeDirs() {
   for (const dir of [RUNTIME_DIR, path.join(RUNTIME_DIR, 'nas_logs'), path.join(ROOT, 'logs')]) {
     if (!fs.existsSync(dir)) {
@@ -99,6 +105,7 @@ function ensureRuntimeDirs() {
   }
 }
 
+// Explains when no database is configured.
 function reportDegradedMode() {
   const hasPg = Boolean(process.env.PGHOST || process.env.PGUSER || process.env.DATABASE_URL);
   if (hasPg) return;

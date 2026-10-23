@@ -1,3 +1,6 @@
+/**
+ * Test: every alert is tagged with its environment and stays in it.
+ */
 const assert = require('assert');
 const db = require('../database/db');
 const { SEVERITY } = require('@sentinel/shared-constants');

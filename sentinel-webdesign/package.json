@@ -13,7 +13,10 @@
     "metrics_collection",
     "remediation",
     "shared",
-    "correlation"
+    "correlation",
+    "synthetics",
+    "security",
+    "analytics/sentinelql"
   ],
   "scripts": {
     "setup": "node scripts/setup_symlinks.js",
@@ -21,24 +24,34 @@
     "predev": "node scripts/setup_symlinks.js && node scripts/bootstrap.js",
     "migrate": "node database/migrate.js up",
     "migrate:down": "node database/migrate.js down",
+    "clickhouse:migrate": "node scripts/clickhouse_migrate.js",
+    "clickhouse:migrate:dry-run": "node scripts/clickhouse_migrate.js --dry-run",
+    "clickhouse:migrate:status": "node scripts/clickhouse_migrate.js --status",
+    "ingest-key": "node scripts/ingest_key.js",
     "start": "node backend/server.js",
-    "dev-backend": "node backend/server.js",
+    "dev-backend": "node scripts/dev_backend.js",
     "dev-frontend": "cd frontend && npm run dev",
     "dev": "concurrently \"npm run dev-backend\" \"npm run dev-frontend\"",
     "build": "cd frontend && npm run build && cd .. && node scripts/verify_dist.js --write",
-    "build-frontend": "cd frontend && npm run build",
-    "test": "node tests/prod_data_availability.test.js && node tests/data_availability_segregation.test.js && node tests/schema_validation.test.js && node tests/misc_operations.test.js && node tests/auth_lockdown.test.js && node tests/cyberark_provider.test.js && node tests/datastore_migration.test.js && node tests/env_strict_value_not_available.test.js && node tests/otlp_normalizer.test.js && node tests/telemetry_selector.test.js && node tests/e2e_qa_suite.test.js && node tests/recovery_four_eyes.test.js && node tests/alert_env_tagging.test.js && node tests/ldap_client.test.js && node tests/inventory_discovery.test.js && node tests/entity_hierarchy.test.js && node tests/collector_auth.test.js && node tests/environment_isolation.test.js && node tests/load_ingest.test.js && node tests/collector_truthfulness.test.js && node tests/log_pipeline.test.js && node tests/shipper_rollout.test.js && node tests/correlation_replay.test.js && node tests/source_hardening.test.js && node tests/phase1_operational_safety.test.js && node tests/phase2_intelligence_observability.test.js && node tests/phase3_platform_maturity.test.js && node tests/dashboard_uplift_endpoints.test.js",
+    "test": "node scripts/run_tests.js",
+    "test:all": "node tests/prod_data_availability.test.js && node tests/data_availability_segregation.test.js && node tests/schema_validation.test.js && node tests/misc_operations.test.js && node tests/auth_lockdown.test.js && node tests/cyberark_provider.test.js && node tests/datastore_migration.test.js && node tests/env_strict_value_not_available.test.js && node tests/otlp_normalizer.test.js && node tests/telemetry_selector.test.js && node tests/e2e_qa_suite.test.js && node tests/recovery_four_eyes.test.js && node tests/alert_env_tagging.test.js && node tests/ldap_client.test.js && node tests/inventory_discovery.test.js && node tests/entity_hierarchy.test.js && node tests/collector_auth.test.js && node tests/environment_isolation.test.js && node tests/load_ingest.test.js && node tests/collector_truthfulness.test.js && node tests/log_pipeline.test.js && node tests/shipper_rollout.test.js && node tests/correlation_replay.test.js && node tests/source_hardening.test.js && node tests/phase1_operational_safety.test.js && node tests/phase2_intelligence_observability.test.js && node tests/phase3_platform_maturity.test.js && node tests/dashboard_uplift_endpoints.test.js && node tests/bfsi_domain_routes.test.js && node tests/phase_d_demo_switch.test.js && node tests/phase_f_fixes.test.js && node tests/phase_p_jobs.test.js && node tests/clickhouse_client.test.js && node tests/m1_foundation.test.js && node tests/inventory_debounce.test.js && node tests/synthetics_runner.test.js && node tests/version_capture.test.js && node tests/vip_probe.test.js && node tests/topology_layers.test.js && node tests/sentinel_agent.test.js && node tests/m5_detection_alerting.test.js && node tests/ui_smoke.test.js && node tests/sentinelql.test.js && node tests/dashboards.test.js && node tests/llm_assistant.test.js && node tests/phase_a_agent.test.js && node tests/phase_a_db_security.test.js && node tests/phase_s_security.test.js && node tests/phase_s_git_llm.test.js && node tests/phase_u_product.test.js && node tests/phase_u_fleet.test.js && node tests/phase_u_storage.test.js && node tests/phase_u_dashboard_files.test.js && node tests/phase_q_git_push_reset.test.js && node tests/phase_q_jenkins_step.test.js && node tests/phase_q_vip_discovery.test.js && node tests/phase_q_config_check.test.js && node tests/e2e_replay_degradation.test.js && node tests/phase_o0_no_fabrication.test.js && node tests/phase_o_config_catalogue.test.js && node tests/phase_o_component_api.test.js && node tests/phase_o_forecast.test.js && node tests/phase_o2_agent_config.test.js && node tests/phase_o2_probe.test.js && node tests/phase_o2_osquery.test.js && node tests/phase_o2_cardinality.test.js && node tests/phase_o3_infra_routes.test.js && node tests/phase_o4_k8s_routes.test.js && node tests/phase_o4_database_routes.test.js && node tests/phase_o5_pool_member_check.test.js && node tests/phase_o5_app_map_routes.test.js && node tests/phase_o6_restored_screens.test.js && node tests/phase_o7_expiry_url.test.js && node tests/phase_o8_processes_capacity.test.js && node tests/phase_o9_product_jvm.test.js && node tests/phase_o10_sre_extras.test.js && node tests/phase_g_rootcause.test.js && node tests/phase_g_wiring.test.js && node tests/demo_console.test.js && node tests/phase_h_expiry_probes.test.js && node tests/phase_h_s3_upload.test.js && node tests/phase_h_jenkins_poller.test.js && node tests/e2e_real_data_populates.test.js && node tests/console_live.test.js && node tests/e2e_ingest_both_envs.test.js && node tests/prod_login_lockdown.test.js && node tests/demo_injection.test.js && node tests/dynatrace_endpoint_env.test.js && node tests/cyberark_fetch_script.test.js",
     "lint:constants": "node scripts/lint_severity_constants.js",
     "lint:random": "node scripts/lint_no_random.js",
-    "lint": "npm run lint:constants && npm run lint:random && cd frontend && npm run lint",
+    "lint:samples": "node scripts/lint_no_sample_data.js",
+    "lint:demo": "node scripts/lint_no_demo.js",
+    "lint:unreferenced": "node scripts/lint_unreferenced_components.js",
+    "lint": "npm run lint:constants && npm run lint:random && npm run lint:samples && npm run lint:demo && npm run lint:unreferenced && cd frontend && npm run lint",
     "preflight": "node scripts/preflight_check.js",
+    "readiness": "node scripts/prod_readiness_check.js",
     "audit:check": "npm audit --audit-level=high",
     "bootstrap": "node scripts/bootstrap.js",
     "prestart": "node scripts/bootstrap.js",
     "launch": "npm run bootstrap && npm run build && npm start",
     "verify:dist": "node scripts/verify_dist.js",
     "serve": "node scripts/bootstrap.js && node scripts/verify_dist.js && node backend/server.js",
-    "config:check": "node scripts/config_check.js"
+    "config:check": "node scripts/config_check.js",
+    "demo:inject": "node scripts/simulate_demo_injection.js",
+    "agent:osquery-pack": "node scripts/generate_osquery_pack.js"
   },
   "dependencies": {
     "compression": "^1.8.1",
@@ -57,5 +70,8 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.64.0"
   }
 }

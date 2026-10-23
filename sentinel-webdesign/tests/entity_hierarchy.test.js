@@ -1,3 +1,6 @@
+/**
+ * Test: inventory entity hierarchy and topology built from the manifests.
+ */
 const assert = require('assert');
 const inventory = require('../inventory');
 const yamlConfig = require('../backend/config/yaml_config');

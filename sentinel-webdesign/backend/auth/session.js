@@ -1,3 +1,7 @@
+/**
+ * Session tokens: HMAC-signed JWTs with key rotation (current and previous secret), verification
+ * and revocation.
+ */
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -34,6 +38,7 @@ if (!process.env.SENTINEL_JWT_SECRET) {
 // Key is resolved through CyberArk Central Credential Provider with strict fallback.
 let JWT_SECRET = process.env.SENTINEL_JWT_SECRET || null;
 
+// Loads the JWT secret (env var, CyberArk, or a generated dev secret) at start-up.
 async function bootstrapJwtSecret() {
   if (JWT_SECRET && JWT_SECRET.length >= 32) {
     return JWT_SECRET;
@@ -60,10 +65,12 @@ async function bootstrapJwtSecret() {
   return JWT_SECRET;
 }
 
+// Current JWT secret.
 function getJwtSecret() {
   return JWT_SECRET;
 }
 
+// Sets the JWT secret (minimum 32 characters).
 function setJwtSecret(secret) {
   if (!secret || secret.length < 32) {
     throw new Error('[FATAL] [SEC-01] JWT secret must be at least 32 characters.');
@@ -75,9 +82,11 @@ function setJwtSecret(secret) {
 function getActiveKid() {
   return process.env.SENTINEL_JWT_KID || 'k1';
 }
+// Key id of the previous secret (rotation).
 function getPrevKid() {
   return process.env.SENTINEL_JWT_KID_PREV || 'k0';
 }
+// Previous JWT secret, still accepted during rotation.
 function getPrevSecret() {
   return process.env.SENTINEL_JWT_SECRET_PREV || null;
 }
@@ -97,6 +106,7 @@ function getDb() {
   }
 }
 
+// Base64url encoding.
 function base64UrlEncode(str) {
   return Buffer.from(str)
     .toString('base64')
@@ -105,6 +115,7 @@ function base64UrlEncode(str) {
     .replace(/\//g, '_');
 }
 
+// Base64url decoding.
 function base64UrlDecode(str) {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4) {
@@ -113,6 +124,7 @@ function base64UrlDecode(str) {
   return Buffer.from(base64, 'base64').toString('utf8');
 }
 
+// HMAC-SHA256 signature.
 function signHmac(data, secret) {
   return crypto
     .createHmac('sha256', secret)
@@ -123,6 +135,7 @@ function signHmac(data, secret) {
     .replace(/\//g, '_');
 }
 
+// Signs a JWT header and payload.
 function sign(header, payload, secret) {
   const data = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(payload))}`;
   const signature = signHmac(data, secret);
@@ -222,6 +235,7 @@ function verifyToken(token) {
   return payload;
 }
 
+// Revokes a token by its id.
 function revokeToken(jti, reason) {
   const db = getDb();
   if (db && typeof db.revokeToken === 'function') {

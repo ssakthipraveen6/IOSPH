@@ -1,3 +1,6 @@
+/**
+ * Test: OTLP metric normalisation (names, units, component and host mapping).
+ */
 const assert = require('assert');
 const { normalizeOtlpPayload, OTEL_METRIC_MAP } = require('../metrics_collection/real/opentelemetry/otlp_metric_normalizer');
 

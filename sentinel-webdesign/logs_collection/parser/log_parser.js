@@ -1,3 +1,6 @@
+/**
+ * Log parsing: normalises levels, extracts fields and builds message fingerprints for grouping.
+ */
 const crypto = require('crypto');
 
 /**

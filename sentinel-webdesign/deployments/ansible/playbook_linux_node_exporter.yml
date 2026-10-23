@@ -47,7 +47,7 @@
           User=node_exporter
           Group=prometheus
           Type=simple
-          ExecStart=/usr/local/bin/node_exporter --web.listen-address=:{{ node_exporter_port }}
+          ExecStart=/usr/local/bin/node_exporter --web.listen-address=:{{ node_exporter_port }} --collector.mountstats
           Restart=always
           RestartSec=5s
 

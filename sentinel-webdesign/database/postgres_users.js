@@ -1,3 +1,6 @@
+/**
+ * User and role store in PostgreSQL; a JSON file is used only outside production.
+ */
 const fs = require('fs');
 const path = require('path');
 const postgres = require('./postgres');
@@ -17,6 +20,7 @@ const defaultUsers = [
 
 let fallbackState = { users: defaultUsers, auditLogs: [], ssoLogs: [] };
 
+// Loads the JSON fallback.
 function loadFallback() {
   try {
     if (fs.existsSync(USERS_FILE)) {
@@ -30,6 +34,7 @@ function loadFallback() {
   }
 }
 
+// Saves the JSON fallback (never in production).
 function saveFallback() {
   if (IS_PROD) return;
   try {
@@ -44,7 +49,9 @@ loadFallback();
 let warnedNoPool = false;
 let warnedUnreachable = false;
 
+// Error raised when no user store is reachable.
 class IdentityStoreUnavailable extends Error {
+  // Creates the error.
   constructor(cause) {
     super('Identity store unavailable: ' + cause);
     this.name = 'IdentityStoreUnavailable';
@@ -84,10 +91,12 @@ async function db(sql, params) {
 function readFallback(list) {
   return IS_PROD ? [] : list;
 }
+// Refuses writes in production without a database.
 function assertWritable() {
   if (IS_PROD) throw new IdentityStoreUnavailable('no reachable database');
 }
 
+// User from a database row.
 function rowToUser(r) {
   return {
     id: r.id,
@@ -102,6 +111,7 @@ function rowToUser(r) {
   };
 }
 
+// Permissions of a role.
 function permissionsFor(role, explicit) {
   if (explicit) return explicit;
   if (role === 'Super Admin') return ['read', 'remediate', 'thresholds', 'export', 'users', 'tokens'];

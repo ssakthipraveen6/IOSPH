@@ -1,3 +1,6 @@
+/**
+ * Test: analysis and observability regression suite (phase 2).
+ */
 const assert = require('assert');
 const { MetricBaselineStore } = require('../ai_analysis/real_analyzer');
 const { writeStructuredLog, createStructuredLogger } = require('../logger/logger');

@@ -1,0 +1,34 @@
+{
+  "id": "dash-infra-002",
+  "slug": "infrastructure-radar",
+  "title": "Infrastructure & Compute Radar",
+  "description": "Host CPU, memory pressure, and enterprise storage IOPS saturation",
+  "tags": ["hosts", "storage", "infrastructure"],
+  "environment": "production",
+  "panels": [
+    {
+      "id": "p-1",
+      "title": "Average Host CPU Utilization",
+      "type": "time_series",
+      "query": "metrics where metric = \"system.cpu.utilization\" | avg(value) by component every 5m since 12h",
+      "layout": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "options": { "unit": "%", "sparkline": true }
+    },
+    {
+      "id": "p-2",
+      "title": "Average Host Memory Utilization",
+      "type": "time_series",
+      "query": "metrics where metric = \"system.memory.utilization\" | avg(value) by component every 5m since 12h",
+      "layout": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "options": { "unit": "%", "sparkline": true }
+    },
+    {
+      "id": "p-3",
+      "title": "Storage Volume IOPS",
+      "type": "stat",
+      "query": "metrics where metric = \"storage.iops\" | avg(value) since 1h",
+      "layout": { "x": 0, "y": 4, "w": 6, "h": 3 },
+      "options": { "unit": "iops" }
+    }
+  ]
+}

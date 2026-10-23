@@ -1,0 +1,182 @@
+/* SodGovernanceBanner — co-located styles (prefix: sod-) */
+.sod-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sod-empty {
+  background: var(--bg-glass-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.4rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.sod-empty__title { color: var(--text-main); }
+
+.sod-sub {
+  font-size: var(--font-xs);
+  margin-top: 3px;
+}
+.sod-sub--muted { color: var(--text-muted); }
+
+.sod-pending {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.1);
+}
+.sod-pending__title {
+  color: var(--critical);
+  font-size: 0.95rem;
+}
+
+.sod-msg {
+  font-size: var(--font-xs);
+  margin-top: 6px;
+  font-weight: 700;
+}
+.sod-msg--ok { color: var(--healthy); }
+.sod-msg--err { color: var(--critical); }
+
+.sod-actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sod-signer {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.sod-sign-btn {
+  background: linear-gradient(135deg, var(--healthy) 0%, #059669 100%);
+  color: #fff;
+  font-weight: 800;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 1;
+  box-shadow: 0 2px 10px var(--healthy-glow);
+}
+.sod-sign-btn--sample {
+  background: var(--bg-panel-subtle);
+  color: var(--text-muted);
+  border: 1px solid var(--border-light);
+  box-shadow: none;
+}
+.sod-sign-btn--sample,
+.sod-sign-btn--busy { cursor: default; }
+.sod-sign-btn--busy { opacity: 0.7; }
+
+.sod-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+}
+
+.sod-card {
+  background: var(--bg-glass-card);
+  padding: var(--space-5);
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+.sod-card__head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.sod-card__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.sod-card__hint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.sod-card__empty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 8px 4px;
+}
+
+.sod-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.sod-table__th {
+  text-align: left;
+  color: var(--text-subtle);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.7rem;
+}
+.sod-table__tr { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.sod-table__td { padding: 8px 4px; }
+.sod-table__td--ticket {
+  color: var(--primary);
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+.sod-table__td--ci { color: var(--text-main); }
+.sod-table__td--status {
+  color: var(--warning);
+  font-weight: 600;
+}
+.sod-table__td--remediated { color: var(--healthy); }
+
+.sod-priority {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--warning-glass);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+.sod-priority--p1 {
+  background: var(--critical-glass);
+  color: var(--critical);
+  border-color: var(--critical);
+}
+
+.sod-audit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.sod-audit__item {
+  background: var(--bg-panel-subtle);
+  padding: var(--space-2);
+  border-radius: 6px;
+  border-left: 3px solid var(--healthy);
+}
+.sod-audit__line { color: var(--text-main); }
+.sod-audit__details {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 2px;
+  word-break: break-word;
+}
+.sod-audit__meta {
+  color: var(--text-subtle);
+  font-size: 10px;
+  margin-top: 2px;
+}

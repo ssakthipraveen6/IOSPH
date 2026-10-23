@@ -1,4 +1,5 @@
 const config = require('@sentinel/config');
+const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 const { performance } = require('perf_hooks');
 
 /**
@@ -18,31 +19,41 @@ async function collect(simulations, base = {}) {
   let apiData = null;
   let fetchLatencyMs = null;
 
+  // Service-account bearer token (infra/k8s.yaml -> credentials.objects.service_account).
+  // A missing token is not an error by itself (some API servers allow anonymous
+  // /healthz), but a 401/403 from the API is reported as AUTH_FAILED, never as "down".
+  let token = null;
+  try {
+    token = await credentialProvider.getCredential('k8s', 'service_account');
+  } catch (_) {}
+  const headers = { Accept: 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let authFailed = false;
+
+  const k8sGet = async (path, timeoutMs) => {
+    const res = await fetch(`${k8sEndpoint}${path}`, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    if (res.status === 401 || res.status === 403) { authFailed = true; return null; }
+    return res;
+  };
+
   if (k8sEndpoint) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1200);
       const t0 = performance.now();
-      const res = await fetch(`${k8sEndpoint}/healthz`, { signal: controller.signal });
+      const res = await k8sGet('/healthz', 1200);
       fetchLatencyMs = parseFloat((performance.now() - t0).toFixed(2));
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        // Attempt to fetch node and pod data from the API
+      if (res && res.ok) {
         try {
-          const nodesRes = await fetch(`${k8sEndpoint}/api/v1/nodes`, { signal: AbortSignal.timeout(2000) });
-          if (nodesRes.ok) {
-            const nodesPayload = await nodesRes.json();
-            const nodes = nodesPayload.items || [];
-            apiData = { nodes };
+          const nodesRes = await k8sGet('/api/v1/nodes', 2000);
+          if (nodesRes && nodesRes.ok) {
+            apiData = { nodes: (await nodesRes.json()).items || [] };
           }
         } catch (_) {}
 
         try {
-          const podsRes = await fetch(`${k8sEndpoint}/api/v1/pods`, { signal: AbortSignal.timeout(2000) });
-          if (podsRes.ok) {
-            const podsPayload = await podsRes.json();
+          const podsRes = await k8sGet('/api/v1/pods', 2000);
+          if (podsRes && podsRes.ok) {
             apiData = apiData || {};
-            apiData.pods = podsPayload.items || [];
+            apiData.pods = (await podsRes.json()).items || [];
           }
         } catch (_) {}
       }
@@ -104,6 +115,13 @@ async function collect(simulations, base = {}) {
 
     _fetchLatencyMs: fetchLatencyMs
   };
+
+  if (authFailed) {
+    // Distinct from unreachable: credentials were rejected, so values are unknown (null).
+    metrics.status = 'AUTH_FAILED';
+    metrics.error = 'AUTH_FAILED';
+    metrics.authFailed = true;
+  }
 
   // Per-application workload telemetry
   k8sApps.forEach(([appId]) => {

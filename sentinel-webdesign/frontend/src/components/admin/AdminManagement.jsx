@@ -1,26 +1,27 @@
+/**
+ * Admin view: users and roles, maintenance switches, and the preflight check, for Super Admins.
+ */
 import React, { useState, useEffect } from 'react';
 import { MAINTENANCE_CONFIG } from '../../maintenanceConfig';
 import { MaintenanceBadge, MaintenanceBanner } from '../shared/MaintenanceNotice';
 import PreflightCheckView from './PreflightCheckView';
+import { apiFetch } from '../../api';
+import './AdminManagement.css';
 
-const initialUsers = [
-  { id: 1, name: 'Sentinel Administrator', email: 'admin@sentinel.local', role: 'Super Admin', status: 'Active', dept: 'Platform Operations', lastLogin: 'Just Now', mfa: true, permissions: ['read', 'remediate', 'thresholds', 'export', 'users', 'tokens'] },
-  { id: 2, name: 'Reliability Lead', email: 'sre.lead@sentinel.local', role: 'SRE Lead', status: 'Active', dept: 'Site Reliability', lastLogin: '10 mins ago', mfa: true, permissions: ['read', 'remediate', 'thresholds', 'export'] },
-  { id: 3, name: 'NOC Operations Specialist', email: 'noc.operator@sentinel.local', role: 'NOC Operator', status: 'Active', dept: 'Operations Center', lastLogin: '1 hour ago', mfa: true, permissions: ['read', 'remediate'] },
-  { id: 4, name: 'Compliance Auditor', email: 'auditor@sentinel.local', role: 'Security Auditor', status: 'Active', dept: 'Compliance & Security', lastLogin: '3 hours ago', mfa: true, permissions: ['read', 'export'] },
-  { id: 5, name: 'Automation Service Bot', email: 'svc-sentinel@sentinel.local', role: 'Service Account', status: 'Active', dept: 'CI/CD Automation', lastLogin: 'Continuous', mfa: false, permissions: ['read', 'remediate'] }
-];
+// [F6] No seeded accounts: the directory shows only what /api/admin/users returns.
+const initialUsers = [];
 
 const initialAuditLogs = [];
 const initialSsoAccessLogs = [];
 
+// Admin page component; tabs for users, maintenance and preflight.
 export default function AdminManagement({ environment = 'staging' }) {
   const currentEnv = environment || 'staging';
   
   const [users, setUsers] = useState(initialUsers);
   const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
   const [ssoAccessLogs, setSsoAccessLogs] = useState(initialSsoAccessLogs);
-  const [selectedUser, setSelectedUser] = useState(initialUsers[0]);
+  const [selectedUser, setSelectedUser] = useState(null);
   
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -37,6 +38,9 @@ export default function AdminManagement({ environment = 'staging' }) {
 
   const [activeTab, setActiveTab] = useState('users'); // users, rbac, audit, policies
   const [notification, setNotification] = useState(null);
+  const [ingestKeys, setIngestKeys] = useState([]);
+  const [sessionUser, setSessionUser] = useState(null);
+  const [ssoStatus, setSsoStatus] = useState(null);
 
   const getCsrfToken = () => {
     const match = document.cookie.match(/(^|;\s*)sentinel_csrf=([^;]*)/);
@@ -54,15 +58,16 @@ export default function AdminManagement({ environment = 'staging' }) {
   const fetchAdminData = async () => {
     try {
       const headers = getAuthHeaders();
-      const [uRes, aRes, sRes] = await Promise.all([
+      const [uRes, aRes, sRes, kRes] = await Promise.all([
         fetch('/api/admin/users', { headers }),
         fetch('/api/admin/audit-logs', { headers }),
-        fetch('/api/admin/sso-logs', { headers })
+        fetch('/api/admin/sso-logs', { headers }),
+        fetch('/api/admin/ingest-keys', { headers })
       ]);
 
       if (uRes.ok) {
         const uData = await uRes.json();
-        if (Array.isArray(uData) && uData.length > 0) {
+        if (Array.isArray(uData)) {
           setUsers(uData);
           if (!selectedUser || !uData.some(u => u.id === selectedUser.id)) {
             setSelectedUser(uData[0]);
@@ -77,6 +82,10 @@ export default function AdminManagement({ environment = 'staging' }) {
         const sData = await sRes.json();
         if (Array.isArray(sData)) setSsoAccessLogs(sData);
       }
+      if (kRes && kRes.ok) {
+        const kData = await kRes.json();
+        if (kData && Array.isArray(kData.keys)) setIngestKeys(kData.keys);
+      }
     } catch (e) {
       console.error('[ADMIN] Failed loading data from backend:', e);
     }
@@ -85,6 +94,18 @@ export default function AdminManagement({ environment = 'staging' }) {
   useEffect(() => {
     fetchAdminData();
   }, [environment]);
+
+  // Signed-in user and identity provider come from the server, never from literals.
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'same-origin' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(setSessionUser)
+      .catch(() => setSessionUser(null));
+    fetch('/api/auth/sso/status', { credentials: 'same-origin' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(setSsoStatus)
+      .catch(() => setSsoStatus(null));
+  }, []);
 
   const triggerToast = (msg) => {
     setNotification(msg);
@@ -105,7 +126,7 @@ export default function AdminManagement({ environment = 'staging' }) {
     setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
 
     try {
-      await fetch(`/api/admin/users/${userId}`, {
+      await apiFetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(updatedUser)
@@ -136,7 +157,7 @@ export default function AdminManagement({ environment = 'staging' }) {
     };
 
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await apiFetch('/api/admin/users', {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(userPayload)
@@ -178,7 +199,7 @@ export default function AdminManagement({ environment = 'staging' }) {
     };
 
     try {
-      const res = await fetch(`/api/admin/users/${sanitized.id}`, {
+      const res = await apiFetch(`/api/admin/users/${sanitized.id}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(sanitized)
@@ -207,7 +228,7 @@ export default function AdminManagement({ environment = 'staging' }) {
 
     if (window.confirm(`Are you sure you want to revoke access and delete account for "${target.name}"?`)) {
       try {
-        const res = await fetch(`/api/admin/users/${userId}`, {
+        const res = await apiFetch(`/api/admin/users/${userId}`, {
           method: 'DELETE',
           headers: getAuthHeaders()
         });
@@ -226,16 +247,13 @@ export default function AdminManagement({ environment = 'staging' }) {
     }
   };
 
-  // Reset to default
+  // Reload the directory from the server (no local seed data)
   const handleResetDefaults = () => {
-    if (window.confirm('Reset user directory back to original default seed data?')) {
-      setUsers(initialUsers);
-      setSelectedUser(initialUsers[0]);
-      setUserSearchFilter('');
-      setRbacSearchFilter('');
-      localStorage.removeItem('sentinel_admin_users');
-      triggerToast('🔄 Directory reset to initial default accounts.');
-    }
+    setUserSearchFilter('');
+    setRbacSearchFilter('');
+    localStorage.removeItem('sentinel_admin_users');
+    fetchAdminData();
+    triggerToast('🔄 Directory reloaded from the server.');
   };
 
   // Filtered users for Tab 1 (User Directory)
@@ -264,41 +282,39 @@ export default function AdminManagement({ environment = 'staging' }) {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="adm-root">
       
       {/* Toast Notification Banner */}
       {notification && (
-        <div style={{ background: 'var(--primary)', color: '#fff', padding: '10px 16px', borderRadius: '6px', fontWeight: 700, fontSize: '0.85rem', boxShadow: '0 4px 12px var(--primary-glow)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="adm-toast">
           <span>{notification}</span>
-          <button onClick={() => setNotification(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+          <button onClick={() => setNotification(null)} className="adm-toast__close">✕</button>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="console-panel" style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.98))', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="console-panel adm-hero">
+        <div className="adm-hero__row">
           <div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h2 className="adm-hero__title">
               🛡️ DevSecOps Admin Control & User Access Center
               {MAINTENANCE_CONFIG.pages.adminManagement && <MaintenanceBadge />}
             </h2>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>
+            <p className="adm-hero__desc">
               Manage enterprise user roles, RBAC access levels, authentication policies, and security audit trails.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="adm-hero__actions">
             <button 
-              className="ignore-trigger-btn"
+              className="ignore-trigger-btn adm-reload-btn"
               onClick={handleResetDefaults}
-              style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#94a3b8' }}
-              title="Reset user directory to initial default data"
+              title="Reload the user directory from the server"
             >
-              🔄 Reset Defaults
+              🔄 Reload
             </button>
             <button 
-              className="remediate-trigger-btn"
+              className="remediate-trigger-btn adm-provision-btn"
               onClick={() => setShowAddModal(true)}
-              style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               ➕ Provision New User
             </button>
@@ -306,46 +322,40 @@ export default function AdminManagement({ environment = 'staging' }) {
         </div>
 
         {/* View Navigation Tabs */}
-        <div style={{ display: 'flex', gap: '10px', marginTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.75rem' }}>
+        <div className="adm-tabs">
           <button 
-            className={`nav-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
+            className={`nav-tab-btn adm-tab ${activeTab === 'users' ? 'active' : ''}`}
             onClick={() => setActiveTab('users')}
-            style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
           >
             👥 User Directory ({users.length})
           </button>
           <button 
-            className={`nav-tab-btn ${activeTab === 'rbac' ? 'active' : ''}`}
+            className={`nav-tab-btn adm-tab ${activeTab === 'rbac' ? 'active' : ''}`}
             onClick={() => setActiveTab('rbac')}
-            style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
           >
             🔑 Permission Matrix ({users.length})
           </button>
           <button 
-            className={`nav-tab-btn ${activeTab === 'sso_logs' ? 'active' : ''}`}
+            className={`nav-tab-btn adm-tab ${activeTab === 'sso_logs' ? 'active' : ''}`}
             onClick={() => setActiveTab('sso_logs')}
-            style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
           >
             🔐 SSO Access Logs ({ssoAccessLogs.length})
           </button>
           <button 
-            className={`nav-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
+            className={`nav-tab-btn adm-tab ${activeTab === 'audit' ? 'active' : ''}`}
             onClick={() => setActiveTab('audit')}
-            style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
           >
             📜 Admin Audit Logs ({auditLogs.length})
           </button>
           <button 
-            className={`nav-tab-btn ${activeTab === 'policies' ? 'active' : ''}`}
+            className={`nav-tab-btn adm-tab ${activeTab === 'policies' ? 'active' : ''}`}
             onClick={() => setActiveTab('policies')}
-            style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
           >
             ⚙️ Security & SSO Policies
           </button>
           <button 
-            className={`nav-tab-btn ${activeTab === 'preflight' ? 'active' : ''}`}
+            className={`nav-tab-btn adm-tab ${activeTab === 'preflight' ? 'active' : ''}`}
             onClick={() => setActiveTab('preflight')}
-            style={{ width: 'auto', padding: '6px 14px', fontSize: '0.8rem' }}
           >
             🔍 Endpoint Preflight
           </button>
@@ -353,24 +363,24 @@ export default function AdminManagement({ environment = 'staging' }) {
       </div>
 
       {activeTab === 'users' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+        <div className="adm-grid-users">
           
           {/* Left Table Panel */}
           <div className="console-panel">
-            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="panel-header">
               <h3>👥 Registered Accounts & Details ({directoryUsers.length} of {users.length})</h3>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <div className="adm-search-group">
                 <input 
                   type="text"
                   placeholder="Search user, email, role..."
                   value={userSearchFilter}
                   onChange={(e) => setUserSearchFilter(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.75rem', width: '200px' }}
+                  className="adm-search"
                 />
                 {userSearchFilter && (
                   <button 
                     onClick={() => setUserSearchFilter('')}
-                    style={{ padding: '4px 8px', fontSize: '0.7rem', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'transparent', color: 'var(--text-muted)' }}
+                    className="adm-clear-btn"
                   >
                     ✕ Clear
                   </button>
@@ -378,7 +388,7 @@ export default function AdminManagement({ environment = 'staging' }) {
               </div>
             </div>
 
-            <div className="table-wrapper" style={{ marginTop: '1rem', maxHeight: '420px' }}>
+            <div className="table-wrapper adm-table-wrap">
               <table className="telemetry-table">
                 <thead>
                   <tr>
@@ -392,32 +402,32 @@ export default function AdminManagement({ environment = 'staging' }) {
                 </thead>
                 <tbody>
                   {directoryUsers.length === 0 ? (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No user accounts matching search filter.</td></tr>
+                    <tr><td colSpan="6" className="adm-empty">No user accounts matching search filter.</td></tr>
                   ) : (
                     directoryUsers.map(u => (
                       <tr 
                         key={u.id}
                         onClick={() => setSelectedUser(u)}
-                        style={{ cursor: 'pointer', backgroundColor: selectedUser?.id === u.id ? 'var(--primary-glow)' : 'transparent' }}
+                        className={`adm-row--clickable${selectedUser?.id === u.id ? ' adm-row--selected' : ''}`}
                       >
-                        <td style={{ fontWeight: 700 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '1.1rem' }}>{u.role === 'Super Admin' ? '🛡️' : '👤'}</span>
+                        <td className="adm-strong">
+                          <div className="adm-user">
+                            <span className="adm-user__icon">{u.role === 'Super Admin' ? '🛡️' : '👤'}</span>
                             <div>
                               <div>{u.name}</div>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                              <div className="adm-sub">{u.email}</div>
                             </div>
                           </div>
                         </td>
                         <td>
                           <span className="status-badge-inline moderate">{u.role}</span>
                         </td>
-                        <td style={{ fontSize: '0.75rem' }}>{u.dept}</td>
+                        <td className="adm-cell-sm">{u.dept}</td>
                         <td>
                           {u.mfa ? (
-                            <span style={{ color: '#10b981', fontWeight: 700, fontSize: '0.7rem' }}>🔒 ENFORCED</span>
+                            <span className="adm-mfa adm-mfa--on">🔒 ENFORCED</span>
                           ) : (
-                            <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.7rem' }}>⚠️ OPTIONAL</span>
+                            <span className="adm-mfa adm-mfa--off">⚠️ OPTIONAL</span>
                           )}
                         </td>
                         <td>
@@ -426,19 +436,17 @@ export default function AdminManagement({ environment = 'staging' }) {
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '4px' }}>
+                          <div className="adm-row-actions">
                             <button 
-                              className="remediate-trigger-btn" 
+                              className="remediate-trigger-btn adm-btn-xs" 
                               onClick={(e) => { e.stopPropagation(); handleOpenEditModal(u); }}
-                              style={{ padding: '2px 6px', fontSize: '0.7rem' }}
                               title="Edit User Profile"
                             >
                               ✏️ Edit
                             </button>
                             <button 
-                              className="ignore-trigger-btn" 
+                              className="ignore-trigger-btn adm-btn-xs adm-btn-danger" 
                               onClick={(e) => { e.stopPropagation(); handleDeleteUser(u.id); }}
-                              style={{ padding: '2px 6px', fontSize: '0.7rem', color: 'var(--critical)' }}
                               title="Revoke User Access"
                             >
                               🗑️
@@ -455,53 +463,51 @@ export default function AdminManagement({ environment = 'staging' }) {
 
           {/* Right Selected User Details Inspector */}
           {selectedUser && (
-            <div className="console-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="panel-header" style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="console-panel adm-inspector">
+              <div className="panel-header adm-inspector__head">
                 <h3>👤 Account Security Profile</h3>
                 <span className="status-badge-inline healthy">ID: #{selectedUser.id}</span>
               </div>
 
-              <div style={{ textAlign: 'center', padding: '1rem 0', background: 'var(--primary-glow)', borderRadius: '8px', border: '1px dashed var(--primary)' }}>
-                <span style={{ fontSize: '2.5rem', display: 'block' }}>{selectedUser.role === 'Super Admin' ? '🛡️' : '👤'}</span>
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginTop: '6px' }}>{selectedUser.name}</h4>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{selectedUser.email}</span>
-                <div style={{ marginTop: '8px' }}>
+              <div className="adm-profile">
+                <span className="adm-profile__icon">{selectedUser.role === 'Super Admin' ? '🛡️' : '👤'}</span>
+                <h4 className="adm-profile__name">{selectedUser.name}</h4>
+                <span className="adm-profile__email">{selectedUser.email}</span>
+                <div className="adm-profile__status">
                   <span className={`status-badge-inline ${selectedUser.status === 'Active' ? 'healthy' : 'critical'}`}>
                     ● {selectedUser.status}
                   </span>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
+              <div className="adm-facts">
                 <div><strong>Assigned Role:</strong> {selectedUser.role}</div>
                 <div><strong>Department:</strong> {selectedUser.dept}</div>
                 <div><strong>Last Session Activity:</strong> {selectedUser.lastLogin}</div>
                 <div><strong>Multi-Factor Auth (MFA):</strong> {selectedUser.mfa ? 'Enabled (Authenticator App)' : 'Disabled'}</div>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem' }}>
-                <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px' }}>PERMISSIONS GRANTED ({Array.isArray(selectedUser.permissions) ? selectedUser.permissions.length : 0}):</h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              <div className="adm-perms">
+                <h4 className="adm-perms__title">PERMISSIONS GRANTED ({Array.isArray(selectedUser.permissions) ? selectedUser.permissions.length : 0}):</h4>
+                <div className="adm-perms__list">
                   {(Array.isArray(selectedUser.permissions) ? selectedUser.permissions : []).map(p => (
-                    <span key={p} style={{ background: 'var(--bg-dark)', padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-light)', fontSize: '0.7rem', fontWeight: 600 }}>
+                    <span key={p} className="adm-perm-chip">
                       ✓ {p.toUpperCase()}
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', marginTop: 'auto' }}>
+              <div className="adm-inspector__actions">
                 <button 
-                  className="remediate-trigger-btn" 
+                  className="remediate-trigger-btn adm-btn-block" 
                   onClick={() => handleOpenEditModal(selectedUser)}
-                  style={{ flex: 1, padding: '8px', fontSize: '0.78rem' }}
                 >
                   ✏️ Edit Profile
                 </button>
                 <button 
-                  className="ignore-trigger-btn" 
+                  className="ignore-trigger-btn adm-btn-block adm-btn-danger" 
                   onClick={() => handleDeleteUser(selectedUser.id)}
-                  style={{ flex: 1, padding: '8px', fontSize: '0.78rem', color: 'var(--critical)' }}
                 >
                   🔒 Revoke Access
                 </button>
@@ -515,27 +521,27 @@ export default function AdminManagement({ environment = 'staging' }) {
       {/* TAB 2: RBAC PERMISSIONS MATRIX */}
       {activeTab === 'rbac' && (
         <div className="console-panel">
-          <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="panel-header">
             <h3>🔑 Role-Based Access Control (RBAC) Permissions Matrix ({rbacUsers.length} of {users.length} Users)</h3>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div className="adm-search-group">
               <input 
                 type="text"
                 placeholder="Search user or role..."
                 value={rbacSearchFilter}
                 onChange={(e) => setRbacSearchFilter(e.target.value)}
-                style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.75rem', width: '200px' }}
+                className="adm-search"
               />
               {rbacSearchFilter && (
                 <button 
                   onClick={() => setRbacSearchFilter('')}
-                  style={{ padding: '4px 8px', fontSize: '0.7rem', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--border-light)', background: 'transparent', color: 'var(--text-muted)' }}
+                  className="adm-clear-btn"
                 >
                   ✕ Clear Filter
                 </button>
               )}
             </div>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          <p className="adm-intro">
             Click checkmarks to dynamically toggle read, remediation, threshold modification, export, and admin privileges for each user. Changes update and persist automatically across all tiles.
           </p>
 
@@ -545,28 +551,28 @@ export default function AdminManagement({ environment = 'staging' }) {
                 <tr>
                   <th>User / Email</th>
                   <th>Role</th>
-                  <th style={{ textAlign: 'center' }}>Read Telemetry</th>
-                  <th style={{ textAlign: 'center' }}>Trigger Remediation</th>
-                  <th style={{ textAlign: 'center' }}>Modify Thresholds</th>
-                  <th style={{ textAlign: 'center' }}>Export Reports</th>
-                  <th style={{ textAlign: 'center' }}>Manage Users</th>
-                  <th style={{ textAlign: 'center' }}>API Key Token</th>
+                  <th className="adm-center">Read Telemetry</th>
+                  <th className="adm-center">Trigger Remediation</th>
+                  <th className="adm-center">Modify Thresholds</th>
+                  <th className="adm-center">Export Reports</th>
+                  <th className="adm-center">Manage Users</th>
+                  <th className="adm-center">API Key Token</th>
                 </tr>
               </thead>
               <tbody>
                 {rbacUsers.length === 0 ? (
-                  <tr><td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>No user accounts matching filter.</td></tr>
+                  <tr><td colSpan="8" className="adm-empty">No user accounts matching filter.</td></tr>
                 ) : (
                   rbacUsers.map(u => {
                     const uPerms = Array.isArray(u.permissions) ? u.permissions : [];
                     return (
-                      <tr key={u.id} style={{ backgroundColor: selectedUser?.id === u.id ? 'var(--primary-glow)' : 'transparent' }}>
-                        <td style={{ fontWeight: 700 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <tr key={u.id} className={selectedUser?.id === u.id ? 'adm-row--selected' : undefined}>
+                        <td className="adm-strong">
+                          <div className="adm-user adm-user--tight">
                             <span>{u.role === 'Super Admin' ? '🛡️' : '👤'}</span>
                             <div>
                               <div>{u.name}</div>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                              <div className="adm-sub">{u.email}</div>
                             </div>
                           </div>
                         </td>
@@ -575,12 +581,12 @@ export default function AdminManagement({ environment = 'staging' }) {
                         {['read', 'remediate', 'thresholds', 'export', 'users', 'tokens'].map(perm => {
                           const active = uPerms.includes(perm);
                           return (
-                            <td key={perm} style={{ textAlign: 'center' }}>
+                            <td key={perm} className="adm-center">
                               <input 
                                 type="checkbox"
                                 checked={active}
                                 onChange={() => handleTogglePermission(u.id, perm)}
-                                style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                                className="adm-checkbox adm-checkbox--clickable"
                               />
                             </td>
                           );
@@ -597,61 +603,53 @@ export default function AdminManagement({ environment = 'staging' }) {
 
       {/* TAB: SSO ACCESS & AUTHENTICATION AUDIT LOGS */}
       {activeTab === 'sso_logs' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="adm-stack">
           
           {/* Top KPI Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-            <div className="console-panel" style={{ padding: '1rem' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>SSO ACCESS EVENTS</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--primary)', marginTop: '4px' }}>{ssoAccessLogs.length}</div>
-              <div style={{ fontSize: '0.7rem', color: '#10b981', marginTop: '2px' }}>● 100% Authenticated via eLDAP</div>
+          <div className="adm-kpis">
+            <div className="console-panel adm-kpi">
+              <div className="adm-kpi__label">SSO ACCESS EVENTS</div>
+              <div className="adm-kpi__value">{ssoAccessLogs.length}</div>
+              <div className="adm-kpi__hint">Recorded sign-in events</div>
             </div>
-            <div className="console-panel" style={{ padding: '1rem' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>IDENTITY PROVIDER</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>eLDAP / Active Directory</div>
-              <div style={{ fontSize: '0.7rem', color: '#60a5fa', marginTop: '2px' }}>ldaps://ldap.enterprise.corp:636</div>
+            <div className="console-panel adm-kpi">
+              <div className="adm-kpi__label">IDENTITY PROVIDER</div>
+              <div className="adm-kpi__value--text adm-kpi__value--ellipsis">{ssoStatus?.provider || 'Not available'}</div>
+              <div className="adm-kpi__hint adm-kpi__hint--link">{ssoStatus?.ldapUrl || '—'}</div>
             </div>
-            <div className="console-panel" style={{ padding: '1rem' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>AUTH PROTOCOL</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '6px' }}>OAuth2 / SAML 2.0</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>Direct Bind & TOTP MFA</div>
+            <div className="console-panel adm-kpi">
+              <div className="adm-kpi__label">AUTH PROTOCOL</div>
+              <div className="adm-kpi__value--text">OAuth2 / SAML 2.0</div>
+              <div className="adm-kpi__hint">Direct Bind & TOTP MFA</div>
             </div>
-            <div className="console-panel" style={{ padding: '1rem' }}>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTIVE SESSION USER</div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#10b981', marginTop: '6px' }}>DevSecops Admin</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>devsecops-admin@enterprise.corp</div>
+            <div className="console-panel adm-kpi">
+              <div className="adm-kpi__label">ACTIVE SESSION USER</div>
+              <div className="adm-kpi__value--session">{sessionUser?.displayName || sessionUser?.username || 'Not signed in'}</div>
+              <div className="adm-kpi__hint">{sessionUser?.role || '—'}</div>
             </div>
           </div>
 
           {/* Main SSO Logs Table Panel */}
           <div className="console-panel">
-            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="panel-header">
               <div>
                 <h3>🔐 SSO Access & User Session Audit Logs ({filteredSsoLogs.length} of {ssoAccessLogs.length})</h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <p className="adm-ph-desc">
                   Logs exact timestamp, user identity, eLDAP Distinguished Name (DN), IP address, and session ID whenever the application is accessed.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div className="adm-search-group adm-search-group--wide">
                 <input 
                   type="text"
                   placeholder="Filter by user, email, IP, DN..."
                   value={ssoSearchFilter}
                   onChange={(e) => setSsoSearchFilter(e.target.value)}
-                  style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-light)', fontSize: '0.75rem', width: '220px' }}
+                  className="adm-search adm-search--wide"
                 />
-                <button 
-                  className="remediate-trigger-btn"
-                  onClick={() => handleSimulateSsoLogin()}
-                  style={{ padding: '6px 12px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  title="Simulate a new SSO eLDAP login access event"
-                >
-                  ⚡ Test SSO Login Event
-                </button>
               </div>
             </div>
 
-            <div className="table-wrapper" style={{ marginTop: '1rem', maxHeight: '480px' }}>
+            <div className="table-wrapper adm-table-wrap adm-table-wrap--tall">
               <table className="telemetry-table">
                 <thead>
                   <tr>
@@ -665,28 +663,28 @@ export default function AdminManagement({ environment = 'staging' }) {
                 </thead>
                 <tbody>
                   {filteredSsoLogs.length === 0 ? (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No records</td></tr>
+                    <tr><td colSpan="6" className="adm-empty adm-empty--muted">No records</td></tr>
                   ) : (
                     filteredSsoLogs.map(log => (
                       <tr key={log.id}>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                        <td className="adm-cell-mono adm-cell-ts">
                           {log.timestamp}
                         </td>
                         <td>
-                          <div style={{ fontWeight: 700 }}>{log.user}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{log.email}</div>
+                          <div className="adm-strong">{log.user}</div>
+                          <div className="adm-sub">{log.email}</div>
                         </td>
-                        <td style={{ fontSize: '0.72rem' }}>
-                          <div style={{ color: '#60a5fa', fontWeight: 600 }}>{log.provider}</div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.68rem', color: 'var(--text-muted)' }}>{log.ldapDn}</div>
+                        <td className="adm-cell-xs">
+                          <div className="adm-provider">{log.provider}</div>
+                          <div className="adm-dn">{log.ldapDn}</div>
                         </td>
-                        <td style={{ fontSize: '0.75rem' }}>
+                        <td className="adm-cell-sm">
                           <span className="status-badge-inline moderate">{log.role}</span>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>{log.dept}</div>
+                          <div className="adm-sub adm-sub--spaced">{log.dept}</div>
                         </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>
+                        <td className="adm-cell-mono adm-cell-mono--xs">
                           <div>IP: {log.ip}</div>
-                          <div style={{ color: 'var(--text-muted)' }}>{log.sessionId}</div>
+                          <div className="adm-muted">{log.sessionId}</div>
                         </td>
                         <td>
                           <span className="status-badge-inline healthy">
@@ -709,7 +707,7 @@ export default function AdminManagement({ environment = 'staging' }) {
           <div className="panel-header">
             <h3>📜 Administrative Security & Compliance Audit Log</h3>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          <p className="adm-intro">
             Immutable audit record of all user creations, profile edits, permission changes, and administrative actions.
           </p>
 
@@ -726,15 +724,15 @@ export default function AdminManagement({ environment = 'staging' }) {
               </thead>
               <tbody>
                 {auditLogs.length === 0 ? (
-                  <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>No records</td></tr>
+                  <tr><td colSpan="5" className="adm-empty adm-empty--muted">No records</td></tr>
                 ) : (
                   auditLogs.map(log => (
                   <tr key={log.id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{log.timestamp}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{log.user}</td>
+                    <td className="adm-cell-mono">{log.timestamp}</td>
+                    <td className="adm-cell-user">{log.user}</td>
                     <td><span className="status-badge-inline healthy">{log.action}</span></td>
-                    <td style={{ fontSize: '0.78rem' }}>{log.details}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>{log.ip}</td>
+                    <td className="adm-cell-details">{log.details}</td>
+                    <td className="adm-cell-mono adm-cell-mono--xs adm-muted">{log.ip}</td>
                   </tr>
                 )))}
               </tbody>
@@ -745,32 +743,32 @@ export default function AdminManagement({ environment = 'staging' }) {
 
       {/* TAB 4: SECURITY & SSO POLICIES */}
       {activeTab === 'policies' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        <div className="adm-grid-2">
           <div className="console-panel">
             <div className="panel-header">
               <h3>🔒 Authentication & SSO Integration</h3>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', fontSize: '0.8rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="adm-policy-list">
+              <div className="adm-policy">
                 <div>
                   <strong>Enterprise eLDAP / Active Directory Sync</strong>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Primary auth provider for corp domain</div>
+                  <div className="adm-hint">Primary auth provider for corp domain</div>
                 </div>
                 <span className="status-badge-inline healthy">🟢 CONNECTED</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="adm-policy">
                 <div>
                   <strong>Mandatory MFA Enforcement</strong>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Require TOTP / YubiKey for admin roles</div>
+                  <div className="adm-hint">Require TOTP / YubiKey for admin roles</div>
                 </div>
                 <span className="status-badge-inline healthy">ENABLED</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="adm-policy">
                 <div>
                   <strong>Session Expiry Timeout</strong>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Auto logout idle administrative sessions</div>
+                  <div className="adm-hint">Auto logout idle administrative sessions</div>
                 </div>
-                <select style={{ padding: '4px', borderRadius: '4px' }} defaultValue="30">
+                <select className="adm-policy-select" defaultValue="30">
                   <option value="15">15 Minutes</option>
                   <option value="30">30 Minutes</option>
                   <option value="60">60 Minutes</option>
@@ -781,17 +779,36 @@ export default function AdminManagement({ environment = 'staging' }) {
 
           <div className="console-panel">
             <div className="panel-header">
-              <h3>🔑 API Access Tokens & Service Credentials</h3>
+              <h3>🔑 Ingest API Keys &amp; Telemetry Gateway Credentials</h3>
+              <span className="adm-hint">Super Admin Restricted</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', fontSize: '0.8rem' }}>
-              <div style={{ background: 'var(--bg-dark)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-                <div style={{ fontWeight: 700 }}>CI/CD Pipeline Bot Token</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)', margin: '4px 0' }}>sntl_live_sec_908432xxxxxxxxxx</div>
-                <span className="status-badge-inline healthy">ACTIVE • Expires in 89 days</span>
+            <div className="adm-policy-list adm-policy-list--tight">
+              {ingestKeys.length === 0 ? (
+                <div className="adm-key-empty">
+                  No active ingest keys found in the database. Use <code>node scripts/ingest_key.js create --name &lt;name&gt; --env &lt;env&gt;</code> to provision keys securely.
+                </div>
+              ) : (
+                ingestKeys.map((k, idx) => (
+                  <div key={idx} className="adm-key">
+                    <div className="adm-key__head">
+                      <div className="adm-key__name">{k.name}</div>
+                      <span className="status-badge-inline healthy">ACTIVE</span>
+                    </div>
+                    <div className="adm-key__grid">
+                      <div>Env: <strong className="adm-key__val">{k.environment}</strong></div>
+                      <div>Scopes: <strong className="adm-key__val">{(k.scopes || []).join(', ') || 'ingest'}</strong></div>
+                      {k.allowed_environments && k.allowed_environments.length > 0 && (
+                        <div>Allowed Envs: <strong className="adm-key__val">{k.allowed_environments.join(', ')}</strong></div>
+                      )}
+                      <div>Created: <span className="adm-key__val">{new Date(k.created_at).toLocaleDateString()} by {k.created_by || 'system'}</span></div>
+                      <div>Last Used: <span className="adm-key__val">{k.last_used_at ? new Date(k.last_used_at).toLocaleString() : 'Never'}</span></div>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div className="adm-hint adm-hint--spaced">
+                🔒 Raw API tokens are hashed (SHA-256) at creation time and never stored in plain text or returned over the wire.
               </div>
-              <button className="remediate-trigger-btn" style={{ padding: '6px 12px', fontSize: '0.75rem', alignSelf: 'flex-start' }}>
-                🔑 Generate New Admin API Key
-              </button>
             </div>
           </div>
         </div>
@@ -800,43 +817,43 @@ export default function AdminManagement({ environment = 'staging' }) {
       {/* MODAL 1: ADD NEW USER */}
       {showAddModal && (
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-card" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
-            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div className="modal-card adm-modal" onClick={e => e.stopPropagation()}>
+            <div className="panel-header adm-modal__head">
               <h3>➕ Provision New User Account</h3>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setShowAddModal(false)} className="adm-modal__close">✕</button>
             </div>
 
-            <form onSubmit={handleAddUserSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleAddUserSubmit} className="adm-form">
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Full Name *</label>
+                <label className="adm-label">Full Name *</label>
                 <input 
                   type="text"
                   required
                   placeholder="e.g. Alex Morgan"
                   value={newUser.name}
                   onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  style={{ width: '100%', marginTop: '4px' }}
+                  className="adm-input"
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Corporate Email *</label>
+                <label className="adm-label">Corporate Email *</label>
                 <input 
                   type="email"
                   required
-                  placeholder="alex.m@enterprise.corp"
+                  placeholder="user@corp.local"
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  style={{ width: '100%', marginTop: '4px' }}
+                  className="adm-input"
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Role Assignment</label>
+                <label className="adm-label">Role Assignment</label>
                 <select 
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  style={{ width: '100%', marginTop: '4px' }}
+                  className="adm-input"
                 >
                   <option value="Super Admin">Super Admin</option>
                   <option value="SRE Lead">SRE Lead</option>
@@ -847,17 +864,17 @@ export default function AdminManagement({ environment = 'staging' }) {
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Department</label>
+                <label className="adm-label">Department</label>
                 <input 
                   type="text"
                   placeholder="e.g. Operations / Cloud SRE"
                   value={newUser.dept}
                   onChange={(e) => setNewUser({ ...newUser, dept: e.target.value })}
-                  style={{ width: '100%', marginTop: '4px' }}
+                  className="adm-input"
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+              <div className="adm-form__actions">
                 <button type="button" className="ignore-trigger-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
                 <button type="submit" className="remediate-trigger-btn">Provision & Save User</button>
               </div>
@@ -869,42 +886,42 @@ export default function AdminManagement({ environment = 'staging' }) {
       {/* MODAL 2: EDIT USER PROFILE */}
       {showEditModal && editFormData && (
         <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal-card" style={{ maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
-            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div className="modal-card adm-modal adm-modal--wide" onClick={e => e.stopPropagation()}>
+            <div className="panel-header adm-modal__head">
               <h3>✏️ Edit User Profile: {editFormData.name}</h3>
-              <button onClick={() => setShowEditModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setShowEditModal(false)} className="adm-modal__close">✕</button>
             </div>
 
-            <form onSubmit={handleSaveEditUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleSaveEditUser} className="adm-form">
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Full Name</label>
+                <label className="adm-label">Full Name</label>
                 <input 
                   type="text"
                   required
                   value={editFormData.name}
                   onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  style={{ width: '100%', marginTop: '4px' }}
+                  className="adm-input"
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Corporate Email</label>
+                <label className="adm-label">Corporate Email</label>
                 <input 
                   type="email"
                   required
                   value={editFormData.email}
                   onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                  style={{ width: '100%', marginTop: '4px' }}
+                  className="adm-input"
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="adm-form__grid">
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Assigned Role</label>
+                  <label className="adm-label">Assigned Role</label>
                   <select 
                     value={editFormData.role}
                     onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value })}
-                    style={{ width: '100%', marginTop: '4px' }}
+                    className="adm-input"
                   >
                     <option value="Super Admin">Super Admin</option>
                     <option value="SRE Lead">SRE Lead</option>
@@ -915,11 +932,11 @@ export default function AdminManagement({ environment = 'staging' }) {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Account Status</label>
+                  <label className="adm-label">Account Status</label>
                   <select 
                     value={editFormData.status}
                     onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                    style={{ width: '100%', marginTop: '4px' }}
+                    className="adm-input"
                   >
                     <option value="Active">Active</option>
                     <option value="Suspended">Suspended</option>
@@ -929,29 +946,29 @@ export default function AdminManagement({ environment = 'staging' }) {
               </div>
 
               <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Department</label>
+                <label className="adm-label">Department</label>
                 <input 
                   type="text"
                   value={editFormData.dept}
                   onChange={(e) => setEditFormData({ ...editFormData, dept: e.target.value })}
-                  style={{ width: '100%', marginTop: '4px' }}
+                  className="adm-input"
                 />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <div className="adm-mfa-row">
                 <input 
                   type="checkbox"
                   id="mfaToggle"
                   checked={editFormData.mfa}
                   onChange={(e) => setEditFormData({ ...editFormData, mfa: e.target.checked })}
-                  style={{ width: '16px', height: '16px', accentColor: 'var(--primary)' }}
+                  className="adm-checkbox"
                 />
-                <label htmlFor="mfaToggle" style={{ fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                <label htmlFor="mfaToggle" className="adm-mfa-label">
                   Enforce Multi-Factor Authentication (MFA)
                 </label>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+              <div className="adm-form__actions">
                 <button type="button" className="ignore-trigger-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
                 <button type="submit" className="remediate-trigger-btn">Save Profile Changes</button>
               </div>

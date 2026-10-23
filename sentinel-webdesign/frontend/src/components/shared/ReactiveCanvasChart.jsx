@@ -1,4 +1,8 @@
+/**
+ * Fast canvas line chart for dense time series.
+ */
 import React, { useRef, useEffect } from 'react';
+import './ReactiveCanvasChart.css';
 
 /**
  * ReactiveCanvasChart
@@ -108,10 +112,10 @@ export default function ReactiveCanvasChart({
   }, [type, series, height]);
 
   return (
-    <div style={{ width: '100%', height, position: 'relative', ...style }}>
+    <div className="shr-canvas-chart" style={{ height, ...style }}>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block' }}
+        className="shr-canvas-chart__canvas"
       />
     </div>
   );

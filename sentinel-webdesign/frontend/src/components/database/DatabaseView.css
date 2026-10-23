@@ -1,0 +1,107 @@
+/* frontend/src/components/database/DatabaseView.css */
+
+.db-name-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.db-name-code {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.db-detail-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.db-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+}
+
+.db-crumb-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.db-crumb-btn:hover {
+  color: var(--primary-hover);
+}
+
+.db-crumb-sep {
+  color: var(--text-muted);
+}
+
+.db-crumb-current {
+  color: var(--text-color);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.db-detail-header {
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.db-detail-title {
+  margin: 0;
+  font-size: var(--font-xl);
+  color: var(--text-color);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.db-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.db-capacity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.db-capacity-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.db-capacity-label {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.db-capacity-value {
+  font-size: var(--font-xl);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-color);
+}

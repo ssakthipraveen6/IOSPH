@@ -1,10 +1,13 @@
+/**
+ * Tails log files written by Fluentd / Fluent Bit, parses them and stores them in the log store.
+ */
 const fs = require('fs');
 const path = require('path');
 const config = require('@sentinel/config');
 const logParser = require('../../parser/log_parser');
 const logStore = require('../../../database/log_store');
 
-const RUNTIME_DIR = path.resolve(__dirname, '../../../.runtime');
+const RUNTIME_DIR = process.env.SENTINEL_RUNTIME_DIR ? path.resolve(process.env.SENTINEL_RUNTIME_DIR) : path.resolve(__dirname, '../../../.runtime');
 const OFFSETS_FILE = path.join(RUNTIME_DIR, 'log_offsets.json');
 
 /**

@@ -34,6 +34,7 @@ const EXCLUSIONS = [
 
 let violationCount = 0;
 
+// Scans a folder.
 function scanDir(dir) {
   if (!fs.existsSync(dir)) return;
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -50,6 +51,7 @@ function scanDir(dir) {
   }
 }
 
+// Finds raw severity strings in a file.
 function scanFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split(/\r?\n/);

@@ -1,0 +1,67 @@
+# SENTINEL agent for Kubernetes.
+#   - DaemonSet: one collector per node (hostmetrics + kubeletstats) and the
+#     sentinel-probe sidecar (localhost and share probes, heartbeat).
+#   - Deployment: ONE k8s_cluster collector per cluster (clusterCollector).
+# Both pull their collector config from SENTINEL (GET /api/v2/agent/config) in an
+# init container, so the served config and the drift check (P10) stay in step.
+#
+# Auth (Phase A1):
+#   - to SENTINEL:    X-Sentinel-Api-Key (ingest key, scopes agent;heartbeat)
+#   - to the gateway: Authorization: Bearer <gateway token>
+# Both secrets live in ONE existing Kubernetes Secret, created outside this chart:
+#   kubectl -n <ns> create secret generic sentinel-agent \
+#     --from-literal=ingest-key=<snk_...> --from-literal=gateway-token=<token>
+# The environment (prod/staging) comes from the ingest key, never from this chart.
+
+image:
+  # The image carries the otelcol build (/opt/sentinel/bin/sentinel-agent), Node 18+
+  # and the probe (/opt/sentinel/probe/index.js).
+  repository: internal-docker-registry.corp/sentinel/sentinel-agent
+  tag: "2.4.0"
+  pullPolicy: IfNotPresent
+
+sentinel:
+  # SENTINEL app URL (AVI VIP) used for config pulls and heartbeats.
+  appUrl: "https://sentinel.internal.corp"
+
+gateway:
+  # OTel gateway the collectors export to.
+  endpoint: "https://sentinel-gateway.internal.corp:4318"
+
+secrets:
+  name: sentinel-agent
+  ingestKeyKey: ingest-key
+  gatewayTokenKey: gateway-token
+
+daemonset:
+  enabled: true
+  probe:
+    enabled: true
+    intervalSeconds: 60
+  resources:
+    limits:
+      cpu: "250m"
+      memory: "300Mi"
+    requests:
+      cpu: "50m"
+      memory: "100Mi"
+
+clusterCollector:
+  enabled: true
+  # Name SENTINEL knows this cluster by (used as the agent "host" for the cluster role).
+  clusterName: "k8s-cluster"
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+
+serviceAccount:
+  create: true
+  name: sentinel-agent
+
+rbac:
+  create: true

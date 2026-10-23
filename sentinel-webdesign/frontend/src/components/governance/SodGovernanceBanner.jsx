@@ -1,146 +1,217 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * Four-eyes approval banner: pending remediation actions and the sign buttons.
+ */
+import React, { useState, useEffect, useCallback } from 'react';
+import { DataUnavailableState, LoadingState, PrototypeBanner } from '../shared/PrototypeNotice';
+import { apiFetch } from '../../api';
+import './SodGovernanceBanner.css';
 
-export default function SodGovernanceBanner() {
-  const [data, setData] = useState({
-    pendingActions: [
-      {
-        id: 'ACT-0849201',
-        action: 'ORACLE_KILL_BLOCKING_SESSION(SID: 412)',
-        target: 'oracle-rac-cluster-02 (Node 02)',
-        incidentId: 'INC0849201',
-        primarySigner: 'praveen.s (SRE Lead)',
-        primarySignedAt: '14:40:12 UTC',
-        status: 'PENDING_CO_SIGN'
-      }
-    ],
-    itsmSync: [
-      { ticketId: 'INC0849201', priority: 'P1-CRITICAL', ciComponent: 'clearing-settlement-engine', status: 'Investigating' },
-      { ticketId: 'INC0849188', priority: 'P2-HIGH', ciComponent: 'oracle-rac-cluster-02', status: 'Remediated' }
-    ],
-    auditTrail: [
-      { timestamp: '14:48:12 UTC', event: 'SESSION_TOKEN_MINTED', details: 'Minted via CyberArk Vault CCP', hash: '8f4a2c1b9e01...', operator: 'praveen.s' },
-      { timestamp: '14:42:45 UTC', event: 'CIRCUIT_BREAKER_TRIPPED', details: 'Oracle HikariCP max errors exceeded', hash: 'd32b918f02ac...', operator: 'sentinel-daemon' }
-    ]
-  });
+// Reads the CSRF token cookie.
+function getCsrfToken() {
+  const match = document.cookie.match(/(^|;\s*)sentinel_csrf=([^;]*)/);
+  return match ? decodeURIComponent(match[2]) : '';
+}
 
-  const [signed, setSigned] = useState(false);
+// Timestamp as local date/time, or a dash.
+function formatTs(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return Number.isNaN(d.getTime()) ? String(ts) : d.toLocaleString();
+}
+
+// Value as an array.
+const asList = (v) => (Array.isArray(v) ? v : []);
+
+// Button label for the next approval step.
+function signLabel(action) {
+  const approvals = asList(action.approvals).length;
+  const required = action.approvalsRequired || 2;
+  if (action.status === 'PENDING_FIRST_SIGN' || approvals === 0) return `Sign as first approver (1 of ${required})`;
+  return `Co-sign as second approver (${Math.min(approvals + 1, required)} of ${required})`;
+}
+
+// Approval banner component.
+export default function SodGovernanceBanner({ environment }) {
+  const [result, setResult] = useState({ state: 'loading', data: null, reason: null, env: null });
+  const [reloadTick, setReloadTick] = useState(0);
+  const [busyId, setBusyId] = useState(null);
+  const [messages, setMessages] = useState({}); // runId -> { ok, text }
 
   useEffect(() => {
-    fetch('/api/governance/sod-audit')
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        if (res) setData(prev => ({ ...prev, ...res }));
+    let cancelled = false;
+    fetch(`/api/governance/sod-audit?environment=${encodeURIComponent(environment)}`, { credentials: 'include' })
+      .then(async r => {
+        let body = null;
+        try { body = await r.json(); } catch { body = null; }
+        if (cancelled) return;
+        if (!r.ok) {
+          setResult({ state: 'unavailable', data: null, reason: (body && body.error) || `Request failed (HTTP ${r.status}).`, env: environment });
+        } else if (!body || body.status === 'DATA_UNAVAILABLE') {
+          setResult({ state: 'unavailable', data: null, reason: (body && body.reason) || 'The server returned no data.', env: environment });
+        } else {
+          setResult({ state: 'ready', data: body, reason: null, env: environment });
+        }
       })
-      .catch(() => {});
+      .catch(err => {
+        if (!cancelled) setResult({ state: 'unavailable', data: null, reason: `Could not reach the server: ${err.message}`, env: environment });
+      });
+    return () => { cancelled = true; };
+  }, [environment, reloadTick]);
+
+  const handleSign = useCallback(async (action) => {
+    setBusyId(action.id);
+    setMessages(m => ({ ...m, [action.id]: null }));
+    try {
+      const res = await apiFetch('/api/recovery/approve', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+        body: JSON.stringify({ runId: action.id })
+      });
+      let body = null;
+      try { body = await res.json(); } catch { body = null; }
+      if (res.ok && body && body.success) {
+        setMessages(m => ({ ...m, [action.id]: { ok: true, text: 'Signature recorded' } }));
+        setReloadTick(t => t + 1);
+      } else if (res.ok) {
+        setMessages(m => ({ ...m, [action.id]: { ok: false, text: 'Signature not recorded: the run may no longer be awaiting approval.' } }));
+        setReloadTick(t => t + 1);
+      } else {
+        const text = (body && body.error) || `Approval rejected (HTTP ${res.status}).`;
+        setMessages(m => ({ ...m, [action.id]: { ok: false, text } }));
+      }
+    } catch (err) {
+      setMessages(m => ({ ...m, [action.id]: { ok: false, text: `Could not reach the server: ${err.message}` } }));
+    } finally {
+      setBusyId(null);
+    }
   }, []);
 
-  const handleCoSign = () => {
-    setSigned(true);
-    alert('Secondary signature confirmed! Dual-approval requirement fulfilled. Runbook executed with immutable SHA-256 audit hash.');
-  };
+  if (result.env !== environment || result.state === 'loading') return <LoadingState label="Loading governance queue…" />;
+  if (result.state === 'unavailable') return <DataUnavailableState environment={environment} reason={result.reason} />;
+
+  const data = result.data;
+  const isSample = Boolean(data.prototype);
+  const pendingActions = asList(data.pendingActions);
+  const itsmSync = asList(data.itsmSync);
+  const auditTrail = asList(data.auditTrail);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* SoD Approval Strip */}
-      <div style={{
-        background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%)',
-        border: '1px solid rgba(239, 68, 68, 0.4)',
-        borderRadius: 12,
-        padding: '1rem 1.4rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '1rem',
-        boxShadow: '0 4px 20px rgba(239, 68, 68, 0.1)'
-      }}>
-        <div>
-          <strong style={{ color: 'var(--critical)', fontSize: '0.95rem' }}>CRITICAL REMEDIATION PENDING DUAL APPROVAL</strong>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 3 }}>
-            Action: <code>ORACLE_KILL_BLOCKING_SESSION(SID: 412)</code> • Target: Oracle RAC Node 02 • Origin: INC0849201
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-            Primary Signer: <strong>praveen.s (SRE Lead)</strong> [Signed]
-          </span>
-          <button
-            onClick={handleCoSign}
-            disabled={signed}
-            style={{
-              background: signed ? 'var(--healthy)' : 'linear-gradient(135deg, var(--healthy) 0%, #059669 100%)',
-              color: '#fff',
-              fontWeight: 800,
-              border: 'none',
-              padding: '8px 18px',
-              borderRadius: 6,
-              cursor: signed ? 'default' : 'pointer',
-              boxShadow: '0 2px 10px var(--healthy-glow)'
-            }}
-          >
-            {signed ? 'Co-Signed & Executed ✔' : 'Co-Sign & Execute Action'}
-          </button>
-        </div>
-      </div>
+    <div className="sod-root">
+      {data.prototype && <PrototypeBanner environment={environment} note="This approval queue and audit trail are sample records. Signing is disabled." />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.25rem' }}>
-        {/* ServiceNow Sync Table */}
-        <div className="glass-card" style={{ background: 'var(--bg-glass-card)', padding: '1.25rem', borderRadius: 14, border: '1px solid var(--border-light)', backdropFilter: 'blur(var(--glass-blur))' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>ServiceNow CMDB &amp; Incident Sync</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Bidirectional sync</span>
+      {/* SoD Approval Queue */}
+      {pendingActions.length === 0 && (
+        <div className="sod-empty">
+          <strong className="sod-empty__title">No actions awaiting approval</strong>
+          <div className="sod-sub">
+            Remediation runs parked as Awaiting-Approval in {String(environment).toUpperCase()} appear here and need two distinct approvers.
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', color: 'var(--text-subtle)', paddingBottom: 8, borderBottom: '1px solid var(--border-light)', fontSize: '0.7rem' }}>Ticket ID</th>
-                <th style={{ textAlign: 'left', color: 'var(--text-subtle)', paddingBottom: 8, borderBottom: '1px solid var(--border-light)', fontSize: '0.7rem' }}>Priority</th>
-                <th style={{ textAlign: 'left', color: 'var(--text-subtle)', paddingBottom: 8, borderBottom: '1px solid var(--border-light)', fontSize: '0.7rem' }}>CI Component</th>
-                <th style={{ textAlign: 'left', color: 'var(--text-subtle)', paddingBottom: 8, borderBottom: '1px solid var(--border-light)', fontSize: '0.7rem' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.itsmSync.map((t, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <td style={{ padding: '8px 4px', color: 'var(--primary)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{t.ticketId}</td>
-                  <td style={{ padding: '8px 4px' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '2px 6px',
-                      borderRadius: 4,
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      background: t.priority.includes('P1') ? 'var(--critical-glass)' : 'var(--warning-glass)',
-                      color: t.priority.includes('P1') ? 'var(--critical)' : 'var(--warning)',
-                      border: `1px solid ${t.priority.includes('P1') ? 'var(--critical)' : 'var(--warning)'}`
-                    }}>
-                      {t.priority}
-                    </span>
-                  </td>
-                  <td style={{ padding: '8px 4px', color: 'var(--text-main)' }}>{t.ciComponent}</td>
-                  <td style={{ padding: '8px 4px', color: t.status === 'Remediated' ? 'var(--healthy)' : 'var(--warning)', fontWeight: 600 }}>{t.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
+      )}
 
-        {/* Immutable Audit Trail */}
-        <div className="glass-card" style={{ background: 'var(--bg-glass-card)', padding: '1.25rem', borderRadius: 14, border: '1px solid var(--border-light)', backdropFilter: 'blur(var(--glass-blur))' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Immutable Audit Trail (Append-Only WAL)</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>SHA-256 cryptographic logging</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-            {data.auditTrail.map((a, idx) => (
-              <div key={idx} style={{ background: 'var(--bg-panel-subtle)', padding: 8, borderRadius: 6, borderLeft: '3px solid var(--healthy)' }}>
-                <div style={{ color: 'var(--text-main)' }}>[{a.timestamp}] <strong>{a.event}</strong></div>
-                <div style={{ color: 'var(--text-subtle)', fontSize: 10, marginTop: 2 }}>
-                  Hash: {a.hash} • Operator: {a.operator}
-                </div>
+      {pendingActions.map(action => {
+        const approvals = asList(action.approvals);
+        const msg = messages[action.id];
+        const busy = busyId === action.id;
+        return (
+          <div key={action.id} className="sod-pending">
+            <div>
+              <strong className="sod-pending__title">
+                REMEDIATION PENDING DUAL APPROVAL ({approvals.length} of {action.approvalsRequired || 2} signed)
+              </strong>
+              <div className="sod-sub sod-sub--muted">
+                Run: <code>{action.id}</code> • Action: <code>{action.action || '—'}</code> • Target: {action.target || '—'} • Origin: {action.incidentId || 'No incident linked'}
+                {action.initiatedBy && <> • Initiated by: {action.initiatedBy}</>}
               </div>
-            ))}
+              {msg && (
+                <div role="status" className={`sod-msg ${msg.ok ? 'sod-msg--ok' : 'sod-msg--err'}`}>
+                  {msg.text}
+                </div>
+              )}
+            </div>
+            <div className="sod-actions">
+              <span className="sod-signer">
+                {action.primarySigner
+                  ? <>Primary Signer: <strong>{action.primarySigner}</strong> [Signed{action.primarySignedAt ? ` ${formatTs(action.primarySignedAt)}` : ''}]</>
+                  : <>No signatures yet</>}
+              </span>
+              <button
+                onClick={() => handleSign(action)}
+                disabled={isSample || busy}
+                title={isSample ? 'Sample record: signing is disabled' : undefined}
+                className={`sod-sign-btn${isSample ? ' sod-sign-btn--sample' : ''}${busy ? ' sod-sign-btn--busy' : ''}`}
+              >
+                {isSample ? 'Sample Record' : (busy ? 'Submitting…' : signLabel(action))}
+              </button>
+            </div>
           </div>
+        );
+      })}
+
+      <div className="sod-grid">
+        {/* ServiceNow Sync Table */}
+        <div className="glass-card sod-card">
+          <div className="sod-card__head">
+            <span className="sod-card__title">ServiceNow CMDB &amp; Incident Sync</span>
+            <span className="sod-card__hint">Linked tickets</span>
+          </div>
+          {itsmSync.length === 0 ? (
+            <div className="sod-card__empty">No ServiceNow sync records</div>
+          ) : (
+            <table className="sod-table">
+              <thead>
+                <tr>
+                  <th className="sod-table__th">Ticket ID</th>
+                  <th className="sod-table__th">Priority</th>
+                  <th className="sod-table__th">CI Component</th>
+                  <th className="sod-table__th">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itsmSync.map((t, idx) => {
+                  const p1 = String(t.priority || '').includes('P1');
+                  return (
+                    <tr key={idx} className="sod-table__tr">
+                      <td className="sod-table__td sod-table__td--ticket">{t.ticketId || '—'}</td>
+                      <td className="sod-table__td">
+                        <span className={`sod-priority${p1 ? ' sod-priority--p1' : ''}`}>
+                          {t.priority || '—'}
+                        </span>
+                      </td>
+                      <td className="sod-table__td sod-table__td--ci">{t.ciComponent || '—'}</td>
+                      <td className={`sod-table__td sod-table__td--status${t.status === 'Remediated' ? ' sod-table__td--remediated' : ''}`}>{t.status || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Governance Audit Trail */}
+        <div className="glass-card sod-card">
+          <div className="sod-card__head">
+            <span className="sod-card__title">Governance Audit Trail</span>
+            <span className="sod-card__hint">Recovery, approval &amp; control events</span>
+          </div>
+          {auditTrail.length === 0 ? (
+            <div className="sod-card__empty">No governance events recorded</div>
+          ) : (
+            <div className="sod-audit">
+              {auditTrail.map((a, idx) => (
+                <div key={idx} className="sod-audit__item">
+                  <div className="sod-audit__line">[{formatTs(a.timestamp)}] <strong>{a.event || '—'}</strong></div>
+                  {a.details && (
+                    <div className="sod-audit__details">{a.details}</div>
+                  )}
+                  <div className="sod-audit__meta">
+                    {a.hash ? <>Hash: {a.hash} • </> : null}Operator: {a.operator || '—'}{a.ip ? <> • IP: {a.ip}</> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

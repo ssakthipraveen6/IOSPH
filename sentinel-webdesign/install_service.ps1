@@ -6,6 +6,10 @@
 # Run this script as Administrator.
 # ====================================================================
 
+param(
+    [string]$ServiceAccount = $env:SENTINEL_SERVICE_ACCOUNT
+)
+
 # Ensure execution context is Administrator; auto-elevate if not
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -33,11 +37,7 @@ if ($taskExists) {
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
 }
 
-# Service Account Configuration (CIS Benchmark Hardening: Least Privilege)
-param(
-    [string]$ServiceAccount = $env:SENTINEL_SERVICE_ACCOUNT
-)
-
+# Service account (param block is at the top of the file; PowerShell requires that)
 if (-not $ServiceAccount) {
     # Default to least-privilege NetworkService instead of SYSTEM
     $ServiceAccount = "NT AUTHORITY\NetworkService"

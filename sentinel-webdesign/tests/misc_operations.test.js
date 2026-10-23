@@ -1,3 +1,6 @@
+/**
+ * Test: on-call rota operations.
+ */
 const assert = require('assert');
 const { teamRotaService } = require('@sentinel/analysis');
 const dynatraceCollector = require('../metrics_collection/real/dynatrace/dynatrace_collector');
@@ -35,15 +38,43 @@ assert.ok(updatedRotas.montreal.tableRows.length >= 30, 'Parsed monthly rows mus
 console.log(`✔ Test 3 Passed: Successfully parsed and applied Excel buffer (${updatedRotas.montreal.tableRows.length} rows) to Montreal Rota`);
 
 // Test 4: Dynatrace Active Problems Retrieval
+// [F] Runs against a local fake Dynatrace API. Without an endpoint/token the collector
+// must return [] (no invented problems); with one it returns what the API returned.
 (async () => {
-  const problems = await dynatraceCollector.getActiveProblems();
-  assert.ok(Array.isArray(problems), 'Problems must be an array');
-  assert.ok(problems.length > 0, 'Should return active problems');
-  const prob = problems[0];
-  assert.ok(prob.problemId, 'Problem ID must exist');
-  assert.ok(prob.severityLevel, 'Severity level must exist');
-  assert.ok(prob.davisAiSummary, 'Davis AI summary must exist');
-  console.log(`✔ Test 4 Passed: Dynatrace active problems retrieved: [${prob.problemId}] ${prob.title}`);
+  const http = require('http');
+  const config = require('@sentinel/config');
+  const tokenProvider = require('../metrics_collection/real/dynatrace/token_provider');
+
+  const unconfigured = await dynatraceCollector.getActiveProblems('staging');
+  assert.deepStrictEqual(unconfigured.filter(p => p && p.problemId === 'P-FAKE-1'), [], 'No fixture problem without a configured API');
+
+  const fixture = { problemId: 'P-FAKE-1', title: 'Fixture problem', severityLevel: 'AVAILABILITY', davisAiSummary: 'from fake API' };
+  let seenAuth = null;
+  const server = http.createServer((req, res) => {
+    seenAuth = req.headers.authorization;
+    if (req.url.startsWith('/api/v2/problems')) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ problems: [fixture] }));
+    } else { res.writeHead(404); res.end(); }
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const origStg = config.STG_URLS;
+  const origToken = tokenProvider.getApiToken;
+  config.STG_URLS = { ...(origStg || {}), dynatrace_api_endpoint: `http://127.0.0.1:${server.address().port}` };
+  tokenProvider.getApiToken = async () => 'test-token';
+  try {
+    const problems = await dynatraceCollector.getActiveProblems('staging');
+    assert.ok(Array.isArray(problems), 'Problems must be an array');
+    assert.strictEqual(problems.length, 1, 'Should return exactly the problems the API returned');
+    const prob = problems[0];
+    assert.strictEqual(prob.problemId, 'P-FAKE-1');
+    assert.strictEqual(seenAuth, 'Api-Token test-token');
+    console.log(`✔ Test 4 Passed: Dynatrace active problems come only from the API: [${prob.problemId}] ${prob.title}`);
+  } finally {
+    config.STG_URLS = origStg;
+    tokenProvider.getApiToken = origToken;
+    server.close();
+  }
   
   console.log('\n======================================================');
   console.log('📊 ALL MONTHLY MULTI-ROTA & EXCEL TESTS PASSED');

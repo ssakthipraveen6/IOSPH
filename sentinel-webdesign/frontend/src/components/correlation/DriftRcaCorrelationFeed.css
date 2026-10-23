@@ -1,0 +1,31 @@
+/* DriftRcaCorrelationFeed — co-located styles (U4). */
+
+.drf-root {
+  margin-top: var(--space-8);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.drf-empty {
+  background: var(--bg-panel);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.drf-empty-icon {
+  font-size: 1.8rem;
+  margin-bottom: var(--space-2);
+}
+
+.drf-empty-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.drf-empty-note {
+  font-size: var(--font-xs);
+  margin-top: var(--space-1);
+}

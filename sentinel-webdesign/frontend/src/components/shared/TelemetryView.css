@@ -1,0 +1,55 @@
+/* Shared layout for receiver-backed views (Databases, Security). Tokens only. */
+
+.telemetry-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.telemetry-view__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+.telemetry-view__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.telemetry-view__heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.telemetry-view__subheading {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.telemetry-view__mono {
+  font-family: var(--font-mono);
+}
+
+.telemetry-view__muted {
+  color: var(--text-muted);
+}
+
+.telemetry-view__num {
+  font-family: var(--font-mono);
+  text-align: right;
+  display: block;
+}
+
+.telemetry-view__num--critical {
+  color: var(--critical);
+  font-weight: 700;
+}
+
+.telemetry-view__num--warning {
+  color: var(--warning);
+  font-weight: 700;
+}

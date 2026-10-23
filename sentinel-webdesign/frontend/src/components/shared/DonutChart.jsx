@@ -1,4 +1,8 @@
+/**
+ * Canvas donut chart.
+ */
 import React, { useRef, useEffect } from 'react';
+import './DonutChart.css';
 
 /**
  * DonutChart Component
@@ -49,23 +53,23 @@ export default function DonutChart({
   }, [segments, size, innerRadius]);
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', ...style }}>
-      <div style={{ width: size, height: size, flexShrink: 0, position: 'relative' }}>
+    <div className="shr-donut" style={style}>
+      <div className="shr-donut__plot" style={{ width: size, height: size }}>
         <canvas
           ref={canvasRef}
-          style={{ width: size, height: size, display: 'block' }}
+          className="shr-donut__canvas"
         />
       </div>
 
       {showLegend && (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.75rem' }}>
+        <div className="shr-donut__legend">
           {segments.map((seg, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-              <span style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: seg.color, marginRight: 6, display: 'inline-block' }} />
+            <div key={idx} className="shr-donut__row">
+              <span className="shr-donut__label">
+                <span className="shr-donut__swatch" style={{ background: seg.color }} />
                 {seg.label || seg.host || seg.status}
               </span>
-              <strong style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
+              <strong className="shr-donut__value">
                 {seg.percentage !== undefined ? `${seg.percentage}%` : seg.value}
               </strong>
             </div>

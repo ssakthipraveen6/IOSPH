@@ -1,58 +1,125 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: Argo Workflows Engine
-# =========================================================================
-id: "argoworkflows"
-kind: "application"
-display_name: "Argo Workflows Engine"
-category: "workflow_engine"
-tier: "Tier-1 Mission Critical"
-log_tag: "[ARGOWORKFLOWS]"
+id: argoworkflows
+kind: application
+display_name: Argo Workflows Engine
+category: workflow_engine
+tier: Tier-1 Mission Critical
+log_tag: '[ARGOWORKFLOWS]'
 aliases:
-  - "argoworkflows_k8s"
-
+  - argoworkflows_k8s
 endpoints:
   prod:
-    api: "https://argo-workflows-prod.internal.corp/api/v1"
+    api: https://argo-workflows-prod.internal.corp/api/v1
+    vip: https://argoworkflows-prod.internal.corp
   stg:
-    api: "https://argo-workflows-stg.internal.corp/api/v1"
-
+    api: https://argo-workflows-stg.internal.corp/api/v1
+    vip: https://argoworkflows-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://argoworkflows-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "argoworkflows-prod.internal.corp:443" }
 layers:
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   k8s:
-    api: "https://k8s-apiserver-prod.internal.corp:6443"
-    namespace: "argo-workflows"
+    api: https://k8s-apiserver-prod.internal.corp:6443
+    namespace: argo-workflows
     credential_purpose: null
-
+  vip: https://argoworkflows-prod.internal.corp
+  hosts:
+    - argoworkflows-node-01.internal.corp
+    - argoworkflows-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/argoworkflows
+  databases:
+    - jdbc:postgresql://db-prod-argoworkflows.internal.corp:5432/argoworkflows_db
+  clusters:
+    - k8s-prod-argoworkflows
 servers:
   unix:
-    - node: "argo-workflows-server-1"
-      api: "https://linux-compute-prod-argo-workflows-1.internal.corp/api/v1/metrics"
+    - node: argo-workflows-server-1
+      api: https://linux-compute-prod-argo-workflows-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 80
   successRate: 99.8
   requests: 110
-
 logs:
-  log_tag: "[ARGOWORKFLOWS]"
-  log_path: "d:\\production_shares\\nas_logs\\argoworkflows.log"
-
+  log_tag: '[ARGOWORKFLOWS]'
+  log_path: d:\production_shares\nas_logs\argoworkflows.log
 credentials:
-  safe: "SF-ARGOWORKFLOWS-PROD"
+  safe: SF-ARGOWORKFLOWS-PROD
   objects:
-    api_token: "ARGOWORKFLOWS-API-TOKEN"
+    api_token: ARGOWORKFLOWS-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_ARGO_WORKFLOWS
+journeys:
+  - id: argoworkflows_cluster_health
+    name: Argo Workflows Server Version & Active Runs
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: version_info
+        name: Argo Server Version
+        type: http
+        layer: network
+        url: /version
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: active_workflows
+        name: Active Workflows List
+        type: http
+        layer: app
+        url: /workflows/argo-workflows?limit=10
+        assert:
+          status: 200
+          max_ms: 2500
+  - id: argoworkflows_execution_flow
+    name: Workflow Templates & Volume State
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: workflow_templates
+        name: Workflow Templates Query
+        type: http
+        layer: app
+        url: /workflow-templates/argo-workflows
+        assert:
+          status: 200
+          max_ms: 2000
+      - id: cluster_templates
+        name: Cluster Workflow Templates
+        type: http
+        layer: storage
+        url: /cluster-workflow-templates
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_ARGO_WORKFLOWS"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/etc/argo-workflows/%%"
+    - "/opt/argo-workflows/conf/%%"
+  windows: []

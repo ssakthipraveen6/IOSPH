@@ -44,3 +44,6 @@ repomix-output.xml
 # Design exploration artifacts - not application assets
 frontend/public/mockups/
 frontend/dist/mockups/
+
+# Agent package staging (agent/packaging/scripts/build-packages.sh)
+agent/packaging/build/

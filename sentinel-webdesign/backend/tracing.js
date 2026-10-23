@@ -1,3 +1,7 @@
+/**
+ * W3C trace context: creates or continues a traceparent for every request and returns it in the
+ * response headers.
+ */
 const crypto = require('crypto');
 
 /**
@@ -9,10 +13,12 @@ function generateTraceId() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+// New 8-byte span id.
 function generateSpanId() {
   return crypto.randomBytes(8).toString('hex');
 }
 
+// Parses a traceparent header.
 function parseTraceparent(header) {
   if (!header || typeof header !== 'string') return null;
   const parts = header.trim().split('-');
@@ -27,6 +33,7 @@ function parseTraceparent(header) {
   return null;
 }
 
+// Express middleware that sets the trace context on the request.
 function tracingMiddleware(req, res, next) {
   const incoming = parseTraceparent(req.headers['traceparent']);
   const traceId = incoming ? incoming.traceId : (req.headers['x-trace-id'] || generateTraceId());

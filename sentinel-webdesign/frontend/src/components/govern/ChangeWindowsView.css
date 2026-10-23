@@ -1,0 +1,30 @@
+/* Govern > Change windows. Design tokens only. */
+.cw-view { display: flex; flex-direction: column; gap: var(--space-5); }
+.cw-view__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-bg);
+}
+.cw-view__field { display: flex; flex-direction: column; gap: var(--space-1); font-size: 0.75rem; color: var(--text-muted); }
+.cw-view__field input, .cw-view__field textarea {
+  font: inherit; font-size: 0.85rem; color: var(--text-primary);
+  background: var(--canvas-bg); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); padding: var(--space-2);
+}
+.cw-view__field--wide { grid-column: 1 / -1; }
+.cw-view__actions { grid-column: 1 / -1; display: flex; gap: var(--space-3); align-items: center; }
+.cw-view__button {
+  font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-sm);
+  border: 1px solid var(--brand-primary); background: var(--brand-primary); color: var(--text-inverted);
+}
+.cw-view__button:disabled { opacity: 0.5; cursor: not-allowed; }
+.cw-view__button--ghost { background: transparent; color: var(--brand-primary); }
+.cw-view__message { font-size: 0.8rem; color: var(--text-muted); }
+.cw-view__message--error { color: var(--sev-critical); }
+.cw-view__status--closed { color: var(--text-muted); }
+.cw-view__status--active { color: var(--sev-healthy); font-weight: 700; }

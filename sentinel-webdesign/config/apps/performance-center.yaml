@@ -1,59 +1,126 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: Micro Focus Performance Center
-# =========================================================================
-id: "performance_center"
-kind: "application"
-display_name: "Micro Focus Performance Center"
-category: "performance_testing"
-tier: "Tier-2 Operational"
-log_tag: "[PERFCENTER]"
-
+id: performance_center
+kind: application
+display_name: Micro Focus Performance Center
+category: performance_testing
+tier: Tier-2 Operational
+log_tag: '[PERFCENTER]'
 endpoints:
   prod:
-    api: "https://perfcenter-prod.internal.corp/api/v2"
+    api: https://perfcenter-prod.internal.corp/api/v2
+    vip: https://performance-center-prod.internal.corp
   stg:
-    api: "https://perfcenter-stg.internal.corp/api/v2"
-
+    api: https://perfcenter-stg.internal.corp/api/v2
+    vip: https://performance-center-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://performance-center-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "performance-center-prod.internal.corp:443" }
 layers:
   db:
-    jdbc: "jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db"
-    credential_purpose: "db"
+    jdbc: jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db
+    credential_purpose: db
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-perfcenter.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-perfcenter.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://performance-center-prod.internal.corp
+  hosts:
+    - performance-center-node-01.internal.corp
+    - performance-center-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/performance-center
+  databases:
+    - jdbc:postgresql://db-prod-perfcenter.internal.corp:5432/perfcenter_db
+  clusters:
+    - k8s-prod-performance-center
 servers:
   unix: []
   windows:
-    - node: "perfcenter-win-1"
-      api: "https://win-compute-prod-perfcenter-1.internal.corp/api/v1/metrics"
-
+    - node: perfcenter-win-1
+      api: https://win-compute-prod-perfcenter-1.internal.corp/api/v1/metrics
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 150
   successRate: 99.2
   requests: 25
-
 logs:
-  log_tag: "[PERFCENTER]"
-  log_path: "d:\\production_shares\\nas_logs\\perfcenter.log"
-
+  log_tag: '[PERFCENTER]'
+  log_path: d:\production_shares\nas_logs\perfcenter.log
 credentials:
-  safe: "SF-PERFCENTER-PROD"
+  safe: SF-PERFCENTER-PROD
   objects:
-    db: "PERFCENTER-DB-SVC"
-    api_token: "PERFCENTER-API-TOKEN"
+    db: PERFCENTER-DB-SVC
+    api_token: PERFCENTER-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_PERFCENTER_SERVICE
+journeys:
+  - id: perfcenter_health_check
+    name: Performance Center Server Health & Projects
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: ping_health
+        name: Ping Health Endpoint
+        type: http
+        layer: network
+        url: /health
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: projects_list
+        name: List Test Projects
+        type: http
+        layer: app
+        url: /projects
+        assert:
+          status: 200
+          max_ms: 2500
+  - id: perfcenter_test_runs
+    name: Performance Center Active Runs & Test Results
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: active_runs
+        name: Active Test Executions
+        type: http
+        layer: app
+        url: /runs/active
+        assert:
+          status: 200
+          max_ms: 2000
+      - id: db_results_archive
+        name: Database Results Storage Check
+        type: http
+        layer: db
+        url: /runs/history?limit=1
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_PERFCENTER_SERVICE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux: []
+  windows:
+    - "C:\\Program Files (x86)\\Micro Focus\\Performance Center Server\\conf\\%%"
+    - "C:\\Program Files (x86)\\Micro Focus\\Performance Center Server\\bin\\%%"

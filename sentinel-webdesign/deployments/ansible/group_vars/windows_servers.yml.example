@@ -1,0 +1,9 @@
+---
+# Copy to group_vars/windows_servers.yml. Needs the ansible.windows and community.windows collections:
+#   ansible-galaxy collection install ansible.windows community.windows
+ansible_connection: winrm
+ansible_winrm_transport: kerberos          # or ntlm / credssp, as your estate allows
+ansible_winrm_server_cert_validation: validate
+ansible_port: 5986
+ansible_user: svc_sentinel_deploy@CORP.LOCAL
+# ansible_password comes from the vault, never from this file

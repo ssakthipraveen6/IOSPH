@@ -1,3 +1,8 @@
+/**
+ * Runtime configuration derived from config/global.yaml and environment variables: active
+ * environment, prod/staging URLs (with PROD_/STG_ overrides), collector mode and telemetry
+ * provider.
+ */
 const path = require('path');
 const yamlConfig = require('./yaml_config');
 
@@ -70,10 +75,10 @@ Object.keys(appsConfig).forEach(appId => {
 // here, so no downstream comparison has to guess.
 const ENV_ALIASES = {
   prod: 'prod', production: 'prod', prd: 'prod',
-  staging: 'staging', stg: 'staging', stage: 'staging', 'non-prod': 'staging',
-  demo: 'demo'
+  staging: 'staging', stg: 'staging', stage: 'staging', 'non-prod': 'staging'
 };
 
+// Normalises any environment spelling (prod, production, stg, staging) to prod or staging.
 function normalizeEnvironment(raw, source) {
   if (!raw) return 'staging';
   const key = String(raw).trim().toLowerCase();
@@ -81,7 +86,7 @@ function normalizeEnvironment(raw, source) {
   if (!resolved) {
     console.warn(
       `[CONFIG] Unrecognised environment "${raw}" from ${source}. ` +
-      `Expected one of: prod, staging, demo. Falling back to "staging".`
+      `Expected one of: prod, staging. Falling back to "staging".`
     );
     return 'staging';
   }

@@ -1,3 +1,6 @@
+/**
+ * Entry point of the remediation package: custom checks and recovery (runbooks).
+ */
 const customChecks = require('./custom_checks');
 const recovery = require('./recovery');
 

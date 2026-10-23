@@ -1,0 +1,165 @@
+/* PreflightCheckView — co-located styles (prefix: pf-) */
+.pf-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.console-panel.pf-panel { padding: var(--space-5); }
+
+.pf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.pf-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.pf-env-tag {
+  font-size: var(--font-xs);
+  background: var(--primary);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+.pf-desc {
+  margin: 4px 0 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.remediate-trigger-btn.pf-run-btn {
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Status badges */
+.pf-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid currentColor;
+}
+.pf-badge--reachable { background: rgba(16, 185, 129, 0.15); color: var(--sev-healthy); }
+.pf-badge--auth-failed { background: rgba(245, 158, 11, 0.15); color: var(--sev-warning); }
+.pf-badge--not-configured { background: rgba(148, 163, 184, 0.15); color: var(--sev-unavailable); }
+.pf-badge--unreachable { background: rgba(239, 68, 68, 0.15); color: var(--sev-critical); }
+
+/* KPI cards */
+.pf-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+.pf-kpi {
+  background: var(--bg-dark);
+  padding: var(--space-3);
+  border-radius: 6px;
+  text-align: center;
+  border: 1px solid var(--border-light);
+}
+.pf-kpi__value {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.pf-kpi__label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.pf-kpi--reachable { background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3); }
+.pf-kpi--auth-failed { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3); }
+.pf-kpi--unreachable { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); }
+.pf-kpi--not-configured { background: rgba(148, 163, 184, 0.08); border-color: rgba(148, 163, 184, 0.3); }
+.pf-kpi--reachable .pf-kpi__value,
+.pf-kpi--reachable .pf-kpi__label { color: var(--sev-healthy); }
+.pf-kpi--auth-failed .pf-kpi__value,
+.pf-kpi--auth-failed .pf-kpi__label { color: var(--sev-warning); }
+.pf-kpi--unreachable .pf-kpi__value,
+.pf-kpi--unreachable .pf-kpi__label { color: var(--sev-critical); }
+.pf-kpi--not-configured .pf-kpi__value,
+.pf-kpi--not-configured .pf-kpi__label { color: var(--sev-unavailable); }
+
+.pf-error {
+  padding: var(--space-3);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--sev-critical);
+  border-radius: 6px;
+  color: var(--sev-critical);
+  font-size: 0.85rem;
+}
+
+/* Toolbar */
+.pf-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.pf-filters {
+  display: flex;
+  gap: var(--space-2);
+}
+.pf-filter-btn {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--bg-dark);
+  color: var(--text-muted);
+  border: 1px solid var(--border-light);
+}
+.pf-filter-btn--active {
+  background: var(--primary);
+  color: #fff;
+}
+.pf-root .pf-search {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  font-size: 0.8rem;
+  width: 260px;
+}
+
+/* Results table */
+.pf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.pf-table__head-row {
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  color: var(--text-muted);
+}
+.pf-table__row { border-bottom: 1px solid var(--border-light); }
+.pf-table__cell { padding: 10px 8px; }
+.pf-table__cell--target { font-weight: 600; }
+.pf-table__cell--mono { font-family: var(--font-mono); }
+.pf-table__cell--url {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.pf-table__cell--url-set { color: var(--text-main); }
+.pf-table__cell--reason {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+.pf-table__cell--reason-ok { color: var(--sev-healthy); }
+.pf-table__empty {
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--text-muted);
+}

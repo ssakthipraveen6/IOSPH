@@ -95,7 +95,8 @@ async function runTests() {
       ...process.env,
       PORT: testPort,
       ENVIRONMENT: 'staging',
-      SENTINEL_JWT_SECRET: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+      SENTINEL_JWT_SECRET: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      INVENTORY_SAVE_DEBOUNCE_MS: '100'
     },
     stdio: 'pipe'
   });
@@ -122,7 +123,7 @@ async function runTests() {
 
     // Verify entity in inventory with retry for inter-process disk sync
     let entity = null;
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 50; i++) {
       entity = await inventory.getEntityById('host:agent-worker-lon-04.corp');
       if (entity) break;
       await new Promise(r => setTimeout(r, 100));

@@ -1,77 +1,90 @@
+/**
+ * Perimeter routes (/api/perimeter, /api/avi): VIP probe telemetry and AVI data.
+ */
 const express = require('express');
 const router = express.Router();
+const { requestEnvironment } = require('./_prototype');
 
-router.get('/telemetry', (req, res) => {
-  const bandwidthGb = 112;
-  const logVolumeHourlyM = 9.39;
+// M3 Task 3.4: Real VIP probe telemetry route
+router.get(['/telemetry', '/overview'], (req, res) => {
+  const env = requestEnvironment(req);
 
-  const failuresByHost = [
-    { host: 'api.bank.com', percentage: 48.2, color: '#3b82f6' },
-    { host: 'auth.bank.com', percentage: 24.1, color: '#14b8a6' },
-    { host: 'swift-gw.bank.com', percentage: 18.4, color: '#f59e0b' },
-    { host: 'clearing.bank.com', percentage: 9.3, color: '#ef4444' }
-  ];
+  // Prod / Staging: Serve real VIP probe telemetry
+  let probeResults = [];
+  try {
+    const urlProbeCollector = require('../../metrics_collection/real/probers/url_probe_collector');
+    probeResults = urlProbeCollector.getLastVipProbes(env);
+  } catch (_) {}
 
-  const statusDistribution = [
-    { status: '200 OK', percentage: 96.4, color: '#10b981' },
-    { status: '304 Not Modified', percentage: 2.1, color: '#14b8a6' },
-    { status: '404 / 401 Client Error', percentage: 1.2, color: '#f59e0b' },
-    { status: '500 / 502 Origin Error', percentage: 0.3, color: '#ef4444' }
-  ];
+  if (!probeResults || probeResults.length === 0) {
+    return res.json({
+      status: 'DATA_UNAVAILABLE',
+      prototype: false,
+      environment: env,
+      reason: 'No VIP probe telemetry collected yet for this environment.',
+      vips: [],
+      timingBreakdown: [],
+      worstVips: [],
+      certExpiries: [],
+      statusDistribution: [],
+      timestamp: new Date().toISOString()
+    });
+  }
 
-  const liveStream = [
-    {
-      timestamp: new Date(Date.now() - 1200).toISOString().substring(11, 23),
-      host: 'api.bank.com',
-      uri: '/v2/payments/settlement/execute',
-      status: 200,
-      statusLabel: '200 OK',
-      bytes: 4180,
-      durationMs: 14,
-      traceId: '4bf92f3577b34da6',
-      tlsVip: 'TLS 1.3 / F5-VIP-01'
-    },
-    {
-      timestamp: new Date(Date.now() - 2500).toISOString().substring(11, 23),
-      host: 'auth.bank.com',
-      uri: '/oauth2/v1/token/validate',
-      status: 200,
-      statusLabel: '200 OK',
-      bytes: 840,
-      durationMs: 6,
-      traceId: 'e8b91a24d55b3810',
-      tlsVip: 'mTLS / Cloudflare-Edge'
-    },
-    {
-      timestamp: new Date(Date.now() - 3800).toISOString().substring(11, 23),
-      host: 'clearing.bank.com',
-      uri: '/v1/swift/iso20022/batch-ingest',
-      status: 504,
-      statusLabel: '504 TIMEOUT',
-      bytes: 512,
-      durationMs: 5002,
-      traceId: 'c92841ab7f004911',
-      tlsVip: 'TLS 1.3 / NetScaler-VIP'
-    },
-    {
-      timestamp: new Date(Date.now() - 5100).toISOString().substring(11, 23),
-      host: 'api.bank.com',
-      uri: '/v1/compliance/sanctions/screen',
-      status: 404,
-      statusLabel: '404 NOT_FOUND',
-      bytes: 310,
-      durationMs: 3,
-      traceId: '98124bcf01a938de',
-      tlsVip: 'TLS 1.3 / Cloudflare-Edge'
-    }
-  ];
+  // Stacked DNS/TCP/TLS/TTFB breakdown
+  const timingBreakdown = probeResults.map(p => ({
+    url: p.url,
+    productId: p.productId,
+    component: p.component,
+    dns_ms: p.dns_ms,
+    tcp_ms: p.tcp_ms,
+    tls_ms: p.tls_ms,
+    ttfb_ms: p.ttfb_ms,
+    total_ms: p.total_ms,
+    status: p.status
+  }));
+
+  // Status distribution
+  const statusCounts = {};
+  probeResults.forEach(p => {
+    const key = p.httpStatus ? `${p.httpStatus}` : (p.status || 'UNKNOWN');
+    statusCounts[key] = (statusCounts[key] || 0) + 1;
+  });
+  const totalCount = probeResults.length;
+  const statusDistribution = Object.entries(statusCounts).map(([status, count]) => ({
+    status,
+    count,
+    percentage: totalCount > 0 ? parseFloat(((count / totalCount) * 100).toFixed(1)) : 0
+  }));
+
+  // Certificate expiry list
+  const certExpiries = probeResults
+    .filter(p => p.cert_days_left !== null)
+    .map(p => ({
+      url: p.url,
+      productId: p.productId,
+      days_left: p.cert_days_left,
+      subject: p.cert_subject,
+      issuer: p.cert_issuer,
+      protocol: p.protocol,
+      cipher: p.cipher,
+      status: p.cert_days_left < 7 ? 'CRITICAL' : (p.cert_days_left < 30 ? 'EXPIRING_SOON' : 'HEALTHY')
+    }))
+    .sort((a, b) => a.days_left - b.days_left);
+
+  // Worst VIPs
+  const worstVips = [...probeResults]
+    .sort((a, b) => (b.total_ms || 0) - (a.total_ms || 0))
+    .slice(0, 5);
 
   res.json({
-    bandwidthGb,
-    logVolumeHourlyM,
-    failuresByHost,
+    prototype: false,
+    environment: env,
+    vips: probeResults,
+    timingBreakdown,
+    worstVips,
+    certExpiries,
     statusDistribution,
-    liveStream,
     timestamp: new Date().toISOString()
   });
 });

@@ -1,5 +1,6 @@
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
+const { updateProductVersion } = require('../../shared/version_tracker');
 
 /**
  * sonarqube_collector.js (T2b.2 REMEDIATED)
@@ -50,6 +51,25 @@ module.exports = {
         responseTime: null
       };
     }
+
+    // Capture product version from /system/status or /api/system/status or /api/server/version
+    try {
+      let version = healthResult.data?.version || null;
+      if (!version) {
+        const verResult = await fetchJsonWithFallback(
+          `${url}/server/version`,
+          { headers: { Accept: 'application/json' }, appId: 'sonarqube' },
+          2000
+        );
+        if (verResult.success && (verResult.data?.version || typeof verResult.data === 'string')) {
+          version = verResult.data?.version || verResult.data;
+        }
+      }
+      if (version) {
+        const env = (global.runtimeEnvironment || config.ENVIRONMENT || 'staging').toLowerCase();
+        await updateProductVersion('sonarqube', String(version), env, 'product_api');
+      }
+    } catch (_) {}
 
     const systemStatus = healthResult.data?.status || 'UP';
     const responseTime = healthResult.latencyMs || null;

@@ -1,4 +1,6 @@
 @echo off
+:: Starts Sentinel on Windows: installs dependencies and builds the front end if missing, then runs npm run start.
+:: Used directly or by the ProjectSentinelDaemon scheduled task (install_service.ps1) with --daemon.
 title Project Sentinel - Observability Portal Setup
 echo =======================================================
 echo     Project Sentinel: Autonomous Observability Portal

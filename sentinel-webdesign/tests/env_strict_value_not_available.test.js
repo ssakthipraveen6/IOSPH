@@ -1,3 +1,6 @@
+/**
+ * Test: values with no source are reported as not available, never filled in.
+ */
 const assert = require('assert');
 const config = require('../backend/config/config');
 const db = require('../database/db');

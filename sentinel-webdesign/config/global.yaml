@@ -3,7 +3,7 @@
 # Single Source of Truth for Project Sentinel Enterprise NOC
 # =========================================================================
 # PRODUCTION DEPLOYMENT GUIDE:
-# 1. Set 'environment' to 'production' (Line 14).
+# 1. Set 'environment' to 'production' on the production host (shipped default is 'staging').
 # 2. Verify 'telemetry_provider' is 'opentelemetry' for Profile 1 (Line 18).
 # 3. Update 'prod_urls' with your corporate DNS, AVI VIP, and service URLs (Lines 22-52).
 # 4. Configure 'sso_ldap_config' with your Active Directory/eLDAP bind details (Lines 55-68).
@@ -11,7 +11,7 @@
 # =========================================================================
 
 # Environment Mode: staging or production (also switchable dynamically via UI)
-environment: "production"
+environment: "staging"   # shipped default is non-production; set "production" on the prod host
 
 # Telemetry Provider Selector (Profile 1: OpenTelemetry + Sentinel Probers)
 # Options: "opentelemetry" (Profile 1) | "dynatrace" (Profile 2) | "node_exporter" (Profile 3) | "hybrid"
@@ -19,6 +19,7 @@ telemetry_provider: "opentelemetry"
 
 # Production Endpoints (UPDATE FOR PRODUCTION INTEGRATION)
 prod_urls:
+  dynatrace_api_endpoint: ""   # e.g. https://<env-id>.live.dynatrace.com  or  https://<domain>/e/<env-id>  (blank = Dynatrace not used)
   app_url: "https://sentinel-observability.internal.corp"
   avi_virtual_service_url: "https://avi-vs.internal.corp"
   bitbucket_api: "https://bitbucket-prod.internal.corp/rest/api/1.0"
@@ -35,7 +36,7 @@ prod_urls:
   nas_mount: "d:\\production_shares\\nas_logs"
   windows_api: "https://win-compute-prod.internal.corp/api/v1/metrics"
   unix_api: "https://linux-compute-prod.internal.corp/api/v1/metrics"
-  db_jdbc: "jdbc:postgresql://db-prod-primary.internal.corp:5432/telemetry_db"
+  db_jdbc: ""   # set per deployment (blank = not configured)
   k8s_api: "https://k8s-apiserver-prod.internal.corp:6443"
   s3_endpoint: "https://s3.us-east-1.amazonaws.com"
   github_api: "https://github-enterprise-prod.internal.corp/api/v3"
@@ -65,10 +66,11 @@ sso_ldap_config:
 
 # Staging Endpoints
 stg_urls:
+  dynatrace_api_endpoint: ""
   app_url: "https://sentinel-observability-stg.internal.corp"
   avi_virtual_service_url: "https://avi-vs-stg.internal.corp"
   avi_api: "https://avi-stg.internal.corp/api/v1/telemetry"
-  db_jdbc: "jdbc:postgresql://db-stg-primary.internal.corp:5432/telemetry_db"
+  db_jdbc: ""   # set per deployment (blank = not configured)
   nas_mount: "../nas_logs"
   linux_api: "https://linux-compute-stg.internal.corp/api/v1/metrics"
   windows_api: "https://win-compute-stg.internal.corp/api/v1/metrics"
@@ -121,19 +123,39 @@ collectors:
 # If set to false, the tab is hidden from sidebar, command palette, and router.
 # =========================================================================
 views_enabled:
-  health: true          # NOC System Dashboard & Multi-Node Topology
-  metrics: true         # Telemetry & Historical Analytics
-  matrix: true          # Enterprise Health Matrix
-  logs: true            # Log Explorer
-  fleet: true           # Fleet & Topology Explorer
-  blast_radius: true    # Root Cause & Blast Radius
-  pipeline_ops: true    # Pipeline Operations & Health
-  command: true         # Autonomous Healing & Operations
-  sre: true             # SRE Platform & Toolchain Capacity
-  entities: true        # Universal Entity Explorer
-  timeline: true        # Correlation & RCA Timeline
-  yaml: true            # YAML Config Manager
-  admin: true           # DevSecOps Admin Control
+  home: true            # Weekly Product Scorecards & Top Problems
+  problems: true        # Grouped Multi-Layer Incidents
+  alerts: true          # Alert Rules & Lifecycle
+  slos: true            # Product Journey SLOs & Burn Rate
+  evidence: true        # Incident Evidence Packs
+  products: true        # DevOps Toolchain Products
+  hosts: true           # Compute Fleet
+  storage: true         # NAS Shares & S3 Storage
+  avi: true             # AVI VIP Probes
+  databases: true       # Oracle, SQL Server & PostgreSQL
+  kubernetes: true      # Toolchain K8s Clusters
+  logs: true            # Structured Logs
+  topology: true        # Multi-Layer Topology & Blast Radius
+  dashboards: true      # Telemetry & Metrics Analytics
+  access: true          # RBAC & eLDAP SSO
+  audit: true           # Immutable WAL Audit Trail
+  agents: true          # Sentinel Agent Fleet
+  change_windows: true  # Approved Change Windows
+  console: true         # Observability console (live, real data only)
+  demo: true            # Isolated Sample Data Demo View (Phase D)
+  # Legacy tab aliases preserved for backward compatibility
+  health: true
+  metrics: true
+  matrix: true
+  fleet: true
+  blast_radius: true
+  pipeline_ops: true
+  command: true
+  sre: true
+  entities: true
+  timeline: true
+  yaml: true
+  admin: true
 
 # =========================================================================
 # COMPONENT-WISE INFRASTRUCTURE TOGGLES
@@ -173,3 +195,83 @@ applications_enabled:
   performance_center: true
   bitbucket_external: true
 
+
+# -------------------------------------------------------------------------
+# SECURITY (M1.4 / M1.5)
+# -------------------------------------------------------------------------
+# Reads (GET /api/*) need a session when NODE_ENV=production unless set here.
+# Env var SENTINEL_REQUIRE_AUTH_READS overrides. /api/ui-config, /api/healthz,
+# /api/auth/sso/status and /api/environment always stay public.
+security:
+  # require_auth_for_reads: true
+  # public_read_paths: []
+  # Which environments each role may read. Roles not listed may read all;
+  # Super Admin always may.
+  environment_entitlements: {}
+    # Viewer: ["staging"]
+  ingest:
+    # enforce | warn | off. Default: enforce in production, warn elsewhere.
+    # Create keys with: npm run ingest-key -- create <name> <prod|staging>
+    # mode: enforce
+  # SENTINEL's own CVE scan (job P9). Blank mirror_path = scan is off.
+  # SBOMs:   <sbom_dir>/<prod|staging>/<product>/<host>.json   (CycloneDX/SPDX, pushed by agents/Jenkins)
+  # Reports: <reports_dir>/<prod|staging>/<product>/<host>.json (ready-made Trivy JSON)
+  cve_scan:
+    mirror_path: ""          # Trivy offline vulnerability DB cache directory
+    trivy_path: "trivy"
+    sbom_dir: ""
+    reports_dir: ""
+    eol_dataset_path: ""     # mirrored endoflife.date JSON
+    timeout_seconds: 300
+
+# -------------------------------------------------------------------------
+# DEMO VIEW ISOLATION (Phase D).
+# -------------------------------------------------------------------------
+demo:
+  enabled: true
+
+# -------------------------------------------------------------------------
+# FLEET INVENTORY (Phase F)
+# -------------------------------------------------------------------------
+fleet:
+  # Number of servers that should run the SENTINEL agent (coverage = reporting / expected).
+  expected_hosts: 2000
+
+# -------------------------------------------------------------------------
+# CLICKHOUSE METRICS STORE (M1.8). Blank url = not used (metrics go to Postgres).
+# Env vars CLICKHOUSE_URL / CLICKHOUSE_USER / CLICKHOUSE_PASSWORD override.
+# -------------------------------------------------------------------------
+clickhouse:
+  url: ""
+  database: "sentinel"
+  user: "sentinel_writer"
+  password_env: "CLICKHOUSE_PASSWORD"
+
+# -------------------------------------------------------------------------
+# BACKGROUND JOBS (Phase P). Status: GET /api/v2/jobs/status
+# Every job runs on the collector leader only, except vip_probes (both nodes).
+# -------------------------------------------------------------------------
+jobs:
+  environments: ["prod", "staging"]
+  vip_probes:       { enabled: true, interval_seconds: 60 }      # P1
+  avi_overhead:     { enabled: true, interval_seconds: 60 }      # P2
+  baselines:        { enabled: true, interval_seconds: 3600, lookback_days: 28 }   # P3
+  change_points:    { enabled: true, interval_seconds: 900, window_hours: 24, bucket_minutes: 15 }  # P4
+  alert_rules:      { enabled: true, interval_seconds: 60 }      # P5
+  problem_grouping: { enabled: true, interval_seconds: 60 }      # P6 + P7
+  scorecard:        { enabled: true, weekday: 1, hour: 6 }       # P8 (Monday 06:00 server time)
+  cve_scan:         { enabled: true, interval_seconds: 86400 }   # P9
+  fleet_health:     { enabled: true, interval_seconds: 60, silent_after_seconds: 300 }  # P10
+  stale_processes:  { enabled: true, interval_seconds: 300, lookback_minutes: 15 }  # O8.3 (needs ClickHouse osquery logs)
+  # P11 (reads ClickHouse, else Postgres). s3_bucket blank = keep archives local only; set it to upload
+  # (credential aws/s3_storage as "ACCESS_KEY_ID:SECRET"). delete_local_after_upload removes a local file only after S3 confirms it.
+  log_archive:      { enabled: true, interval_seconds: 86400, retention_days: 14, s3_bucket: "", s3_region: "us-east-1", s3_prefix: "sentinel/logs", delete_local_after_upload: false }
+  inventory_sync:   { enabled: true, interval_seconds: 900 }     # P12 (YAML topology + K8s PVC/PV chain)
+
+# -------------------------------------------------------------------------
+# NOTIFICATIONS (P7/P8). Blank webhook URL = Teams messages are off.
+# Env vars SENTINEL_TEAMS_WEBHOOK_URL / SENTINEL_BASE_URL override.
+# -------------------------------------------------------------------------
+notifications:
+  teams_webhook_url: ""
+  sentinel_base_url: ""      # e.g. https://<sentinel-host>, used for links in Teams cards

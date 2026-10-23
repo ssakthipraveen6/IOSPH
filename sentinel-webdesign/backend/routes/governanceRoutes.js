@@ -1,77 +1,83 @@
+/**
+ * Governance routes: pending four-eyes approvals and the audit trail.
+ */
 const express = require('express');
 const router = express.Router();
+const db = require('../../database/db');
+const { getAuditLog, getAuditLogFromDb } = require('../audit_logger');
 
-router.get('/sod-audit', (req, res) => {
-  const pendingActions = [
-    {
-      id: 'ACT-0849201',
-      action: 'ORACLE_KILL_BLOCKING_SESSION(SID: 412)',
-      target: 'oracle-rac-cluster-02 (Node 02)',
-      incidentId: 'INC0849201',
-      primarySigner: 'praveen.s (SRE Lead)',
-      primarySignedAt: '14:40:12 UTC',
-      status: 'PENDING_CO_SIGN',
-      riskLevel: 'CRITICAL_PRODUCTION_MUTATION'
-    }
-  ];
+const { requestEnvironment } = require('./_prototype');
 
-  const itsmSync = [
-    {
-      ticketId: 'INC0849201',
-      priority: 'P1-CRITICAL',
-      ciComponent: 'clearing-settlement-engine',
-      assignedGroup: 'BFSI Tier-0 SRE',
-      status: 'Investigating'
-    },
-    {
-      ticketId: 'INC0849188',
-      priority: 'P2-HIGH',
-      ciComponent: 'oracle-rac-cluster-02',
-      assignedGroup: 'Database Operations',
-      status: 'Remediated'
-    },
-    {
-      ticketId: 'CHG0094102',
-      priority: 'STANDARD',
-      ciComponent: 'netscaler-vip-core',
-      assignedGroup: 'Network Perimeter',
-      status: 'Scheduled'
-    }
-  ];
+const GOVERNANCE_AUDIT_ACTIONS = new Set([
+  'RECOVERY_TRIGGERED', 'RECOVERY_APPROVED', 'CIRCUIT_BREAKER_RESET', 'SETTINGS_UPDATE',
+  'SIMULATION_TRIGGER', 'METRICS_CLEARED', 'ENVIRONMENT_SWITCH', 'INGEST_KEY_CREATED', 'INGEST_KEY_REVOKED'
+]);
 
-  const auditTrail = [
-    {
-      timestamp: '14:48:12 UTC',
-      event: 'SESSION_TOKEN_MINTED',
-      details: 'Minted via CyberArk Vault CCP engine',
-      hash: '8f4a2c1b9e01a883726d5ef0',
-      operator: 'praveen.s',
-      ip: '10.240.12.88'
-    },
-    {
-      timestamp: '14:42:45 UTC',
-      event: 'CIRCUIT_BREAKER_TRIPPED',
-      details: 'Oracle HikariCP max consecutive errors exceeded threshold 5',
-      hash: 'd32b918f02acc8840192eef1',
-      operator: 'sentinel-sentinel-daemon',
-      ip: '10.240.12.01'
-    },
-    {
-      timestamp: '14:35:10 UTC',
-      event: 'PRE_TERMINATION_HEAP_DUMP',
-      details: 'Captured thread dump before eviction to S3-Vault://bfsi-audit/',
-      hash: 'c9014efa7781b28499210aa3',
-      operator: 'sentinel-agent-node-10',
-      ip: '10.240.14.92'
-    }
-  ];
+// Shapes a remediation run as a pending approval.
+function toPendingAction(run) {
+  const approvals = Array.isArray(run.approvals)
+    ? run.approvals.map(a => (typeof a === 'string' ? { username: a, role: null, timestamp: null } : a))
+    : [];
+  const first = approvals[0] || null;
+  return {
+    id: run.id,
+    action: run.action || null,
+    target: run.component || null,
+    incidentId: run.incident_id || null,
+    initiatedBy: run.initiated_by || null,
+    primarySigner: first ? first.username : null,
+    primarySignedAt: first ? first.timestamp : null,
+    approvals,
+    approvalsRequired: 2,
+    status: approvals.length === 0 ? 'PENDING_FIRST_SIGN' : 'PENDING_CO_SIGN',
+    requestedAt: run.timestamp || null
+  };
+}
 
-  res.json({
-    pendingActions,
-    itsmSync,
-    auditTrail,
-    timestamp: new Date().toISOString()
-  });
+// Shapes one audit entry.
+function toAuditEntry(e) {
+  return {
+    timestamp: e.timestamp || null,
+    event: e.action || null,
+    details: e.detail ? JSON.stringify(e.detail) : '',
+    operator: e.user || null,
+    ip: e.ip || null
+  };
+}
+
+// Reads the audit trail from PostgreSQL or the log file.
+async function readAuditTrail(limit) {
+  // Postgres audit_event is the queryable trail; the local file WAL is the fallback.
+  try {
+    const fromDb = await getAuditLogFromDb(limit * 4);
+    if (Array.isArray(fromDb)) return fromDb;
+  } catch (_) { /* unreachable database: fall back to the file WAL */ }
+  return getAuditLog(limit * 4);
+}
+
+// [M1.2] Prod and staging serve real Awaiting-Approval runs and the real audit trail.
+router.get('/sod-audit', async (req, res) => {
+  const env = requestEnvironment(req);
+  try {
+    const pendingActions = (db.getRecoveryLogs(env) || [])
+      .filter(r => r.status === 'Awaiting-Approval')
+      .map(toPendingAction);
+    const auditTrail = (await readAuditTrail(25))
+      .filter(e => e && GOVERNANCE_AUDIT_ACTIONS.has(e.action))
+      .slice(0, 25)
+      .map(toAuditEntry);
+    return res.json({
+      status: 'OK',
+      environment: env,
+      prototype: false,
+      pendingActions,
+      itsmSync: [],
+      auditTrail,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    return res.status(500).json({ error: `Governance lookup failed: ${err.message}` });
+  }
 });
 
 module.exports = router;

@@ -22,7 +22,10 @@ const packages = {
   'logger': 'logger',
   'remediation': 'remediation',
   'shared-constants': 'shared',
-  'correlation': 'correlation'
+  'correlation': 'correlation',
+  'synthetics': 'synthetics',
+  'security': 'security',
+  'sentinelql': 'analytics/sentinelql'
 };
 
 console.log('[SETUP] Validating Project Sentinel workspace symlinks...');

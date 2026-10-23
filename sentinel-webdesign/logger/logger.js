@@ -1,3 +1,6 @@
+/**
+ * Structured logging to rotating files (NAS log folder), with environment tags.
+ */
 const fs = require('fs');
 const path = require('path');
 const rfs = require('rotating-file-stream');
@@ -30,6 +33,7 @@ const masterLogStream = rfs.createStream('windows_yaml_observability.log', {
   path: LOG_DIR
 });
 
+// Writes one structured log line.
 function writeNasLog(level, category, message, meta = {}) {
   const timestamp = new Date().toISOString();
   const env = meta.environment || global.runtimeEnvironment || 'staging';
@@ -62,10 +66,12 @@ function writeNasLog(level, category, message, meta = {}) {
   }
 }
 
+// Same as writeNasLog.
 function writeStructuredLog(level, category, message, meta = {}) {
   return writeNasLog(level, category, message, meta);
 }
 
+// Logger bound to a category.
 function createStructuredLogger(category) {
   return {
     info: (msg, meta) => writeNasLog('INFO', category, msg, meta),

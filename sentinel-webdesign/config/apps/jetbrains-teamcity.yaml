@@ -1,76 +1,143 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: JetBrains TeamCity CI
-# =========================================================================
-id: "jetbrains_teamcity"
-kind: "application"
-display_name: "JetBrains TeamCity CI"
-category: "ci_cd"
-tier: "Tier-1 Mission Critical"
-log_tag: "[TEAMCITY]"
-regions: ["emea"]
+id: jetbrains_teamcity
+kind: application
+display_name: JetBrains TeamCity CI
+category: ci_cd
+tier: Tier-1 Mission Critical
+log_tag: '[TEAMCITY]'
+regions:
+  - emea
 aliases:
-  - "teamcity"
-
+  - teamcity
 endpoints:
   prod:
-    api: "https://teamcity-prod.internal.corp/app/rest"
+    api: https://teamcity-prod.internal.corp/app/rest
+    vip: https://jetbrains-teamcity-prod.internal.corp
   stg:
-    api: "https://teamcity-stg.internal.corp/app/rest"
-
+    api: https://teamcity-stg.internal.corp/app/rest
+    vip: https://jetbrains-teamcity-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
 topology:
   agent_pools:
-    - { id: "tc-agents", os: "linux", expected_count: 100, discovery: "teamcity_api" }
+    - id: tc-agents
+      os: linux
+      expected_count: 100
+      discovery: teamcity_api
   jump_servers:
-    - { host: "tc-jump-01.internal.corp", os: "linux" }
-
+    - host: tc-jump-01.internal.corp
+      os: linux
 lifecycle:
-  refweb_url: { url: "https://teamcity.internal.corp", expiry: "2027-04-15" }
-  license: { type: "TeamCity Enterprise", expiry: "2027-02-01" }
-
+  refweb_url:
+    url: https://teamcity.internal.corp
+    expiry: '2027-04-15'
+  license:
+    type: TeamCity Enterprise
+    expiry: '2027-02-01'
+  certificates:
+    - { name: vip-tls, probe: "jetbrains-teamcity-prod.internal.corp:443" }
 layers:
   db:
-    jdbc: "jdbc:postgresql://db-prod-teamcity.internal.corp:5432/teamcity_db"
-    credential_purpose: "db"
+    jdbc: jdbc:postgresql://db-prod-teamcity.internal.corp:5432/teamcity_db
+    credential_purpose: db
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-teamcity.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-teamcity.internal.corp/api/v1/telemetry
     credential_purpose: null
   smb:
-    share: "\\\\storage-nas-prod.internal.corp\\teamcity_build_artifacts"
+    share: \\storage-nas-prod.internal.corp\teamcity_build_artifacts
     credential_purpose: null
-
+  vip: https://jetbrains-teamcity-prod.internal.corp
+  hosts:
+    - jetbrains-teamcity-node-01.internal.corp
+    - jetbrains-teamcity-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/jetbrains-teamcity
+  databases:
+    - jdbc:postgresql://db-prod-teamcity.internal.corp:5432/teamcity_db
+  clusters:
+    - k8s-prod-jetbrains-teamcity
 servers:
   unix:
-    - node: "teamcity-server-1"
-      api: "https://linux-compute-prod-teamcity-1.internal.corp/api/v1/metrics"
+    - node: teamcity-server-1
+      api: https://linux-compute-prod-teamcity-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 105
   successRate: 99.6
   requests: 60
-
 logs:
-  log_tag: "[TEAMCITY]"
-  log_path: "d:\\production_shares\\nas_logs\\teamcity.log"
+  log_tag: '[TEAMCITY]'
+  log_path: d:\production_shares\nas_logs\teamcity.log
   retention_days: 30
-
 credentials:
-  safe: "SF-TEAMCITY-PROD"
+  safe: SF-TEAMCITY-PROD
   objects:
-    db: "TEAMCITY-DB-SVC"
-    api_token: "TEAMCITY-API-TOKEN"
+    db: TEAMCITY-DB-SVC
+    api_token: TEAMCITY-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_TEAMCITY_SERVICE
+journeys:
+  - id: teamcity_server_health
+    name: TeamCity Server Health & Connected Agents
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: server_info
+        name: Server Info
+        type: http
+        layer: network
+        url: /server
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: connected_agents
+        name: Connected Build Agents
+        type: http
+        layer: app
+        url: /agents
+        assert:
+          status: 200
+          max_ms: 2000
+  - id: teamcity_build_canary
+    name: TeamCity Build Queue & Artifact Storage
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: build_queue
+        name: Query Build Queue
+        type: http
+        layer: app
+        url: /buildQueue
+        assert:
+          status: 200
+          max_ms: 2000
+      - id: build_artifacts
+        name: Artifact Storage Directory Check
+        type: http
+        layer: storage
+        url: /builds?locator=status:SUCCESS,count:1
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_TEAMCITY_SERVICE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/opt/teamcity/conf/%%"
+    - "/opt/teamcity-data/config/%%"
+    - "/opt/teamcity-data/plugins/%.zip"
+  windows: []

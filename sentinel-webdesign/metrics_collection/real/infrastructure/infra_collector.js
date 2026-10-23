@@ -1,3 +1,7 @@
+/**
+ * Runs every infrastructure collector (AVI, databases, Linux, Windows, NAS, S3, SSO, network) and
+ * merges the results.
+ */
 const fs = require('fs');
 const path = require('path');
 
@@ -55,6 +59,7 @@ const baselines = {
   node_exporter: { active_node_exporters: 0, avg_cpu_idle: 82.5, avg_memory_available_pct: 64.2 }
 };
 
+// Collects all infrastructure metrics for the environment.
 async function collectInfraMetrics(simulations, db, writeNasLog, targetEnv = null) {
   const currentMetrics = {};
   const currentEnv = targetEnv || global.runtimeEnvironment || config.ENVIRONMENT || 'staging';
@@ -83,17 +88,13 @@ async function collectInfraMetrics(simulations, db, writeNasLog, targetEnv = nul
 
     try {
       data = await collector.collect(currentEnv === 'staging' ? simulations : {}, base);
-      if (currentEnv !== 'demo' && (!data || data.error === 'Data Not Available')) {
+      if (!data || data.error === 'Data Not Available') {
         data = { isLive: false, error: 'Data Not Available' };
         state = 'DATA_UNAVAILABLE';
       }
     } catch (err) {
-      if (currentEnv === 'demo') {
-        data = base;
-      } else {
-        data = { isLive: false, error: 'Data Not Available' };
-        state = 'DATA_UNAVAILABLE';
-      }
+      data = { isLive: false, error: 'Data Not Available' };
+      state = 'DATA_UNAVAILABLE';
     }
 
     Object.keys(data).forEach(mName => {

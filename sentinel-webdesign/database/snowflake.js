@@ -1,3 +1,6 @@
+/**
+ * Optional Snowflake log analytics (staging configuration).
+ */
 const fs = require('fs');
 const path = require('path');
 

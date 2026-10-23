@@ -1,0 +1,125 @@
+/* PlatformHealthView.css (Phase O6.2 / R2) */
+
+.platform-health-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  width: 100%;
+}
+
+.ph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--bg-panel-subtle, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  padding: 16px;
+}
+
+.ph-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main, #f8fafc);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ph-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+  font-family: var(--font-mono, monospace);
+  margin-top: 4px;
+}
+
+.ph-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3, 12px);
+}
+
+.ph-tile {
+  background: var(--bg-panel-solid, #0b1329);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ph-tile-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--text-muted, #94a3b8);
+  letter-spacing: 0.5px;
+}
+
+.ph-tile-val {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-main, #f8fafc);
+}
+
+.ph-tile-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.ph-card {
+  background: var(--bg-panel-solid, #0b1329);
+  border: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+.ph-card-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ph-card-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main, #f8fafc);
+}
+
+.ph-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.ph-table th {
+  background: var(--bg-panel-subtle, rgba(255, 255, 255, 0.03));
+  color: var(--text-muted, #94a3b8);
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+}
+
+.ph-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.05));
+  color: var(--text-main, #f8fafc);
+}
+
+.ph-mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+}

@@ -1,9 +1,13 @@
+/**
+ * PostgreSQL migration runner (npm run migrate): applies database/migrations in order.
+ */
 const fs = require('fs');
 const path = require('path');
 const postgres = require('./postgres');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, 'migrations');
 
+// Runs up, down or status.
 async function runMigrate() {
   const action = (process.argv[2] || 'up').toLowerCase();
   console.log(`[MIGRATION] Running migration runner: action=${action}`);

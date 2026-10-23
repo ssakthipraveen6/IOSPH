@@ -1,6 +1,7 @@
 const config = require('@sentinel/config');
 const { fetchJsonWithFallback } = require('../../shared/fetch_with_fallback');
 const { runSeleniumCheck } = require('../python_checks/runner');
+const { updateProductVersion } = require('../../shared/version_tracker');
 
 /**
  * bitbucket_collector.js (T2b.2 REMEDIATED)
@@ -35,6 +36,25 @@ module.exports = {
         requests: null
       };
     }
+
+    // Capture product version from /rest/api/1.0/application-properties or apiResult
+    try {
+      let version = apiResult.data?.version || null;
+      if (!version) {
+        const propResult = await fetchJsonWithFallback(
+          `${url}/rest/api/1.0/application-properties`,
+          { headers: { Accept: 'application/json' }, appId: 'bitbucket' },
+          2000
+        );
+        if (propResult.success && propResult.data?.version) {
+          version = propResult.data.version;
+        }
+      }
+      if (version) {
+        const env = (global.runtimeEnvironment || config.ENVIRONMENT || 'staging').toLowerCase();
+        await updateProductVersion('bitbucket', String(version), env, 'product_api');
+      }
+    } catch (_) {}
 
     // Perform active Selenium browser load latency check
     let browserCheck = { latency_ms: null, login_success: null };

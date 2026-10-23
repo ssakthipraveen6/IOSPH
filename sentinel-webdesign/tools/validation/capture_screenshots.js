@@ -1,3 +1,6 @@
+/**
+ * Validation tool: opens each view in Chrome and saves screenshots.
+ */
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
@@ -11,10 +14,12 @@ if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
+// Waits.
 function wait(ms) {
   return new Promise(res => setTimeout(res, ms));
 }
 
+// GET returning JSON.
 function fetchJson(url) {
   return new Promise((resolve, reject) => {
     http.get(url, res => {
@@ -27,13 +32,16 @@ function fetchJson(url) {
   });
 }
 
+// Minimal Chrome DevTools client.
 class CdpClient {
+  // Opens the connection.
   constructor(wsUrl) {
     this.ws = new WebSocket(wsUrl);
     this.id = 1;
     this.callbacks = new Map();
   }
 
+  // Waits for the connection.
   async connect() {
     await new Promise((res, rej) => {
       this.ws.on('open', res);
@@ -50,6 +58,7 @@ class CdpClient {
     });
   }
 
+  // Sends a command.
   send(method, params = {}) {
     const id = this.id++;
     return new Promise((resolve, reject) => {
@@ -63,6 +72,7 @@ class CdpClient {
   }
 }
 
+// Captures every view.
 async function capture() {
   console.log(`[SCREENSHOT] Target output dir: ${OUTPUT_DIR}`);
 

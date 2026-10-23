@@ -1,9 +1,12 @@
+/**
+ * Test: collector hardening (Dynatrace token retry, circuit breaker, fallbacks).
+ */
 const assert = require('assert');
 const http = require('http');
 const tokenProvider = require('../metrics_collection/real/dynatrace/token_provider');
 const metricResolver = require('../metrics_collection/real/dynatrace/metric_resolver');
 const { getTelemetrySource } = require('../metrics_collection/sources/telemetry_source');
-const expiryEngine = require('../backend/config/expiryEngine');
+const expiryEngine = require('../backend/demo/fixtures/expiry');
 const expiryStore = require('../database/expiry_store');
 const { probeUrl } = require('../metrics_collection/real/probers/url_probe_collector');
 

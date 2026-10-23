@@ -1,55 +1,131 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: SonarQube Code Quality Platform
-# =========================================================================
-id: "sonarqube"
-kind: "application"
-display_name: "SonarQube Code Quality Platform"
-category: "code_quality"
-tier: "Tier-2 Operational"
-log_tag: "[SONARQUBE]"
-
+id: sonarqube
+kind: application
+display_name: SonarQube Code Quality Platform
+category: code_quality
+tier: Tier-2 Operational
+log_tag: '[SONARQUBE]'
 endpoints:
   prod:
-    api: "https://sonarqube-prod.internal.corp/api"
+    api: https://sonarqube-prod.internal.corp/api
+    vip: https://sonarqube-prod.internal.corp
   stg:
-    api: "https://sonarqube-stg.internal.corp/api"
-
+    api: https://sonarqube-stg.internal.corp/api
+    vip: https://sonarqube-stg.internal.corp
 auth:
-  scheme: "basic_token"
-  credential_purpose: "api_token"
+  scheme: basic_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://sonarqube-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "sonarqube-prod.internal.corp:443" }
 layers:
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-sonarqube.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-sonarqube.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://sonarqube-prod.internal.corp
+  hosts:
+    - sonarqube-node-01.internal.corp
+    - sonarqube-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/sonarqube
+  databases:
+    - jdbc:postgresql://db-prod-sonarqube.internal.corp:5432/sonarqube_db
+  clusters:
+    - k8s-prod-sonarqube
 servers:
   unix:
-    - node: "sonarqube-server-1"
-      api: "https://linux-compute-prod-sonarqube-1.internal.corp/api/v1/metrics"
+    - node: sonarqube-server-1
+      api: https://linux-compute-prod-sonarqube-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 120
   successRate: 99.6
   requests: 70
-
 logs:
-  log_tag: "[SONARQUBE]"
-  log_path: "d:\\production_shares\\nas_logs\\sonarqube.log"
-
+  log_tag: '[SONARQUBE]'
+  log_path: d:\production_shares\nas_logs\sonarqube.log
 credentials:
-  safe: "SF-SONARQUBE-PROD"
+  safe: SF-SONARQUBE-PROD
   objects:
-    api_token: "SONARQUBE-API-TOKEN"
+    api_token: SONARQUBE-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_SONARQUBE
+journeys:
+  - id: sonarqube_analysis_flow
+    name: SonarQube Canary Analysis & CE Queue
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: system_health
+        name: SonarQube System Health
+        type: http
+        layer: network
+        url: /system/health
+        assert:
+          status: 200
+          body_contains: GREEN
+          max_ms: 1500
+      - id: trigger_canary_analysis
+        name: Trigger Project Analysis Ping
+        type: http
+        layer: app
+        url: /project_analyses/search?project=canary-project
+        assert:
+          status: 200
+          max_ms: 2500
+      - id: ce_queue_time
+        name: Compute Engine Queue Time
+        type: http
+        layer: db
+        url: /ce/activity
+        assert:
+          status: 200
+          max_ms: 2500
+  - id: sonarqube_api_health
+    name: SonarQube Version & Server Info
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: server_version
+        name: Server Version API
+        type: http
+        layer: app
+        url: /server/version
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: plugins_installed
+        name: Installed Plugins Status
+        type: http
+        layer: app
+        url: /plugins/installed
+        assert:
+          status: 200
+          max_ms: 2000
 
-jenkins_remediation_job: "JOB_RESTART_SONARQUBE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/opt/sonarqube/conf/%%"
+    - "/opt/sonarqube/extensions/plugins/%.jar"
+  windows: []

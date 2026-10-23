@@ -6,31 +6,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Project Sentinel is an observability and autonomous-recovery portal: Node.js/Express backend + React 19/Vite SPA. It ingests telemetry (OpenTelemetry OTLP push, per-app collectors, Selenium synthetic probers), detects log anomalies, correlates them against an entity graph to find shared-infrastructure root causes, and triggers Jenkins remediation runbooks under four-eyes governance. Target hosting is two Windows Servers behind AVI + IIS. Node is pinned in `.nvmrc` (24.x).
 
-**The README, `docs/ARCHITECTURE.md` and `docs/PRODUCTION_GUIDE.md` still describe an older `apps/`/`packages/` layout and assert controls that no longer match the code. Trust the code and the documents below, not those three.**
+**Trust the code and the documents below.** The old design and plan documents were removed; the README holds the architecture and docs/PRODUCTION_READINESS_PLAN.md holds the production work.
 
 ## Orientation
 
 | Document | Purpose |
 |---|---|
+| [`README.md`](README.md) | Architecture diagram and a short summary of each function |
+| [`docs/PRODUCTION_READINESS_PLAN.md`](docs/PRODUCTION_READINESS_PLAN.md) | Production steps with file, line and sample values |
+| [`docs/jira_production_readiness.csv`](docs/jira_production_readiness.csv) | The same tasks as a Jira import |
 | [`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md) | Every folder and file, with its purpose |
-| [`docs/TASKS.md`](docs/TASKS.md) | All outstanding work, easy wins first |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Windows Server, IIS, AVI, service setup |
-| [`docs/PRODUCTION_IMPLEMENTATION_PLAN.md`](docs/PRODUCTION_IMPLEMENTATION_PLAN.md) | Rollout, plus the exact file:line list for a prod or staging edit |
-| [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) | The engineering specification, 10 phases, 73 tasks |
-| [`docs/PROGRESS.md`](docs/PROGRESS.md) | Per-task state, audited against the code |
 | [`config/README.md`](config/README.md) | How to add, change or remove an application |
 
 ## Current state
 
-Phases 0 through 5 of the remediation plan have landed. Notably, and contrary to what the older docs say:
+Phases 0 through 5 of the remediation plan, Milestone 1 (Foundation), Milestone 2 (Golden Journeys & Synthetics), and Milestone 3 (Layer Fingerprinting & AVI) have landed. Notably, and contrary to what the older docs say:
 
-- Real collectors **no longer fabricate data** — zero `Math.random()`, enforced by `npm run lint:random`.
-- Anonymous mutating requests are **rejected with 401**, not granted Super Admin.
+- Real collectors **no longer fabricate data** — zero `Math.random()`, enforced by `npm run lint:random` and `npm run lint:samples`.
+- Anonymous mutating requests are **rejected with 401**, not granted Super Admin. Read access is protected by `requireReadAccess`.
 - Environment selection is **per-session**, carried in the JWT claim. One user switching to PROD does not affect anyone else, and OTLP ingest is tagged from agent attributes rather than UI state.
+- Ingest API keys support scoped authentication (`ingest`, `read`, `gateway`, `admin`, `agent`) with SHA-256 hash lookup and allowed environments isolation for shared gateways.
+- Multi-node high availability uses PostgreSQL advisory lock leader election (`leader_lock.js`) and role profile 4 sharding.
+- ClickHouse columnar telemetry datastore is fully integrated (`database/clickhouse.js`) with migrations, rollups (`metrics_1h` for queries >= 1h step), spans, events, change_points, agent_inventory, and parameterised log searches.
+- Source arbiter implements 3-sample hysteresis and immediate failover on collector `AUTH_FAILED`.
+- Synthetics runner (`@sentinel/synthetics`) executes multi-step canary journeys (`http`, `browser`, `git`, `upload_download`) with W3C trace generation and step metric emission.
+- Multi-layer topology discovery parses manifest `layers:` into an entity graph (VIP -> Product -> Host -> Share -> Database) exposed via `/api/v2/topology/:productId`.
+- VIP probes measure DNS, TCP, TLS, TTFB, total latency, and SSL certificate expiry with telemetry exposed in the rewired AVI view.
+- Correlation engine implements rules (a)-(e) diagnosing network/AVI, storage, product, and change root causes.
 - `postgres.js` writes and filters the `environment` column.
 - `bitbucket_pr_service.js` was **deleted**. Do not recreate it — it formed a credential-exfiltration chain (plan §4.1, T0.13).
-
-Still open: `lint:constants` reports 4 violations (2 genuine, 2 false positives). See `docs/TASKS.md`.
 
 ## Commands
 
@@ -43,16 +47,22 @@ Run from the repo root (npm workspaces). The backend has no build step.
 - `npm run dev` — backend + Vite HMR on :5173, proxying `/api` `/v1` `/ws` to :3001
 
 **Verify**
-- `npm test` — **24** suites, plain `node` + `assert`, sequential. Single: `node tests/otlp_normalizer.test.js`
+- `npm test` — **36** suites, plain `node` + `assert`, sequential. Single: `node tests/otlp_normalizer.test.js`
 - `npm run config:check` — validates every manifest, prints enabled/endpoint per app. Exits 1 on error
-- `npm run verify:dist` — fails if `frontend/dist` is stale relative to `frontend/src`
+- `npm run verify:dist` — fails if `frontend/dist` is stale relative to `frontend/src` or has unreferenced assets
 - `npm run preflight` — walks every configured endpoint: reachable / auth-OK / unreachable
-- `npm run lint` — `lint:constants` + `lint:random` + frontend `oxlint`
+- `npm run lint` — `lint:constants` + `lint:random` + `lint:samples` + frontend `oxlint`
+- `npm run lint:samples` — validates that no sample/fake data generators leak outside `demo`
 - `npm run audit:check`
 
-**Database** — `npm run migrate` / `npm run migrate:down`. The app runs degraded without one.
+**Database & Migrations**
+- `npm run migrate` / `npm run migrate:down` — PostgreSQL migrations
+- `npm run clickhouse:migrate` — apply ClickHouse migrations
+- `npm run clickhouse:migrate:dry-run` — test and print pending ClickHouse DDL
+- `npm run clickhouse:migrate:status` — view applied ClickHouse migration versions
+- `npm run ingest-key` — manage ingest API keys via CLI (`create`, `list`, `revoke`)
 
-**Environment** — `SENTINEL_JWT_SECRET` (≥32 chars) is required; `backend/auth/session.js` exits at require time without it. `scripts/bootstrap.js` generates one for development and **refuses to in production**. Read from `config/.env` or the repo root. Others: `NODE_ENV`, `PORT`, `ALLOWED_ORIGIN`, `SENTINEL_ROLE`, `USE_SIMULATED_COLLECTORS`.
+**Environment** — `SENTINEL_JWT_SECRET` (≥32 chars) is required; `backend/auth/session.js` exits at require time without it. `scripts/bootstrap.js` generates one for development and **refuses to in production**. Read from `config/.env` or the repo root. Others: `NODE_ENV`, `PORT`, `ALLOWED_ORIGIN`, `SENTINEL_ROLE`, `USE_SIMULATED_COLLECTORS`, `CLICKHOUSE_URL`.
 
 ## Architecture
 
@@ -119,5 +129,5 @@ Auth is eLDAP via `ldapjs` in `ldap_client.js` (reads `ldap_url`, not `url`), wi
 - Cross-module calls use globals to avoid circular deps: `global.broadcastStateChange`, `global.broadcastLog`, `global.collectorEnvironment`, `global.runSelfHealingOrchestrator`, `global.runPredictiveAnalysis`.
 - **Toggles gate collectors, not infrastructure clients.** The database pool, CyberArk and Snowflake are built from their URL alone. To make a deployment inert, **blank the URL** rather than disabling the feature — measured: toggles off with `db_jdbc` set still produced 15 outbound attempts in 25 seconds; blanked, zero.
 - `postgres.query()` returns `null` when no pool is configured but **throws** when a configured host is unreachable. Handle both — conflating them previously took the whole process down.
-- `tools/validation/run_phase1b_checks.js` starts its own server; run it with port 3001 free.
 - Validation harness checks need the **same** `SENTINEL_JWT_SECRET` as the running server, or a rejected token looks like a broken role check.
+- **Milestone M2 (Golden Journeys & Toolchain Synthetics):** `@sentinel/synthetics` runs canaries end-to-end (`http`, `browser`, `git`, `upload_download`). Only the active leader node executes journeys (`leaderLock.isLeader()`), bounded at concurrency 4 with jitter via `crypto.randomInt`. Step failures cascade subsequent steps to `SKIPPED`. Product versions are tracked via `version_tracker.js` and emit `version_change` events. Toolchain products and journey runs are exposed via `/api/products` and `/api/journeys` and visualized in `ProductPage.jsx`.

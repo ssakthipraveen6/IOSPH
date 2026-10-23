@@ -1,4 +1,9 @@
+/**
+ * Log store: appends, searches and aggregates logs (ClickHouse / PostgreSQL, with an in-memory
+ * buffer).
+ */
 const postgres = require('./postgres');
+const clickhouse = require('./clickhouse');
 const { parseLog } = require('../logs_collection/parser/log_parser');
 
 const MAX_RING_BUFFER = 50000;
@@ -14,6 +19,7 @@ function encodeCursor(ts, id) {
   return Buffer.from(JSON.stringify({ ts, id })).toString('base64');
 }
 
+// Sample logs for the demo environment only.
 function generateDemoLogs() {
   const now = Date.now();
   const sampleMessages = [
@@ -94,7 +100,27 @@ async function appendLogs(logs, defaultMeta = {}) {
     inMemoryRingBuffer = inMemoryRingBuffer.slice(inMemoryRingBuffer.length - MAX_RING_BUFFER);
   }
 
-  // 2. Persist to PostgreSQL if available
+  // 2. Persist to ClickHouse if configured
+  if (clickhouse.isConfigured()) {
+    try {
+      await clickhouse.insertLogs(normalized.map(l => ({
+        timestamp: l.ts,
+        env: l.environment || 'staging',
+        app_id: l.app_id || 'system',
+        entity_id: l.entity_id || null,
+        level: l.level || 'INFO',
+        message: l.message || '',
+        traceId: (l.fields && (l.fields.trace_id || l.fields.traceId)) || null,
+        fields: l.fields || {}
+      })));
+    } catch (chErr) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(`[LOG_STORE] ClickHouse append failed (${chErr.message}).`);
+      }
+    }
+  }
+
+  // 3. Persist to PostgreSQL if available
   try {
     const pool = await postgres.getPool();
     if (pool) {
@@ -163,6 +189,89 @@ async function searchLogs(filters = {}) {
 
   const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 500);
   const decodedCursor = decodeCursor(cursor);
+
+  // Attempt query via ClickHouse if configured
+  if (clickhouse.isConfigured()) {
+    try {
+      const fromMs = fromDate.getTime();
+      const toMs = toDate.getTime();
+      const params = {
+        fromMs,
+        toMs,
+        limit: parsedLimit + 1
+      };
+      const where = [
+        "ts >= fromUnixTimestamp64Milli({fromMs:Int64}, 'UTC')",
+        "ts <= fromUnixTimestamp64Milli({toMs:Int64}, 'UTC')"
+      ];
+      if (environment) {
+        where.push("env = {env:String}");
+        params.env = environment.toLowerCase();
+      }
+      if (app_id) {
+        where.push("app_id = {app_id:String}");
+        params.app_id = app_id;
+      }
+      if (entity_id) {
+        where.push("entity_id = {entity_id:String}");
+        params.entity_id = entity_id;
+      }
+      if (level) {
+        where.push("level = {level:String}");
+        params.level = level.toUpperCase();
+      }
+      if (q && q.trim()) {
+        where.push("lower(message) LIKE {qLike:String}");
+        params.qLike = `%${q.trim().toLowerCase()}%`;
+      }
+      if (decodedCursor && decodedCursor.ts) {
+        const cursorMs = new Date(decodedCursor.ts).getTime();
+        if (!isNaN(cursorMs)) {
+          params.cursorMs = cursorMs;
+          where.push("ts < fromUnixTimestamp64Milli({cursorMs:Int64}, 'UTC')");
+        }
+      }
+
+      const sql = `SELECT ts, env, app_id, entity_id, level, message, trace_id, fields
+FROM logs
+WHERE ${where.join(' AND ')}
+ORDER BY ts DESC
+LIMIT {limit:UInt32}`;
+
+      const rows = await clickhouse.query(sql, params);
+      const hasMore = rows.length > parsedLimit;
+      const items = hasMore ? rows.slice(0, parsedLimit) : rows;
+
+      let nextCursor = null;
+      if (hasMore && items.length > 0) {
+        const last = items[items.length - 1];
+        const lastTs = last.ts;
+        nextCursor = encodeCursor(typeof lastTs === 'string' ? lastTs : new Date(lastTs).toISOString(), last.trace_id || 0);
+      }
+
+      return {
+        items: items.map((r, idx) => ({
+          id: r.trace_id || idx + 1,
+          ts: typeof r.ts === 'string' ? (r.ts.includes('T') ? r.ts : r.ts.replace(' ', 'T') + 'Z') : new Date(r.ts).toISOString(),
+          entity_id: r.entity_id,
+          app_id: r.app_id,
+          environment: r.env,
+          level: r.level,
+          logger: (r.fields && r.fields.logger) || `${r.app_id}.service`,
+          message: r.message,
+          fields: r.fields || {},
+          fingerprint: (r.fields && r.fields.fingerprint) || null
+        })),
+        nextCursor,
+        limit: parsedLimit,
+        source: 'clickhouse'
+      };
+    } catch (chErr) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(`[LOG_STORE] ClickHouse search failed (${chErr.message}). Falling back to Postgres/ring buffer.`);
+      }
+    }
+  }
 
   // Attempt query via PostgreSQL
   try {

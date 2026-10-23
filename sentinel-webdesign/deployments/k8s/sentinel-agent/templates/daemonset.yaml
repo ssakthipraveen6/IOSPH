@@ -1,0 +1,96 @@
+{{- if .Values.daemonset.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-node-agent
+  labels:
+    app.kubernetes.io/name: sentinel-agent
+    app.kubernetes.io/component: node
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sentinel-agent
+      app.kubernetes.io/component: node
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinel-agent
+        app.kubernetes.io/component: node
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      hostNetwork: true
+      hostPID: true
+      initContainers:
+        # Pull this node's collector config from SENTINEL (os=kubernetes).
+        - name: fetch-config
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "/opt/sentinel/probe/index.js", "--write-collector-config", "/etc/sentinel/collector.yaml"]
+          env:
+            {{- include "sentinel-agent.env" . | nindent 12 }}
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: SENTINEL_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: collector-config
+              mountPath: /etc/sentinel
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["--config", "/etc/sentinel/collector.yaml"]
+          env:
+            {{- include "sentinel-agent.env" . | nindent 12 }}
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            {{- toYaml .Values.daemonset.resources | nindent 12 }}
+          volumeMounts:
+            - name: collector-config
+              mountPath: /etc/sentinel
+              readOnly: true
+            - name: host-root
+              mountPath: /hostfs
+              readOnly: true
+        {{- if .Values.daemonset.probe.enabled }}
+        - name: probe
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "/opt/sentinel/probe/index.js"]
+          env:
+            {{- include "sentinel-agent.env" . | nindent 12 }}
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: SENTINEL_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            limits:
+              cpu: "50m"
+              memory: "96Mi"
+            requests:
+              cpu: "10m"
+              memory: "48Mi"
+          volumeMounts:
+            - name: collector-config
+              mountPath: /etc/sentinel
+              readOnly: true
+        {{- end }}
+      volumes:
+        - name: collector-config
+          emptyDir: {}
+        - name: host-root
+          hostPath:
+            path: /
+{{- end }}

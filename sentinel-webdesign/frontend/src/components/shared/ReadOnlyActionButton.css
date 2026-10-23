@@ -1,0 +1,7 @@
+/* ReadOnlyActionButton — co-located styles (U4). Doubled class so it beats any
+   caller-supplied button class (e.g. .time-picker__btn sets cursor: pointer). */
+.shr-readonly-btn.shr-readonly-btn,
+.shr-readonly-btn.shr-readonly-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

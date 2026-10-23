@@ -8,6 +8,7 @@
 const resolver = require('../entity_resolver');
 const store = require('../store');
 
+// Adds AVI virtual services to the inventory.
 async function syncAviInventory(aviData = null) {
   if (!aviData || !Array.isArray(aviData.results)) {
     return { discoveredServices: 0 };

@@ -1,0 +1,19 @@
+{
+  "description": "SYNTHETIC TEST FIXTURE: Rule (e) version_change or file-change event within window",
+  "environment": "staging",
+  "events": [
+    {
+      "event_id": "test-evt-change-001",
+      "kind": "version_change",
+      "entity_id": "app:jfrog_artifactory",
+      "title": "JFrog Artifactory upgraded from 7.68.0 to 7.69.0",
+      "summary": "Automatic deployment pipeline completed binary upgrade.",
+      "severity": "info",
+      "ts": "2026-10-12T02:00:00.000Z"
+    }
+  ],
+  "metrics": [],
+  "journeys": [],
+  "expectedLayer": "change",
+  "expectedRuleId": "rule_recent_change"
+}

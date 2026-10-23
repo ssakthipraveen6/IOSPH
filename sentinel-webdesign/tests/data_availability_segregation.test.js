@@ -1,3 +1,6 @@
+/**
+ * Test: prod and staging data are kept apart; missing data is reported as unavailable.
+ */
 const assert = require('assert');
 const config = require('../backend/config/config');
 const db = require('../database/db');

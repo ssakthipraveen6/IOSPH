@@ -1,0 +1,188 @@
+/* frontend/src/components/infra/HostListView.css */
+
+.host-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.host-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.host-list-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.host-list-title {
+  margin: 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.host-list-subtitle {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.host-list-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.host-search-input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  font-size: var(--font-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  min-width: 240px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.host-search-input:focus {
+  border-color: var(--primary);
+}
+
+.host-list-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.host-kpi {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.host-kpi-label {
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.host-kpi-value {
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: var(--text-color);
+  font-family: var(--font-mono);
+}
+
+.host-table-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.host-table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.host-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--font-sm);
+}
+
+.host-table th {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.host-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.host-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.host-row:hover {
+  background: var(--bg-hover);
+}
+
+.host-name-cell {
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--primary);
+}
+
+.host-product-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.host-os-chip {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.host-metric-val {
+  font-family: var(--font-mono);
+}
+
+.host-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+}
+
+.host-agent-badge--in_sync {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--status-healthy);
+}
+
+.host-agent-badge--drifted {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--status-warning);
+}
+
+.host-agent-badge--silent {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--status-critical);
+}

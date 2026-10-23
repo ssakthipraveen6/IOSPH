@@ -7,6 +7,7 @@
 const resolver = require('../entity_resolver');
 const store = require('../store');
 
+// Adds TeamCity agents to the inventory.
 async function syncTeamCityInventory(teamcityData = null) {
   if (!teamcityData || !Array.isArray(teamcityData.agent)) {
     return { discoveredAgents: 0 };

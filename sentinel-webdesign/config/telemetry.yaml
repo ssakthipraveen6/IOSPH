@@ -85,3 +85,34 @@ profiles:
       - "dynatrace"
       - "linux_servers"
       - "windows_servers"
+
+  4:
+    id: "arbitrated_production"
+    name: "Profile 4: Arbitrated sources (Dynatrace when available, else OTel, else Sentinel probes)"
+    description: >
+      Transition profile while Dynatrace is still owned by another team. Every source runs.
+      For each metric, the source arbiter keeps the highest-priority source that has reported
+      within stale_after_seconds and drops the lower-priority duplicates. When Dynatrace stops
+      answering (token revoked, API down), SENTINEL falls back to its own OTel agents and probes
+      automatically. Every stored point carries a `source` label.
+    active_sources:
+      opentelemetry_otlp: true
+      dynatrace_api_v2: true
+      prometheus_node_exporter: false
+      sentinel_storage_and_sso: true
+      sentinel_synthetic_health: true
+    disabled_collectors:
+      - "linux_servers"
+      - "windows_servers"
+      - "node_exporter"
+
+# Source arbitration (used by profile 4; set `enabled: true` to use it with any profile).
+# Sources: dynatrace | otel | probe | custom | collector.
+# Sources not listed for a metric are always accepted (e.g. custom metrics from Jenkins jobs).
+source_arbitration:
+  enabled: false
+  stale_after_seconds: 180
+  default_priority: ["dynatrace", "otel", "probe"]
+  # Per-metric overrides, matched by exact metric name or a trailing-* prefix.
+  metric_priority:
+    "nas.*": ["probe", "custom"]

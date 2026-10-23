@@ -1,0 +1,237 @@
+/* Respond views (ProblemsView, EvidencePacksView, AlertsView) — co-located styles (U4).
+   Prefixes: prb- (Problems), evp- (Evidence Packs), alr- (Alerts). Shared layout
+   pieces are listed under each prefix so the three screens stay independent. */
+
+/* ---------- Common layout (all three views) ---------- */
+.prb-root,
+.evp-root,
+.alr-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.prb-card,
+.evp-card,
+.alr-card {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.prb-card-header,
+.evp-card-header { margin-bottom: var(--space-4); }
+
+.alr-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.prb-title,
+.evp-title,
+.alr-title {
+  margin: 0;
+  font-size: var(--font-lg);
+  color: var(--text-primary);
+}
+
+.prb-subtle,
+.evp-subtle,
+.alr-subtle {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.prb-loading,
+.evp-loading,
+.alr-loading {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.prb-id,
+.evp-id {
+  color: var(--brand-primary);
+  font-weight: 600;
+}
+
+.alr-id { color: var(--brand-primary); }
+
+.prb-mono,
+.evp-mono { font-family: var(--font-mono); }
+
+/* Evidence links styled as time-picker buttons */
+.prb-root a.time-picker__btn,
+.evp-root a.time-picker__btn { text-decoration: none; }
+
+.prb-actions,
+.alr-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.alr-actions { gap: var(--space-1); }
+
+.evp-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* ---------- ProblemsView ---------- */
+.prb-row-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.prb-semibold { font-weight: 600; }
+
+.prb-detail {
+  background: var(--surface-bg);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+}
+
+.prb-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+}
+
+.prb-detail-tags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.prb-detail-id {
+  font-size: var(--font-sm);
+  color: var(--brand-primary);
+}
+
+.prb-detail-title {
+  margin: 0;
+  font-size: var(--font-xl);
+  color: var(--text-primary);
+}
+
+.prb-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+.prb-detail-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.prb-root .time-picker__btn.prb-pack-btn { padding: var(--space-2) var(--space-4); }
+
+/* ---------- EvidencePacksView ---------- */
+.evp-layer {
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.evp-root .time-picker__btn.evp-ai-btn,
+.evp-root .time-picker__btn.evp-ai-btn:hover {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.evp-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.evp-modal {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  width: 650px;
+  max-width: 90%;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.evp-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.evp-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.evp-modal-title {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.evp-ai-tag {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+}
+
+.evp-strong { color: var(--text-primary); }
+
+.evp-error {
+  color: var(--sev-critical);
+  font-size: var(--font-sm);
+}
+
+.evp-draft {
+  background: var(--surface-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  font-size: var(--font-sm);
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.evp-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ---------- AlertsView ---------- */
+.alr-action-msg {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--brand-primary);
+  font-size: var(--font-sm);
+  margin-bottom: var(--space-4);
+}

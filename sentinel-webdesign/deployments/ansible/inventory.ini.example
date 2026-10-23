@@ -1,0 +1,15 @@
+# Copy to inventory.prod.ini / inventory.stg.ini. Group names are what the playbooks expect.
+[linux_servers]
+bitbucket-node-1.internal.corp
+artifactory-node-1.internal.corp
+
+[windows_servers]
+win-fortify-app-1.internal.corp
+
+[pilot]
+bitbucket-node-1.internal.corp
+
+[linux_servers:vars]
+ansible_user=svc_sentinel_deploy
+ansible_connection=ssh
+ansible_become=true

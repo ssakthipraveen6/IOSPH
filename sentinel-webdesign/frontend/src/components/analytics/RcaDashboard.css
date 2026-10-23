@@ -1,0 +1,435 @@
+/* RcaDashboard — co-located styles (U4). Rules are scoped under .rca-root so they
+   out-rank the generic App.css panel/header rules the old inline styles overrode. */
+
+.rca-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.rca-root .rca-pad-lg { padding: var(--space-6); }
+.rca-root .rca-pad-md { padding: var(--space-5); }
+
+.rca-root .rca-header-lg { margin-bottom: var(--space-5); }
+.rca-root .rca-header-sm { margin-bottom: var(--space-3); }
+.rca-root .rca-header-md { margin-bottom: var(--space-4); }
+
+.rca-root .rca-hint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+/* App selector tabs */
+.rca-root .rca-app-tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-8);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: var(--space-4);
+}
+
+.rca-root .nav-tab-btn.rca-app-tab,
+.rca-root .nav-tab-btn.rca-app-tab:hover,
+.light-mode .rca-root .nav-tab-btn.rca-app-tab:not(.active),
+.light-mode .rca-root .nav-tab-btn.rca-app-tab:not(.active):hover {
+  width: auto;
+  padding: 0.4rem 1rem;
+  font-size: var(--font-xs);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+  border-color: var(--border-light);
+}
+
+.rca-root .nav-tab-btn.rca-app-tab--active,
+.rca-root .nav-tab-btn.rca-app-tab--active:hover,
+.light-mode .rca-root .nav-tab-btn.rca-app-tab--active:not(.active),
+.light-mode .rca-root .nav-tab-btn.rca-app-tab--active:not(.active):hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+/* Flow visualiser */
+.rca-root .rca-flow-scroll {
+  overflow-x: auto;
+  padding: var(--space-4) 0;
+}
+
+.rca-root .rca-flow-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 950px;
+}
+
+.rca-root .rca-flow-node {
+  flex: 1;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-top-width: 4px;
+  border-top-style: solid;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  animation: none;
+  min-width: 160px;
+}
+
+.rca-root .rca-flow-node--anomaly {
+  border: 1.5px solid var(--sev-critical);
+  border-top-width: 4px;
+}
+
+.rca-root .rca-flow-node--critical {
+  animation: pulse-ring 2.5s infinite;
+}
+
+.rca-root .rca-flow-layer {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-1);
+}
+
+.rca-root .rca-flow-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: var(--space-2);
+}
+
+.rca-root .rca-flow-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.rca-root .rca-flow-deviation {
+  font-size: 0.6rem;
+  color: var(--sev-critical);
+  margin-top: 6px;
+  font-weight: bold;
+}
+
+.rca-root .rca-flow-arrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: var(--font-xl);
+}
+
+/* AI correlation card */
+.rca-root .metrics-panel-card.rca-ai-card,
+.rca-root .metrics-panel-card.rca-ai-card:hover {
+  padding: var(--space-5);
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.06) 0%, rgba(15, 23, 42, 0.4) 100%);
+  border: 1px solid rgba(13, 148, 136, 0.3);
+}
+
+.rca-root .rca-ai-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rca-root .rca-ai-icon { font-size: var(--font-xl); }
+.rca-root .panel-header .rca-ai-title { font-size: 0.95rem; }
+
+.rca-root .rca-ai-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.rca-root .rca-confidence { color: var(--sev-healthy); }
+
+.rca-root .rca-ai-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.rca-root .rca-ai-box {
+  background: var(--bg-dark);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.rca-root .rca-ai-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rca-root .rca-ai-label--diagnosis { color: var(--sev-warning); }
+.rca-root .rca-ai-label--action { color: var(--primary); }
+
+.rca-root .rca-ai-text {
+  font-size: var(--font-xs);
+  color: var(--text-main);
+  margin-top: var(--space-1);
+  line-height: 1.4;
+}
+
+/* Deviation timeline */
+.rca-root .rca-legend {
+  display: flex;
+  gap: 10px;
+}
+
+.rca-root .rca-legend-item {
+  font-size: var(--font-xs);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+}
+
+.rca-root .rca-legend-dot {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+  border-radius: 50%;
+}
+
+.rca-root .rca-legend-dot--expected { background: var(--primary); }
+.rca-root .rca-legend-dot--actual { background: var(--sev-critical); }
+
+.rca-root .rca-chart-frame {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-6);
+  background: var(--bg-dark);
+  padding: var(--space-4);
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  overflow-x: auto;
+}
+
+.rca-root .rca-chart-empty {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.rca-root .rca-chart-empty-icon {
+  font-size: 1.4rem;
+  margin-bottom: 6px;
+}
+
+.rca-root .rca-text-main { color: var(--text-main); }
+
+.rca-root .rca-chart-empty-note {
+  font-size: 0.72rem;
+  margin-top: var(--space-1);
+}
+
+.rca-root .rca-chart-svg { min-width: 800px; }
+
+/* ServiceNow changes */
+.rca-root .rca-changes-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.rca-root .rca-col-sm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rca-root .rca-col-lg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.rca-root .rca-changes-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rca-root .rca-maint-note {
+  font-size: 0.7rem;
+  color: var(--sev-warning);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+}
+
+.rca-root .rca-empty-box {
+  padding: 15px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  background: var(--bg-panel);
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.rca-root .metrics-panel-card.rca-chg-card,
+.rca-root .metrics-panel-card.rca-chg-card:hover {
+  cursor: pointer;
+  border-color: var(--border-light);
+  background: var(--bg-panel);
+  padding: var(--space-4);
+  transition: all 0.2s ease;
+}
+
+.rca-root .metrics-panel-card.rca-chg-card--selected,
+.rca-root .metrics-panel-card.rca-chg-card--selected:hover {
+  border-color: var(--primary);
+  background: var(--primary-glow);
+}
+
+.rca-root .rca-chg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.rca-root .rca-chg-id {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--primary);
+}
+
+.rca-root .rca-chg-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.rca-root .rca-chg-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: var(--space-2);
+  line-height: 1.3;
+}
+
+.rca-root .rca-chg-tags {
+  display: flex;
+  gap: 6px;
+}
+
+.rca-root .rca-tag-xs { font-size: 0.6rem; }
+
+.rca-root .status-badge-inline.rca-risk {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--sev-warning);
+  font-size: 0.6rem;
+}
+
+.rca-root .status-badge-inline.rca-risk--high {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--sev-critical);
+}
+
+.rca-root .rca-spec {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.rca-root .rca-mt-1 { margin-top: var(--space-1); }
+
+.rca-root .rca-spec-desc {
+  margin-top: 6px;
+  color: var(--text-main);
+  background: var(--bg-dark);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.rca-root .rca-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+}
+
+.rca-root .panel-header.rca-window-header {
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: var(--space-2);
+}
+
+.rca-root .rca-window-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.rca-root .rca-window-title--before { color: var(--sev-warning); }
+.rca-root .rca-window-title--after { color: var(--sev-critical); }
+
+.rca-root .rca-window-empty {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-align: center;
+  padding: 10px;
+}
+
+.rca-root .rca-ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rca-root .rca-ticket {
+  padding: var(--space-2);
+  background: var(--bg-dark);
+  border-radius: var(--radius-sm);
+}
+
+.rca-root .rca-ticket--after {
+  background: rgba(239, 68, 68, 0.03);
+  border: 1px solid rgba(239, 68, 68, 0.1);
+}
+
+.rca-root .rca-ticket-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-xs);
+  font-weight: bold;
+}
+
+.rca-root .rca-ticket-id { color: var(--primary); }
+.rca-root .rca-ticket-id--after { color: var(--sev-critical); }
+.rca-root .rca-text-muted { color: var(--text-muted); }
+
+.rca-root .rca-ticket-title {
+  font-size: var(--font-xs);
+  margin-top: var(--space-1);
+  color: var(--text-main);
+}
+
+.rca-root .rca-ticket-source {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: var(--space-1);
+}

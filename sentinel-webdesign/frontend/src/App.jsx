@@ -1,102 +1,236 @@
+/**
+ * Main application shell: sidebar navigation (NAV_GROUPS), URL routing, environment switch
+ * (PRD/STG/Demo), sign-in state, and which view is shown for the active tab.
+ */
 import React, { useState, useEffect, useRef } from 'react';
-import HealthOverview from './components/health/HealthOverview';
-import UnifiedHealthMatrix from './components/health/UnifiedHealthMatrix';
-import MetricsDetail from './components/analytics/MetricsDetail';
-import CommandCenter from './components/sre/CommandCenter';
-import PowerBiDashboard from './components/analytics/PowerBiDashboard';
-import AiLogPerformance from './components/analytics/AiLogPerformance';
 import AdminManagement from './components/admin/AdminManagement';
 import StatusBadge, { StatusDot } from './components/shared/StatusBadge';
-import Sparkline from './components/shared/Sparkline';
 import { MaintenanceBanner } from './components/shared/MaintenanceNotice';
-import YamlConfigManager from './components/admin/YamlConfigManager';
 import MiscOperations from './components/sre/MiscOperations';
-import SreEnterpriseControl from './components/sre/SreEnterpriseControl';
-import UnifiedCorrelationTimeline from './components/correlation/UnifiedCorrelationTimeline';
-import EntityExplorerView from './components/correlation/EntityExplorerView';
 import EntityDrillDownPanel from './components/correlation/EntityDrillDownPanel';
 import GlobalEntitySearch from './components/correlation/GlobalEntitySearch';
 import { MAINTENANCE_CONFIG } from './maintenanceConfig';
 import LogExplorerView from './components/logs/LogExplorerView';
 import FleetExplorerView from './components/fleet/FleetExplorerView';
 import BlastRadiusView from './components/correlation/BlastRadiusView';
-import PipelineOpsView from './components/ops/PipelineOpsView';
 import SloErrorBudget from './components/sre/SloErrorBudget';
-import ServiceNowPanel from './components/ops/ServiceNowPanel';
-import TraceExplorer from './components/correlation/TraceExplorer';
-import NocApmView from './components/apm/NocApmView';
 import KubernetesMeshView from './components/k8s/KubernetesMeshView';
 import EdgePerimeterView from './components/perimeter/EdgePerimeterView';
-import FlamegraphProfiler from './components/diagnostics/FlamegraphProfiler';
+import ProductPage from './components/product/ProductPage';
+import DatabaseView from './components/database/DatabaseView';
+import SecurityView from './components/security/SecurityView';
+import StorageView from './components/storage/StorageView';
+import ChangeWindowsView from './components/govern/ChangeWindowsView';
 import SodGovernanceBanner from './components/governance/SodGovernanceBanner';
+import HomeScorecardView from './components/home/HomeScorecardView';
+import ProblemsView from './components/respond/ProblemsView';
+import AlertsView from './components/respond/AlertsView';
+import EvidencePacksView from './components/respond/EvidencePacksView';
+import DashboardBuilderView from './components/explore/DashboardBuilderView';
+import TimePicker from './components/shared/TimePicker';
+import DemoView from './components/demo/DemoView';
+import ConsoleView from './components/console/ConsoleView';
+import ComponentPage from './components/component/ComponentPage';
+import HostListView from './components/infra/HostListView';
+import HostDetailView from './components/infra/HostDetailView';
+import ComponentRouter from './components/apps/ComponentRouter';
+import HealthChecksView from './components/health/HealthChecksView';
+import PlatformHealthView from './components/govern/PlatformHealthView';
+import RemediationView from './components/respond/RemediationView';
+import TracesView from './components/explore/TracesView';
+import ConfigurationView from './components/govern/ConfigurationView';
+import ExpiryView from './components/expiry/ExpiryView';
+import CapacityView from './components/capacity/CapacityView';
+import { useUrlRouter } from './router/useUrlRouter';
+import { reportFetchError, apiFetch } from './api';
+import {
+  IconHome,
+  IconAlertCircle,
+  IconBell,
+  IconTarget,
+  IconFileText,
+  IconPackage,
+  IconServer,
+  IconHardDrive,
+  IconGlobe,
+  IconDatabase,
+  IconLayers,
+  IconTerminal,
+  IconShare2,
+  IconBarChart2,
+  IconShield,
+  IconLock,
+  IconCpu,
+  IconCalendar,
+  IconPlayCircle
+} from './components/navigation/NavIcons';
 import './App.css';
 
-const ALL_NAV_TABS = [
-  { id: 'noc-apm', icon: '📊', label: 'BFSI APM & Transactions', tip: 'New Relic APM Overview, Deployments & Apdex' },
-  { id: 'k8s-mesh', icon: '🛰️', label: 'Kubernetes & Clusters', tip: 'Cluster Compute, Objects Matrix, Restarts & Honeycomb' },
-  { id: 'perimeter-logs', icon: '🌐', label: 'Perimeter & Edge Logs', tip: 'Cloudflare Ingress Bandwidth, Donut Charts & Live Request Stream' },
-  { id: 'flamegraph', icon: '🔥', label: 'Method Hotspots & Flamegraph', tip: 'Distributed Trace Waterfall & Database Lock Contention' },
-  { id: 'sod-gov', icon: '⚖️', label: 'SoD Dual-Sign Governance', tip: 'Four-Eyes Dual Signatures, ServiceNow Sync & WAL Audit' },
-  { id: 'health', icon: '📊', label: 'NOC System Dashboard', tip: 'NOC System Dashboard & Multi-Node Topology' },
-  { id: 'slo', icon: '🎯', label: 'SLO & Error Budget', tip: 'Service Level Objectives, Burn Rates & Error Budget Governance' },
-  { id: 'metrics', icon: '🔍', label: 'Telemetry & Historical Analytics', tip: 'Live Golden Signals, Timeseries & Historical PowerBI Baseline Trends' },
-  { id: 'matrix', icon: '🌍', label: 'Enterprise Health Matrix', tip: 'Multi-Cluster Global Infrastructure Grid' },
-  { id: 'logs', icon: '📋', label: 'Log Explorer', tip: 'Full-Text Log Search, Masked Clustering & Keyset Explorer' },
-  { id: 'fleet', icon: '🛰️', label: 'Fleet & Topology Explorer', tip: 'Hierarchical Multi-Tier Browse & Discovered Agent Verification' },
-  { id: 'blast-radius', icon: '💥', label: 'Root Cause & Blast Radius', tip: 'Causality Graph, Downstream Fan-Out & Operator Feedback Loop' },
-  { id: 'pipeline-ops', icon: '📈', label: 'Pipeline Operations & Health', tip: 'Queue Depth, Ingest Health, Cardinality & Circuit Breakers' },
-  { id: 'command', icon: '⚡', label: 'Autonomous Healing & Operations', tip: 'Self-Healing Orchestrator, Playbook Logs & Team Operations' },
-  { id: 'itsm', icon: '🎫', label: 'ServiceNow ITSM Tickets', tip: 'Live Dispatched Incidents, MTTR & Change Governance' },
-  { id: 'traces', icon: '🧬', label: 'Distributed Trace Explorer', tip: 'W3C Traceparent Waterfall & Latency Breakdown' },
-  { id: 'sre', icon: '🏛️', label: 'SRE Platform & Toolchain Capacity', tip: 'Platform Toolchain Saturation, Secret Expiry & Central Governance' },
-  { id: 'entities', icon: '🧭', label: 'Universal Entity Explorer', tip: 'Universal Asset & Topology Resolver' },
-  { id: 'timeline', icon: '⏱️', label: 'Correlation & RCA Timeline', tip: 'Chronological Causality, Config Drift & RCA Graph' },
-  { id: 'yaml', icon: '📄', label: 'YAML Config Manager', tip: 'Live Deployment Manifest Editor' },
-  { id: 'admin', icon: '🛡️', label: 'DevSecOps Admin Control', tip: 'RBAC, Audit Logs & Access Control' },
+export const NAV_GROUPS = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    items: [
+      { id: 'home', label: 'Scorecard', icon: IconHome, tip: 'Weekly Product Scorecards & Top Problems' }
+    ]
+  },
+  {
+    id: 'respond',
+    label: 'Respond',
+    items: [
+      { id: 'problems', label: 'Problems', icon: IconAlertCircle, tip: 'Grouped multi-layer incidents & root causes' },
+      { id: 'alerts', label: 'Alerts', icon: IconBell, tip: 'Alert rules lifecycle, ack, snooze & resolve' },
+      { id: 'slos', label: 'SLOs', icon: IconTarget, tip: 'Product journey objectives & burn rate' },
+      { id: 'evidence', label: 'Evidence Packs', icon: IconFileText, tip: 'Automated evidence reports & ServiceNow templates' },
+      { id: 'remediation', label: 'Remediation', icon: IconTarget, tip: 'Autonomous playbooks, four-eyes gatekeeping & runs' },
+      { id: 'on_call', label: 'On-Call', icon: IconCalendar, tip: 'DevSecOps on-call shift schedule & escalation rota' }
+    ]
+  },
+  {
+    id: 'observe',
+    label: 'Observe',
+    items: [
+      { id: 'applications', label: 'Applications', icon: IconPackage, tip: 'End-to-end application map & component drill-down' },
+      { id: 'products', label: 'Products', icon: IconPackage, tip: 'DevOps toolchain products & golden journeys' },
+      { id: 'hosts', label: 'Hosts', icon: IconServer, tip: 'Linux & Windows Server agent health & drift' },
+      { id: 'infra_linux', label: 'Linux', icon: IconServer, tip: 'Linux compute infrastructure & host metrics' },
+      { id: 'infra_windows', label: 'Windows', icon: IconServer, tip: 'Windows Server compute infrastructure & perf counters' },
+      { id: 'health_checks', label: 'Health Checks', icon: IconTarget, tip: 'Synthetic health checks & endpoint availability' },
+      { id: 'expiry', label: 'Certificates & Licences', icon: IconLock, tip: 'TLS certificates, secret & licence expiry tracking' },
+      { id: 'capacity', label: 'Capacity & Runway', icon: IconHardDrive, tip: 'Capacity saturation & linear runway forecasts' },
+      { id: 'storage', label: 'Storage', icon: IconHardDrive, tip: 'NAS shares, S3 performance & IOPS' },
+      { id: 'avi', label: 'AVI', icon: IconGlobe, tip: 'AVI VIP probes & perimeter network' },
+      { id: 'databases', label: 'Databases', icon: IconDatabase, tip: 'Oracle, SQL Server & PostgreSQL instances' },
+      { id: 'kubernetes', label: 'Kubernetes', icon: IconLayers, tip: 'Toolchain K8s clusters, nodes & pods' },
+      { id: 'logs', label: 'Logs', icon: IconTerminal, tip: 'Structured logs & keyset pagination' }
+    ]
+  },
+  {
+    id: 'explore',
+    label: 'Explore',
+    items: [
+      { id: 'topology', label: 'Topology', icon: IconShare2, tip: 'Multi-layer graph & blast radius' },
+      { id: 'traces', label: 'Traces', icon: IconLayers, tip: 'W3C distributed trace spans & latency waterfall' },
+      { id: 'dashboards', label: 'Dashboards', icon: IconBarChart2, tip: 'Metrics telemetry & analytics' }
+    ]
+  },
+  {
+    id: 'govern',
+    label: 'Govern',
+    items: [
+      { id: 'access', label: 'Access', icon: IconShield, tip: 'RBAC, eLDAP SSO & role entitlements' },
+      { id: 'audit', label: 'Audit', icon: IconLock, tip: 'Immutable WAL audit logs & dual signatures' },
+      { id: 'agents', label: 'Agents', icon: IconCpu, tip: 'Agent fleet, dynamic config & drift' },
+      { id: 'platform_health', label: 'Platform Health', icon: IconCpu, tip: 'Ingest pipeline telemetry, daemons & leader node' },
+      { id: 'configuration', label: 'Configuration', icon: IconFileText, tip: 'File-based YAML config viewer & secret masking' },
+      { id: 'change_windows', label: 'Change Windows', icon: IconCalendar, tip: 'Change windows & unapproved file changes' },
+      { id: 'security', label: 'Security', icon: IconShield, tip: 'CVE findings & EOL components per host and product' }
+    ]
+  },
+  {
+    id: 'console_group',
+    label: 'Console',
+    items: [
+      { id: 'console', label: 'Console', icon: IconLayers, tip: 'Estate overview, Jenkins, compliance & more · real data only' }
+    ]
+  },
+  {
+    id: 'demo_group',
+    label: 'Demo',
+    items: [
+      { id: 'demo', label: 'Demo', icon: IconPlayCircle, tip: 'Demo · sample data · not from any real system' }
+    ]
+  }
 ];
 
+// Maps any tab name from the URL (including old aliases) to the canonical tab id used by the sidebar.
+export function resolveCanonicalTab(rawTab) {
+  if (!rawTab) return 'home';
+  const t = rawTab.toLowerCase();
+  if (t === 'demo') return 'demo';
+  if (t === 'console') return 'console';
+  const aliasMap = {
+    'health': 'home',
+    'scorecard': 'home',
+    'apps': 'applications',
+    'applications': 'applications',
+    'noc-apm': 'products',
+    'k8s-mesh': 'kubernetes',
+    'perimeter-logs': 'avi',
+    'flamegraph': 'products',
+    'traces': 'traces',
+    'trace': 'traces',
+    'health_checks': 'health_checks',
+    'health-checks': 'health_checks',
+    'platform_health': 'platform_health',
+    'platform-health': 'platform_health',
+    'remediation': 'remediation',
+    'capacity': 'capacity',
+    'runway': 'capacity',
+    'on_call': 'on_call',
+    'on-call': 'on_call',
+    'rota': 'on_call',
+    'configuration': 'configuration',
+    'sod-gov': 'audit',
+    'slo': 'slos',
+    'metrics': 'dashboards',
+    'pbi': 'dashboards',
+    'matrix': 'products',
+    'fleet': 'hosts',
+    'blast-radius': 'topology',
+    'pipeline-ops': 'platform_health',
+    'command': 'problems',
+    'itsm': 'evidence',
+    'sre': 'change_windows',
+    'entities': 'topology',
+    'timeline': 'topology',
+    'rca': 'topology',
+    'yaml': 'configuration',
+    'admin': 'access'
+  };
+  return aliasMap[t] || t;
+}
+
+// True when the tab is enabled in views_enabled (config/global.yaml); an empty list means every tab is
+// on.
 function isTabEnabled(tabId) {
   const views = MAINTENANCE_CONFIG.views_enabled;
   if (!views || Object.keys(views).length === 0) return true;
-  const normalized = tabId.replace(/-/g, '_');
-  if (views[tabId] !== undefined) return Boolean(views[tabId]);
+  const canonical = resolveCanonicalTab(tabId);
+  const normalized = canonical.replace(/-/g, '_');
+  if (views[canonical] !== undefined) return Boolean(views[canonical]);
   if (views[normalized] !== undefined) return Boolean(views[normalized]);
+  if (views[tabId] !== undefined) return Boolean(views[tabId]);
   return true;
 }
 
+// Root component: holds session, environment and active tab, and renders the sidebar plus the selected
+// view.
 export default function App() {
-  const [activeTab, setActiveTab] = useState('noc-apm'); // 'noc-apm' | 'k8s-mesh' | 'perimeter-logs' | 'flamegraph' | 'sod-gov' | 'health' ...
-  const enabledNavTabs = ALL_NAV_TABS.filter(tab => isTabEnabled(tab.id));
-
-  // Automatic fallback if active tab is disabled by master configuration
-  useEffect(() => {
-    if (!isTabEnabled(activeTab) && enabledNavTabs.length > 0) {
-      setActiveTab(enabledNavTabs[0].id);
-    }
-  }, [activeTab, enabledNavTabs]);
+  const router = useUrlRouter({ defaultTab: 'home', defaultEnv: 'staging' });
+  const activeTab = resolveCanonicalTab(router.tab);
+  const environment = router.env;
+  const { navigate, switchEnvironment } = router;
+  const setActiveTab = (tabId) => navigate({ tab: tabId });
   const [selectedComponent, setSelectedComponent] = useState('database');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
-  const [environment, setEnvironment] = useState(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlEnv = params.get('env');
-      if (urlEnv && ['prod', 'staging', 'demo'].includes(urlEnv.toLowerCase())) {
-        return urlEnv.toLowerCase();
-      }
-      const savedEnv = localStorage.getItem('sentinel_environment');
-      if (savedEnv && ['prod', 'staging', 'demo'].includes(savedEnv)) {
-        return savedEnv;
-      }
-    } catch {
-      // ignore
-    }
-    return 'demo'; // Default to demo so executive presentations are fully populated
-  });
   const envRef = useRef(environment);
   const wsRef = useRef(null);
   useEffect(() => { envRef.current = environment; }, [environment]);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data && data.username) {
+          setCurrentUser(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Connective Architecture Layer State: Entity-Centric Drill-Down
   const [selectedEntityId, setSelectedEntityId] = useState(null);
@@ -141,10 +275,10 @@ export default function App() {
         e.preventDefault();
         setIsCommandPaletteOpen(prev => !prev);
       }
-      // Quick jump to Autonomous Recovery Center (Cmd+R or Ctrl+R)
+      // Quick jump to Problems (Cmd/Ctrl+Shift+R)
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
-        setActiveTab('command');
+        setActiveTab('problems');
       }
       // Escape to close Command Palette
       if (e.key === 'Escape') {
@@ -231,7 +365,7 @@ export default function App() {
         setHistoricalMetrics(grouped);
       }
     } catch (error) {
-      console.error('Error fetching historical metrics:', error);
+      reportFetchError('Error fetching historical metrics:', error);
     }
   };
 
@@ -257,7 +391,7 @@ export default function App() {
       const cRes = await fetch('/api/custom-checks');
       if (cRes.ok) setCustomChecks(await cRes.json());
     } catch (e) {
-      console.error('Failed to fetch initial state:', e);
+      reportFetchError('Failed to fetch initial state:', e);
     }
   };
 
@@ -371,7 +505,7 @@ export default function App() {
         'X-CSRF-Token': getCsrfToken()
       };
 
-      const res = await fetch('/api/settings', {
+      const res = await apiFetch('/api/settings', {
         method: 'POST',
         headers,
         credentials: 'same-origin',
@@ -393,7 +527,7 @@ export default function App() {
         'X-CSRF-Token': getCsrfToken()
       };
 
-      const res = await fetch('/api/simulate', {
+      const res = await apiFetch('/api/simulate', {
         method: 'POST',
         headers,
         credentials: 'same-origin',
@@ -415,7 +549,7 @@ export default function App() {
         'X-CSRF-Token': getCsrfToken()
       };
 
-      const res = await fetch('/api/recovery/approve', {
+      const res = await apiFetch('/api/recovery/approve', {
         method: 'POST',
         headers,
         credentials: 'same-origin',
@@ -434,7 +568,7 @@ export default function App() {
     if (newEnv === environment) return;
     try {
       localStorage.setItem('sentinel_environment', newEnv);
-      setEnvironment(newEnv);
+      switchEnvironment(newEnv);
       envRef.current = newEnv;
 
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -446,7 +580,7 @@ export default function App() {
         'X-CSRF-Token': getCsrfToken()
       };
 
-      const res = await fetch('/api/environment', {
+      const res = await apiFetch('/api/environment', {
         method: 'POST',
         headers,
         credentials: 'same-origin',
@@ -455,9 +589,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         const appliedEnv = data.environment || newEnv;
-        if (appliedEnv !== 'demo') {
-          setSimulations({});
-        }
+        setSimulations({});
         await fetchInitialStates(appliedEnv);
         await fetchAllMetrics(appliedEnv);
       } else {
@@ -496,21 +628,45 @@ export default function App() {
 
         {/* Vertical Navigation Links Track (All Canonical Enterprise Views) */}
         <nav className="sidebar-links" id="main-nav-tabs">
-          {enabledNavTabs.map(tab => (
-            <button 
-              key={tab.id}
-              className={`nav-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-              data-tooltip={tab.label}
-              title={tab.tip}
-            >
-              <span className="nav-icon" style={{ fontSize: '1.15rem', flexShrink: 0 }}>{tab.icon}</span>
-              {sidebarOpen && <span className="nav-label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tab.label}</span>}
-              {tab.id === 'command' && healthData.pendingApprovals > 0 && (
-                <span className="pending-badge">{healthData.pendingApprovals}</span>
-              )}
-            </button>
-          ))}
+          {NAV_GROUPS.map(group => {
+            const enabledItems = group.items.filter(item => isTabEnabled(item.id));
+            if (enabledItems.length === 0) return null;
+
+            return (
+              <div key={group.id} className="nav-group">
+                {sidebarOpen && (
+                  <div className="nav-group__label">
+                    {group.label}
+                  </div>
+                )}
+                {enabledItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      className={`nav-tab-btn ${isActive ? 'active' : ''}`}
+                      onClick={() => navigate({ tab: item.id })}
+                      data-tooltip={item.label}
+                      title={item.tip}
+                    >
+                      <span className="nav-icon" style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        <Icon size={16} />
+                      </span>
+                      {sidebarOpen && (
+                        <span className="nav-label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.label}
+                        </span>
+                      )}
+                      {item.id === 'problems' && healthData.pendingApprovals > 0 && (
+                        <span className="pending-badge">{healthData.pendingApprovals}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Live Telemetry Engine status pill at bottom of sidebar */}
@@ -563,6 +719,9 @@ export default function App() {
 
             {/* Connective Architecture Layer: Global Entity Search / Resolver */}
             <GlobalEntitySearch onSelectEntity={handleOpenEntityPanel} environment={environment} />
+
+            {/* M6 Task 6.1: Time Range Scrubber */}
+            <TimePicker onRangeChange={({ from, to }) => navigate({ from, to })} />
           </div>
 
           {/* Header Right Controls: Theme Toggle + Who Has Logged In + 3-Way Env + 4 Timezone Clocks */}
@@ -592,34 +751,44 @@ export default function App() {
                 </div>
                 <div className="user-text-meta">
                   <div className="user-status-row">
-                    <span className="logged-in-label">LOGGED IN</span>
-                    <span className="user-online-text" style={{ color: wsConnected ? 'var(--healthy)' : 'var(--critical)' }}>
-                      {wsConnected ? '● Active' : '○ Offline'}
+                    <span className="logged-in-label">{currentUser ? 'LOGGED IN' : 'SESSION'}</span>
+                    <span className="user-online-text" style={{ color: currentUser ? (wsConnected ? 'var(--healthy)' : 'var(--critical)') : 'var(--text-muted)' }}>
+                      {currentUser ? (wsConnected ? '● Active' : '○ Offline') : 'Signing in…'}
                     </span>
                   </div>
-                  <span className="user-name">DevSecOps Admin</span>
-                  <span className="user-role">NOC Security Lead · AD/eLDAP</span>
+                  <span className="user-name">{currentUser ? (currentUser.name || currentUser.username) : 'Signing in…'}</span>
+                  <span className="user-role">{currentUser ? `${currentUser.role} · AD/eLDAP` : 'Authenticating…'}</span>
                 </div>
                 <span className="user-chevron">▾</span>
               </div>
 
               {/* User RBAC Popover Dropdown */}
               <div className={`user-dropdown-menu ${isUserDropdownOpen ? 'open' : ''}`} onClick={(e) => e.stopPropagation()}>
-                <div className="dropdown-header">
-                  <div className="dropdown-avatar">🛡️</div>
-                  <div>
-                    <div className="dropdown-name">DevSecOps Admin</div>
-                    <div className="dropdown-email">admin_operator@enterprise.corp</div>
+                {currentUser ? (
+                  <>
+                    <div className="dropdown-header">
+                      <div className="dropdown-avatar">🛡️</div>
+                      <div>
+                        <div className="dropdown-name">{currentUser.name || currentUser.username}</div>
+                        <div className="dropdown-email">{currentUser.email || `${currentUser.username}@enterprise.corp`}</div>
+                      </div>
+                    </div>
+                    <div className="dropdown-divider"></div>
+                    <div className="dropdown-section">
+                      <div className="dropdown-label">IDENTITY &amp; AUTHENTICATION</div>
+                      <div className="dropdown-item-info">Directory: <strong>{currentUser.directory || 'Corporate Active Directory (eLDAP)'}</strong></div>
+                      <div className="dropdown-item-info">Assigned Role: <strong style={{ color: 'var(--primary)' }}>{currentUser.role}</strong></div>
+                      <div className="dropdown-item-info">MFA Status: <strong style={{ color: 'var(--healthy)' }}>{currentUser.mfaEnforced ? 'Enforced (FIDO2 / TOTP)' : 'Disabled'}</strong></div>
+                      <div className="dropdown-item-info">Telemetry Node: <span className="mono" style={{ fontSize: '10px', color: 'var(--primary)' }}>{currentUser.nodeName || 'lon-noc-gw-01'}</span></div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                    <div style={{ fontSize: '1.2rem', marginBottom: '6px' }}>🔒</div>
+                    <div>No Active Session</div>
+                    <div style={{ marginTop: '4px', fontSize: '11px' }}>Authenticate via Corporate SSO / eLDAP.</div>
                   </div>
-                </div>
-                <div className="dropdown-divider"></div>
-                <div className="dropdown-section">
-                  <div className="dropdown-label">IDENTITY &amp; AUTHENTICATION</div>
-                  <div className="dropdown-item-info">Directory: <strong>Corporate Active Directory (eLDAP)</strong></div>
-                  <div className="dropdown-item-info">Assigned Role: <strong style={{ color: 'var(--primary)' }}>Super Admin (Tier-1)</strong></div>
-                  <div className="dropdown-item-info">MFA Status: <strong style={{ color: 'var(--healthy)' }}>Enforced (FIDO2 / TOTP)</strong></div>
-                  <div className="dropdown-item-info">Telemetry Node: <span className="mono" style={{ fontSize: '10px', color: 'var(--primary)' }}>lon-noc-gw-01</span></div>
-                </div>
+                )}
                 <div className="dropdown-divider"></div>
                 <div className="dropdown-actions">
                   <button 
@@ -640,12 +809,11 @@ export default function App() {
 
             <div style={{ width: '1px', height: '22px', background: 'var(--border-light)' }}></div>
 
-            {/* 3-Way Environment Switcher */}
+            {/* 2-Way Environment Switcher (PROD and STAG only) */}
             <div className="env-chip-group">
               {[
                 { id: 'prod', label: 'PROD', cls: 'active-prod' },
-                { id: 'staging', label: 'STG', cls: 'active-stg' },
-                { id: 'demo', label: 'DEMO', cls: 'active-demo' }
+                { id: 'staging', label: 'STAG', cls: 'active-stg' }
               ].map(env => (
                 <button
                   key={env.id}
@@ -683,9 +851,6 @@ export default function App() {
           color: 'var(--text-muted)'
         }}>
           <div>
-            {environment === 'demo' && (
-              <span>🧪 <strong>DEMO MODE:</strong> All telemetry is synthetic simulation. Live production infrastructure unaffected.</span>
-            )}
             {environment === 'staging' && (
               <span>⬡ <strong>STAGING ENVIRONMENT:</strong> Connected to non-production pre-release fleet and simulated telemetry streams.</span>
             )}
@@ -694,7 +859,7 @@ export default function App() {
             )}
           </div>
           <span className="uptime-badge" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--primary)' }}>
-            Uptime: {healthData.uptime || '248h 12m 45s'}
+            Uptime: {healthData.uptime || '—'}
           </span>
         </div>
 
@@ -704,78 +869,166 @@ export default function App() {
             <MaintenanceBanner message={MAINTENANCE_CONFIG.globalNote} />
           )}
 
-          {/* BFSI MNC TIER-0 OBSERVABILITY WORKSPACES */}
-          {activeTab === 'noc-apm' && (
-            <NocApmView environment={environment} />
+          {activeTab === 'console' && (
+            <ConsoleView environment={environment} />
           )}
 
-          {activeTab === 'k8s-mesh' && (
-            <KubernetesMeshView environment={environment} />
+          {activeTab === 'demo' && (
+            <DemoView />
           )}
 
-          {activeTab === 'perimeter-logs' && (
-            <EdgePerimeterView onSelectTrace={(tid) => { setSelectedEntityId(tid); setActiveTab('traces'); }} />
+          {/* M6 CANONICAL RESPOND & OVERVIEW WORKSPACES */}
+          {activeTab === 'home' && (
+            <HomeScorecardView
+              environment={environment}
+              onSelectProduct={(p) => navigate({ tab: 'products', product: p })}
+              onNavigateTab={(t) => navigate({ tab: t })}
+            />
           )}
 
-          {activeTab === 'flamegraph' && (
-            <FlamegraphProfiler onProceedToSoD={() => setActiveTab('sod-gov')} />
+          {activeTab === 'problems' && (
+            <ProblemsView environment={environment} />
           )}
 
-          {activeTab === 'sod-gov' && (
-            <SodGovernanceBanner />
+          {activeTab === 'alerts' && (
+            <AlertsView environment={environment} />
           )}
 
-          {/* CANONICAL SENTINEL ENTERPRISE MODULES (100% PRESERVED) */}
-          {activeTab === 'health' && (
-            <HealthOverview 
-              healthData={healthData} 
-              historicalMetrics={historicalMetrics}
-              onSelectComponent={(comp) => {
-                if (comp === 'timeline' || comp === 'rca') {
-                  setActiveTab('timeline');
-                } else {
-                  setSelectedComponent(comp);
-                  setActiveTab('metrics');
-                }
-              }}
-              activeSimulations={simulations}
+          {activeTab === 'slos' && (
+            <SloErrorBudget environment={environment} />
+          )}
+
+          {activeTab === 'evidence' && (
+            <EvidencePacksView environment={environment} />
+          )}
+
+          {activeTab === 'hosts' && (
+            <FleetExplorerView
               environment={environment}
               onInspectEntity={handleOpenEntityPanel}
             />
           )}
 
-          {activeTab === 'metrics' && (
-            <MetricsDetail 
-              selectedComponent={selectedComponent}
-              onComponentChange={setSelectedComponent}
-              historicalMetrics={historicalMetrics}
-              healthData={healthData}
+          {activeTab === 'infra_linux' && (
+            router.host ? (
+              <HostDetailView
+                host={router.host}
+                os="linux"
+                environment={environment}
+                onBack={() => navigate({ tab: 'infra_linux', host: null })}
+                onNavigateToLogs={(query) => {
+                  setSelectedEntityId(query);
+                  setActiveTab('logs');
+                }}
+              />
+            ) : (
+              <HostListView
+                os="linux"
+                environment={environment}
+                onSelectHost={(hostName) => navigate({ tab: 'infra_linux', host: hostName })}
+              />
+            )
+          )}
+
+          {activeTab === 'infra_windows' && (
+            router.host ? (
+              <HostDetailView
+                host={router.host}
+                os="windows"
+                environment={environment}
+                onBack={() => navigate({ tab: 'infra_windows', host: null })}
+                onNavigateToLogs={(query) => {
+                  setSelectedEntityId(query);
+                  setActiveTab('logs');
+                }}
+              />
+            ) : (
+              <HostListView
+                os="windows"
+                environment={environment}
+                onSelectHost={(hostName) => navigate({ tab: 'infra_windows', host: hostName })}
+              />
+            )
+          )}
+
+          {activeTab === 'storage' && (
+            <StorageView environment={environment} />
+          )}
+
+          {activeTab === 'avi' && (
+            <EdgePerimeterView
+              environment={environment}
+              onSelectTrace={(tid) => { setSelectedEntityId(tid); navigate({ tab: 'products' }); }}
+            />
+          )}
+
+          {activeTab === 'topology' && (
+            <BlastRadiusView
+              environment={environment}
+              onInspectEntity={handleOpenEntityPanel}
+            />
+          )}
+
+          {activeTab === 'dashboards' && (
+            <DashboardBuilderView
               environment={environment}
             />
           )}
 
-          {activeTab === 'ailogs' && (
-            <AiLogPerformance 
-              onSimulate={handleSimulate}
+          {activeTab === 'access' && (
+            <AdminManagement environment={environment} />
+          )}
+
+          {activeTab === 'audit' && (
+            <SodGovernanceBanner environment={environment} />
+          )}
+
+          {activeTab === 'agents' && (
+            <FleetExplorerView
               environment={environment}
+              mode="agents"
+              onInspectEntity={handleOpenEntityPanel}
             />
           )}
 
-          {activeTab === 'command' && (
-            <CommandCenter 
-              logs={logs}
-              alerts={alerts}
-              recovery={recovery}
-              settings={settings}
-              simulations={simulations}
-              healthData={healthData}
-              onToggleAutonomous={handleToggleAutonomous}
-              onSimulate={handleSimulate}
-              onApproveRecovery={handleApproveRecovery}
-              onClearLogs={() => setLogs([])}
+          {activeTab === 'change_windows' && (
+            <ChangeWindowsView environment={environment} user={currentUser} />
+          )}
+
+          {activeTab === 'applications' && (
+            <ComponentRouter
               environment={environment}
-              initialSubTab="recovery"
+              initialAppId={router.product || 'bitbucket'}
             />
+          )}
+
+          {activeTab === 'component' && (
+            <ComponentPage
+              kind={router.kind || 'vip'}
+              id={router.id || 'bitbucket'}
+              environment={environment}
+              onClose={() => navigate({ tab: 'applications' })}
+            />
+          )}
+
+          {activeTab === 'products' && (
+            <ProductPage
+              environment={environment}
+              selectedProduct={router.product}
+              onSelectProduct={(p) => navigate({ product: p })}
+            />
+          )}
+
+          {activeTab === 'kubernetes' && (
+            <KubernetesMeshView environment={environment} />
+          )}
+
+          {activeTab === 'databases' && (
+            <DatabaseView environment={environment} />
+          )}
+
+          {activeTab === 'security' && (
+            <SecurityView environment={environment} />
           )}
 
           {activeTab === 'misc' && (
@@ -784,17 +1037,51 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'matrix' && (
-            <UnifiedHealthMatrix 
-              healthData={healthData}
-              customChecks={customChecks}
-              alerts={alerts}
+          {activeTab === 'on_call' && (
+            <MiscOperations 
               environment={environment}
-              onSelectComponent={(comp) => {
-                setSelectedComponent(comp);
-                setActiveTab('metrics');
-              }}
-              onInspectEntity={handleOpenEntityPanel}
+            />
+          )}
+
+          {activeTab === 'health_checks' && (
+            <HealthChecksView 
+              environment={environment}
+            />
+          )}
+
+          {activeTab === 'platform_health' && (
+            <PlatformHealthView 
+              environment={environment}
+            />
+          )}
+
+          {activeTab === 'remediation' && (
+            <RemediationView 
+              environment={environment}
+            />
+          )}
+
+          {activeTab === 'traces' && (
+            <TracesView 
+              environment={environment}
+            />
+          )}
+
+          {activeTab === 'configuration' && (
+            <ConfigurationView 
+              environment={environment}
+            />
+          )}
+
+          {(activeTab === 'expiry' || activeTab === 'certificates_licences') && (
+            <ExpiryView 
+              environment={environment}
+            />
+          )}
+
+          {activeTab === 'capacity' && (
+            <CapacityView 
+              environment={environment}
             />
           )}
 
@@ -805,79 +1092,18 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'fleet' && (
-            <FleetExplorerView 
+          {activeTab === 'component' && (
+            <ComponentPage
+              kind={router.kind || 'host_linux'}
+              id={router.id || 'test-host-01'}
               environment={environment}
-              onInspectEntity={handleOpenEntityPanel}
+              onNavigateToLogs={(entityId) => {
+                setSelectedEntityId(entityId);
+                setActiveTab('logs');
+              }}
             />
           )}
 
-          {activeTab === 'blast-radius' && (
-            <BlastRadiusView 
-              environment={environment}
-              onInspectEntity={handleOpenEntityPanel}
-            />
-          )}
-
-          {activeTab === 'pipeline-ops' && (
-            <PipelineOpsView 
-              environment={environment}
-            />
-          )}
-
-          {activeTab === 'pbi' && (
-            <PowerBiDashboard environment={environment} />
-          )}
-
-          {/* Seamless Consolidated Fallback: rca routes to RCA graph sub-tab in UnifiedCorrelationTimeline */}
-          {activeTab === 'rca' && (
-            <UnifiedCorrelationTimeline 
-              onInspectEntity={handleOpenEntityPanel}
-              environment={environment}
-              initialSubTab="rca"
-            />
-          )}
-
-          {activeTab === 'timeline' && (
-            <UnifiedCorrelationTimeline 
-              onInspectEntity={handleOpenEntityPanel}
-              environment={environment}
-              initialSubTab="timeline"
-            />
-          )}
-
-          {activeTab === 'entities' && (
-            <EntityExplorerView 
-              onSelectEntity={handleOpenEntityPanel}
-              onNavigateToTimeline={(entityId) => setActiveTab('timeline')}
-              environment={environment}
-              historicalMetrics={historicalMetrics}
-            />
-          )}
-
-          {activeTab === 'sre' && (
-            <SreEnterpriseControl environment={environment} />
-          )}
-
-          {activeTab === 'slo' && (
-            <SloErrorBudget environment={environment} />
-          )}
-
-          {activeTab === 'itsm' && (
-            <ServiceNowPanel environment={environment} />
-          )}
-
-          {activeTab === 'traces' && (
-            <TraceExplorer />
-          )}
-
-          {activeTab === 'yaml' && (
-            <YamlConfigManager environment={environment} />
-          )}
-
-          {activeTab === 'admin' && (
-            <AdminManagement environment={environment} />
-          )}
         </main>
 
         {/* Global Footer */}
@@ -970,23 +1196,8 @@ export default function App() {
                 Navigation &amp; Systems
               </div>
               {[
-                { id: 'health', label: 'NOC System Dashboard', icon: '📊', category: 'Views', action: () => { setActiveTab('health'); setIsCommandPaletteOpen(false); } },
-                { id: 'metrics', label: 'Telemetry & Historical Analytics', icon: '🔍', category: 'Views', action: () => { setActiveTab('metrics'); setIsCommandPaletteOpen(false); } },
-                { id: 'matrix', label: 'Enterprise Health Matrix', icon: '🌍', category: 'Views', action: () => { setActiveTab('matrix'); setIsCommandPaletteOpen(false); } },
                 { id: 'logs', label: 'Log Explorer', icon: '📋', category: 'Views', action: () => { setActiveTab('logs'); setIsCommandPaletteOpen(false); } },
-                { id: 'fleet', label: 'Fleet & Topology Explorer', icon: '🛰️', category: 'Views', action: () => { setActiveTab('fleet'); setIsCommandPaletteOpen(false); } },
-                { id: 'blast-radius', label: 'Root Cause & Blast Radius', icon: '💥', category: 'Views', action: () => { setActiveTab('blast-radius'); setIsCommandPaletteOpen(false); } },
-                { id: 'pipeline-ops', label: 'Pipeline Operations & Health', icon: '📈', category: 'Views', action: () => { setActiveTab('pipeline-ops'); setIsCommandPaletteOpen(false); } },
-                { id: 'command', label: 'Autonomous Healing & Operations', icon: '⚡', category: 'Views', action: () => { setActiveTab('command'); setIsCommandPaletteOpen(false); } },
-                { id: 'sre', label: 'SRE Platform & Toolchain Capacity', icon: '🏛️', category: 'Views', action: () => { setActiveTab('sre'); setIsCommandPaletteOpen(false); } },
-                { id: 'entities', label: 'Universal Entity Explorer', icon: '🧭', category: 'Views', action: () => { setActiveTab('entities'); setIsCommandPaletteOpen(false); } },
-                { id: 'timeline', label: 'Correlation & RCA Timeline', icon: '⏱️', category: 'Views', action: () => { setActiveTab('timeline'); setIsCommandPaletteOpen(false); } },
-                { id: 'yaml', label: 'YAML Config Manager', icon: '📄', category: 'Views', action: () => { setActiveTab('yaml'); setIsCommandPaletteOpen(false); } },
-                { id: 'admin', label: 'DevSecOps Admin Control', icon: '🛡️', category: 'Views', action: () => { setActiveTab('admin'); setIsCommandPaletteOpen(false); } },
-                { id: 'ailogs', label: 'Playbook Orchestrator & AI Logs (Sub-Tab)', icon: '⚙️', category: 'Healing Sub-Tab', action: () => { setActiveTab('ailogs'); setIsCommandPaletteOpen(false); } },
-                { id: 'misc', label: 'Team Operations & On-Call Runbooks (Sub-Tab)', icon: '🛠️', category: 'Operations Sub-Tab', action: () => { setActiveTab('misc'); setIsCommandPaletteOpen(false); } },
-                { id: 'pbi', label: 'Historical PowerBI Baseline Trends (Sub-Tab)', icon: '📈', category: 'Telemetry Sub-Tab', action: () => { setActiveTab('pbi'); setIsCommandPaletteOpen(false); } },
-                { id: 'rca', label: 'Root Cause Analytics (RCA Graph)', icon: '🧠', category: 'Diagnostics', action: () => { setActiveTab('rca'); setIsCommandPaletteOpen(false); } }
+                { id: 'misc', label: 'Team Operations & On-Call Rota', icon: '🛠️', category: 'Tools', action: () => { setActiveTab('misc'); setIsCommandPaletteOpen(false); } }
               ]
               .filter(item => isTabEnabled(item.id))
               .filter(item => item.label.toLowerCase().includes(paletteQuery.toLowerCase()) || item.category.toLowerCase().includes(paletteQuery.toLowerCase()))
@@ -1021,7 +1232,6 @@ export default function App() {
               {[
                 { id: 'env-prod', label: 'Switch to PROD Environment', icon: '●', color: '#ef4444', action: () => { handleEnvironmentSwitch('prod'); setIsCommandPaletteOpen(false); } },
                 { id: 'env-stg', label: 'Switch to STAGING Environment', icon: '⬡', color: '#f59e0b', action: () => { handleEnvironmentSwitch('staging'); setIsCommandPaletteOpen(false); } },
-                { id: 'env-demo', label: 'Switch to DEMO Environment', icon: '🧪', color: '#10b981', action: () => { handleEnvironmentSwitch('demo'); setIsCommandPaletteOpen(false); } },
                 { id: 'theme-toggle', label: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`, icon: theme === 'dark' ? '☀️' : '🌙', action: () => { setTheme(theme === 'dark' ? 'light' : 'dark'); setIsCommandPaletteOpen(false); } },
                 { id: 'sim-bitbucket', label: 'Trigger Bitbucket JVM Memory Spike Simulation', icon: '⚡', action: () => { handleSimulate('bitbucket', 'memory', 92); setIsCommandPaletteOpen(false); } },
                 { id: 'sim-db', label: 'Trigger Database Connection Spike Simulation', icon: '⚡', action: () => { handleSimulate('database', 'connections', 96); setIsCommandPaletteOpen(false); } }
@@ -1080,9 +1290,13 @@ export default function App() {
         entityId={selectedEntityId}
         isOpen={isEntityPanelOpen}
         onClose={() => setIsEntityPanelOpen(false)}
-        onNavigateToTimeline={(id) => {
+        onNavigateToTimeline={() => {
           setActiveTab('timeline');
           setIsEntityPanelOpen(false);
+        }}
+        onNavigateToComponent={({ kind, id }) => {
+          setIsEntityPanelOpen(false);
+          navigate({ tab: 'component', kind, id });
         }}
         environment={environment}
         historicalMetrics={historicalMetrics}

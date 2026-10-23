@@ -1,59 +1,126 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: OpenText Key Orchestration (OTKR)
-# =========================================================================
-id: "otkr"
-kind: "application"
-display_name: "OpenText Key Orchestration (OTKR)"
-category: "key_management"
-tier: "Tier-1 Mission Critical"
-log_tag: "[OTKR]"
-
+id: otkr
+kind: application
+display_name: OpenText Key Orchestration (OTKR)
+category: key_management
+tier: Tier-1 Mission Critical
+log_tag: '[OTKR]'
 endpoints:
   prod:
-    api: "https://otkr-prod.internal.corp/api/v1"
+    api: https://otkr-prod.internal.corp/api/v1
+    vip: https://otkr-prod.internal.corp
   stg:
-    api: "https://otkr-stg.internal.corp/api/v1"
-
+    api: https://otkr-stg.internal.corp/api/v1
+    vip: https://otkr-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://otkr-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "otkr-prod.internal.corp:443" }
 layers:
   db:
-    jdbc: "jdbc:postgresql://db-prod-otkr.internal.corp:5432/otkr_db"
-    credential_purpose: "db"
+    jdbc: jdbc:postgresql://db-prod-otkr.internal.corp:5432/otkr_db
+    credential_purpose: db
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-otkr.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-otkr.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://otkr-prod.internal.corp
+  hosts:
+    - otkr-node-01.internal.corp
+    - otkr-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/otkr
+  databases:
+    - jdbc:postgresql://db-prod-otkr.internal.corp:5432/otkr_db
+  clusters:
+    - k8s-prod-otkr
 servers:
   unix:
-    - node: "otkr-server-1"
-      api: "https://linux-compute-prod-otkr-1.internal.corp/api/v1/metrics"
+    - node: otkr-server-1
+      api: https://linux-compute-prod-otkr-1.internal.corp/api/v1/metrics
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 100
   successRate: 99.8
   requests: 50
-
 logs:
-  log_tag: "[OTKR]"
-  log_path: "d:\\production_shares\\nas_logs\\otkr.log"
-
+  log_tag: '[OTKR]'
+  log_path: d:\production_shares\nas_logs\otkr.log
 credentials:
-  safe: "SF-OTKR-PROD"
+  safe: SF-OTKR-PROD
   objects:
-    db: "OTKR-DB-SVC"
-    api_token: "OTKR-API-TOKEN"
+    db: OTKR-DB-SVC
+    api_token: OTKR-API-TOKEN
+jenkins_remediation_job: JOB_RESTART_OTKR_SERVICE
+journeys:
+  - id: otkr_system_status
+    name: OTKR Key Orchestration System Status
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: status_ping
+        name: Ping Status Endpoint
+        type: http
+        layer: network
+        url: /status
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: keystore_summary
+        name: Keystore Inventory Summary
+        type: http
+        layer: app
+        url: /keystores
+        assert:
+          status: 200
+          max_ms: 2000
+  - id: otkr_key_rotation_flow
+    name: OTKR Key Rotation & Audit Log
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: key_policies
+        name: Key Policies Check
+        type: http
+        layer: app
+        url: /policies/keys
+        assert:
+          status: 200
+          max_ms: 2000
+      - id: db_audit_log
+        name: Database Audit Sync
+        type: http
+        layer: db
+        url: /audit/latest
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RESTART_OTKR_SERVICE"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/opt/otkr/conf/%%"
+    - "/opt/otkr/bin/%%"
+  windows: []

@@ -1,0 +1,45 @@
+{
+  "description": "SYNTHETIC TEST FIXTURE: Rule (c) Storage-heavy steps slow across products sharing a share",
+  "environment": "staging",
+  "events": [
+    {
+      "event_id": "test-evt-storage-001",
+      "kind": "storage_event",
+      "entity_id": "storage:nas_performance",
+      "title": "NFS Mount Lock & RPC Timeout on /mnt/nfs/production_shares",
+      "severity": "critical",
+      "ts": "2026-10-12T02:00:00.000Z"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "jfrog_artifactory_pipeline",
+      "productId": "jfrog_artifactory",
+      "steps": [
+        {
+          "id": "download_canary",
+          "name": "Canary Download",
+          "layer": "storage",
+          "status": "FAILED",
+          "duration_ms": 3500
+        }
+      ]
+    },
+    {
+      "id": "bitbucket_git_packfile",
+      "productId": "bitbucket",
+      "steps": [
+        {
+          "id": "clone_canary",
+          "name": "Git Canary Packfile",
+          "layer": "storage",
+          "status": "FAILED",
+          "duration_ms": 4200
+        }
+      ]
+    }
+  ],
+  "metrics": [],
+  "expectedLayer": "storage",
+  "expectedRuleId": "rule_storage_shared"
+}

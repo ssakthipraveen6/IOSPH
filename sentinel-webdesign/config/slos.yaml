@@ -6,6 +6,21 @@
 version: "1.0"
 window_days: 30
 
+# Multi-window multi-burn-rate alerting configuration (Google SRE standard)
+burn_rate_windows:
+  short:
+    lookback_minutes: 5
+    burn_rate_threshold: 14.4
+    consumption_pct: 2.0
+  medium:
+    lookback_minutes: 30
+    burn_rate_threshold: 6.0
+    consumption_pct: 5.0
+  long:
+    lookback_minutes: 360 # 6 hours
+    burn_rate_threshold: 2.0
+    consumption_pct: 10.0
+
 slos:
   - id: sentinel_api_availability
     name: "Sentinel Framework API Availability"
@@ -31,6 +46,51 @@ slos:
     target_percentage: 95.0
     sli_type: "success_rate"
     description: "Percentage of initiated recovery runs that conclude in Success status"
+    thresholds:
+      warning_burn_rate: 1.5
+      critical_burn_rate: 4.0
+
+  # M5 Task 5.7: Toolchain Product Golden Journey SLOs
+  - id: slo_artifactory_download
+    name: "Artifactory 50MB Canary Download Availability"
+    product_id: "jfrog_artifactory"
+    target_percentage: 99.5
+    sli_type: "journey_success"
+    target_p95_ms: 2500
+    description: "Successful 50MB canary download from Artifactory repository"
+    thresholds:
+      warning_burn_rate: 2.0
+      critical_burn_rate: 6.0
+
+  - id: slo_bitbucket_git_clone
+    name: "Bitbucket Canary Git Clone Success Ratio"
+    product_id: "bitbucket"
+    target_percentage: 99.5
+    sli_type: "journey_success"
+    target_p95_ms: 1500
+    description: "Successful git ls-remote and shallow canary clone"
+    thresholds:
+      warning_burn_rate: 2.0
+      critical_burn_rate: 6.0
+
+  - id: slo_jenkins_job_dispatch
+    name: "Jenkins Job Dispatch & Queue Latency"
+    product_id: "cloudbees_jenkins"
+    target_percentage: 99.0
+    sli_type: "journey_success"
+    target_p95_ms: 5000
+    description: "Successful dispatch and agent allocation for Jenkins canary job"
+    thresholds:
+      warning_burn_rate: 1.5
+      critical_burn_rate: 4.0
+
+  - id: slo_sonarqube_analysis
+    name: "SonarQube Canary Analysis Ratio"
+    product_id: "sonarqube"
+    target_percentage: 99.0
+    sli_type: "journey_success"
+    target_p95_ms: 8000
+    description: "Successful completion of SonarQube CE compute engine analysis"
     thresholds:
       warning_burn_rate: 1.5
       critical_burn_rate: 4.0

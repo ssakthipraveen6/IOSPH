@@ -1,0 +1,92 @@
+# SENTINEL agent package (Linux). Built by agent/packaging/scripts/build-packages.sh,
+# which stages the inputs under agent/packaging/build/ first. Paths are relative to
+# that staging directory (nfpm runs with it as the working directory).
+name: "sentinel-agent"
+arch: "amd64"
+platform: "linux"
+version: "${SENTINEL_AGENT_VERSION}"
+section: "admin"
+priority: "optional"
+maintainer: "DevSecOps SRE <sre-observability@internal.corp>"
+description: "SENTINEL host agent: OpenTelemetry collector, sentinel-probe and osquery"
+vendor: "SENTINEL Observability Framework"
+license: "Proprietary"
+
+overrides:
+  deb:
+    depends:
+      - "nodejs (>= 18)"
+  rpm:
+    depends:
+      - "nodejs >= 18"
+
+contents:
+  # OpenTelemetry collector (otelcol-builder output, agent/otelcol-builder.yaml)
+  - src: ./bin/sentinel-agent
+    dst: /opt/sentinel/bin/sentinel-agent
+    file_info:
+      mode: 0755
+  # osquery daemon shipped with the agent (Phase A6)
+  - src: ./bin/osqueryd
+    dst: /opt/sentinel/osquery/osqueryd
+    file_info:
+      mode: 0755
+  - src: ./probe/index.js
+    dst: /opt/sentinel/probe/index.js
+    file_info:
+      mode: 0644
+  - src: ./config/collector-linux.yaml
+    dst: /etc/sentinel/collector.yaml
+    type: config|noreplace
+    file_info:
+      mode: 0640
+  - src: ./config/probe.json
+    dst: /etc/sentinel/probe.json
+    type: config|noreplace
+    file_info:
+      mode: 0640
+  - src: ./osquery/osquery.conf
+    dst: /etc/sentinel/osquery/osquery.conf
+    type: config
+    file_info:
+      mode: 0644
+  - src: ./osquery/osquery.flags
+    dst: /etc/sentinel/osquery/osquery.flags
+    type: config
+    file_info:
+      mode: 0644
+  - src: ./osquery/packs/file-changes.conf
+    dst: /etc/sentinel/osquery/packs/file-changes.conf
+    type: config
+    file_info:
+      mode: 0644
+  - src: ./osquery/packs/sentinel-security.conf
+    dst: /etc/sentinel/osquery/packs/sentinel-security.conf
+    type: config
+    file_info:
+      mode: 0644
+  - src: ./systemd/sentinel-agent.service
+    dst: /etc/systemd/system/sentinel-agent.service
+    file_info:
+      mode: 0644
+  - src: ./systemd/sentinel-probe.service
+    dst: /etc/systemd/system/sentinel-probe.service
+    file_info:
+      mode: 0644
+  - src: ./systemd/sentinel-osquery.service
+    dst: /etc/systemd/system/sentinel-osquery.service
+    file_info:
+      mode: 0644
+  - dst: /var/lib/sentinel
+    type: dir
+    file_info:
+      mode: 0750
+
+scripts:
+  postinstall: ./scripts/postinstall.sh
+  preremove: ./scripts/preremove.sh
+
+deb:
+  compression: "gzip"
+rpm:
+  compression: "gzip"

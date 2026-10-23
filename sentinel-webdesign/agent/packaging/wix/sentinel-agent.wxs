@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SENTINEL agent MSI (WiX v4). Built by agent/packaging/scripts/build-packages.sh:
+    wix build -d Version=<x.y.z> -d BuildDir=<staging dir> sentinel-agent.wxs
+  Installs three services:
+    SentinelAgent    OpenTelemetry collector (config pulled from SENTINEL by the probe)
+    (sentinel-probe runs from a SYSTEM scheduled task "SentinelProbe" that the Ansible
+     role creates, because node.exe is not a Windows service host)
+    SentinelOsquery  osqueryd with the SENTINEL file-change and security packs
+  Secrets are not in the MSI: Ansible writes C:\ProgramData\SentinelAgent\config\ingest.key
+  and sets SENTINEL_GATEWAY_URL / SENTINEL_GATEWAY_TOKEN as machine environment variables.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="SENTINEL Agent" Manufacturer="SENTINEL Observability" Version="$(var.Version)"
+           UpgradeCode="5d12a67e-4098-4c12-98ab-3126f56192a0" Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of SENTINEL Agent is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="SENTINELDIR" Name="SentinelAgent">
+        <Directory Id="BINDIR" Name="bin" />
+        <Directory Id="PROBEDIR" Name="probe" />
+        <Directory Id="OSQDIR" Name="osquery" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="DATADIR" Name="SentinelAgent">
+        <Directory Id="CONFIGDIR" Name="config" />
+        <Directory Id="OSQDATADIR" Name="osquery">
+          <Directory Id="OSQPACKDIR" Name="packs" />
+          <Directory Id="OSQLOGDIR" Name="log" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="ProductFeature" Title="SENTINEL Agent" Level="1">
+      <ComponentGroupRef Id="Binaries" />
+      <ComponentGroupRef Id="Configuration" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="Binaries">
+      <Component Id="SentinelAgentExe" Directory="BINDIR" Guid="8bf6517a-6941-4712-ba51-789a6921fb10">
+        <File Id="SentinelAgentBinary" Source="$(var.BuildDir)\win\sentinel-agent.exe" KeyPath="yes" />
+        <ServiceInstall Id="AgentService" Type="ownProcess" Name="SentinelAgent"
+                        DisplayName="SENTINEL Telemetry Agent"
+                        Description="OpenTelemetry collector for SENTINEL (host metrics, logs, database receivers)."
+                        Start="auto" Account="LocalSystem" ErrorControl="normal"
+                        Arguments="--config &quot;[CONFIGDIR]collector.yaml&quot;" />
+        <ServiceControl Id="AgentControl" Start="install" Stop="both" Remove="uninstall" Name="SentinelAgent" Wait="yes" />
+      </Component>
+      <Component Id="NodeExe" Directory="BINDIR" Guid="3f0d7d1e-6a3c-4f5e-9b1e-2a8f0c4d9e11">
+        <File Id="NodeBinary" Source="$(var.BuildDir)\win\node.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="ProbeScript" Directory="PROBEDIR" Guid="b7a1c2d3-4e5f-4a6b-8c7d-9e0f1a2b3c4d">
+        <File Id="ProbeIndex" Source="$(var.BuildDir)\probe\index.js" KeyPath="yes" />
+      </Component>
+      <Component Id="OsqueryExe" Directory="OSQDIR" Guid="c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f">
+        <File Id="OsqueryBinary" Source="$(var.BuildDir)\win\osqueryd.exe" KeyPath="yes" />
+        <ServiceInstall Id="OsqueryService" Type="ownProcess" Name="SentinelOsquery"
+                        DisplayName="SENTINEL osquery"
+                        Description="osquery with the SENTINEL file-change and security packs."
+                        Start="auto" Account="LocalSystem" ErrorControl="normal"
+                        Arguments="--flagfile &quot;[OSQDATADIR]osquery.flags&quot;" />
+        <ServiceControl Id="OsqueryControl" Start="install" Stop="both" Remove="uninstall" Name="SentinelOsquery" Wait="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="Configuration">
+      <Component Id="CollectorConfig" Directory="CONFIGDIR" Guid="d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f60" NeverOverwrite="yes" Permanent="yes">
+        <File Id="CollectorYaml" Name="collector.yaml" Source="$(var.BuildDir)\config\collector-windows.yaml" KeyPath="yes" />
+      </Component>
+      <Component Id="ProbeConfig" Directory="CONFIGDIR" Guid="e3f4a5b6-c7d8-4e9f-0a1b-2c3d4e5f6071" NeverOverwrite="yes" Permanent="yes">
+        <File Id="ProbeJson" Name="probe.json" Source="$(var.BuildDir)\config\probe.json" KeyPath="yes" />
+      </Component>
+      <Component Id="OsqueryConfig" Directory="OSQDATADIR" Guid="f4a5b6c7-d8e9-4f0a-1b2c-3d4e5f607182">
+        <File Id="OsqueryConf" Name="osquery.conf" Source="$(var.BuildDir)\osquery\osquery.windows.conf" KeyPath="yes" />
+        <File Id="OsqueryFlags" Name="osquery.flags" Source="$(var.BuildDir)\osquery\osquery.windows.flags" />
+      </Component>
+      <Component Id="OsqueryPacks" Directory="OSQPACKDIR" Guid="a5b6c7d8-e9f0-4a1b-2c3d-4e5f60718293">
+        <File Id="PackFileChanges" Name="file-changes-windows.conf" Source="$(var.BuildDir)\osquery\packs\file-changes-windows.conf" KeyPath="yes" />
+        <File Id="PackSecurity" Name="sentinel-security.conf" Source="$(var.BuildDir)\osquery\packs\sentinel-security.conf" />
+      </Component>
+      <Component Id="OsqueryLogDir" Directory="OSQLOGDIR" Guid="b6c7d8e9-f0a1-4b2c-3d4e-5f6071829304">
+        <CreateFolder />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

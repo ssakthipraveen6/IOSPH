@@ -1,53 +1,120 @@
-# =========================================================================
-# UNIFIED COLLECTION DEFINITION: GitHub Enterprise Cloud / Server
-# =========================================================================
-id: "github"
-kind: "application"
-display_name: "GitHub Enterprise Cloud / Server"
-category: "source_control"
-tier: "Tier-1 Mission Critical"
-log_tag: "[GITHUB]"
-
+id: github
+kind: application
+display_name: GitHub Enterprise Cloud / Server
+category: source_control
+tier: Tier-1 Mission Critical
+log_tag: '[GITHUB]'
 endpoints:
   prod:
-    api: "https://api.github.com"
+    api: https://api.github.com
+    vip: https://github-prod.internal.corp
   stg:
-    api: "https://api.github.com"
-
+    api: https://api.github.com
+    vip: https://github-stg.internal.corp
 auth:
-  scheme: "bearer_token"
-  credential_purpose: "api_token"
+  scheme: bearer_token
+  credential_purpose: api_token
   cert_purpose: null
   username_purpose: null
   session: null
-
+lifecycle:
+  # Fill in from the owning team; null = not tracked (never guessed).
+  refweb_url:
+    url: https://github-prod.internal.corp
+    expiry: null
+  license:
+    type: null
+    expiry: null
+  certificates:
+    - { name: vip-tls, probe: "github-prod.internal.corp:443" }
 layers:
   api_token:
-    credential_purpose: "api_token"
+    credential_purpose: api_token
   avi:
-    api: "https://avi-prod-github.internal.corp/api/v1/telemetry"
+    api: https://avi-prod-github.internal.corp/api/v1/telemetry
     credential_purpose: null
-
+  vip: https://github-prod.internal.corp
+  hosts:
+    - github-node-01.internal.corp
+    - github-node-02.internal.corp
+  shares:
+    - /mnt/nfs/production_shares/github
+  databases:
+    - jdbc:postgresql://db-prod-github.internal.corp:5432/github_db
+  clusters:
+    - k8s-prod-github
 servers:
   unix: []
   windows: []
-
 metrics:
-  provider: "opentelemetry"
-  scrape_interval: "30s"
-
+  provider: opentelemetry
+  scrape_interval: 30s
 metrics_baseline:
   responseTime: 65
   successRate: 99.9
   requests: 200
-
 logs:
-  log_tag: "[GITHUB]"
-  log_path: "d:\\production_shares\\nas_logs\\github.log"
-
+  log_tag: '[GITHUB]'
+  log_path: d:\production_shares\nas_logs\github.log
 credentials:
-  safe: "SF-GITHUB-PROD"
+  safe: SF-GITHUB-PROD
   objects:
-    api_token: "GITHUB-PAT"
+    api_token: GITHUB-PAT
+jenkins_remediation_job: JOB_RECONNECT_GITHUB_WEBHOOKS
+journeys:
+  - id: github_repo_read
+    name: GitHub API Rate Limit & Repositories Query
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: rate_limit
+        name: Check Rate Limit Endpoint
+        type: http
+        layer: network
+        url: /rate_limit
+        assert:
+          status: 200
+          max_ms: 1500
+      - id: list_org_repos
+        name: List Repositories
+        type: http
+        layer: app
+        url: /user/repos?per_page=5
+        assert:
+          status: 200
+          max_ms: 2500
+  - id: github_git_operations
+    name: GitHub Canary Git Operations
+    enabled: false
+    interval_seconds: 60
+    timeout_seconds: 30
+    credentials_purpose: api_token
+    steps:
+      - id: git_ls_remote
+        name: Git ls-remote Canary
+        type: git
+        layer: storage
+        repo_url: https://github.com/internal-corp/canary-repo.git
+        action: ls-remote
+        assert:
+          max_ms: 3000
+      - id: query_commits
+        name: Query Latest Commits
+        type: http
+        layer: app
+        url: /repos/internal-corp/canary-repo/commits?per_page=1
+        assert:
+          status: 200
+          max_ms: 2500
 
-jenkins_remediation_job: "JOB_RECONNECT_GITHUB_WEBHOOKS"
+# Paths whose changes SENTINEL tracks on this product's hosts (osquery file
+# events, Phase A5). Default install locations: confirm with the product team.
+# '%' matches one level, '%%' recurses. Regenerate the pack with
+# `npm run agent:osquery-pack` after editing.
+watch:
+  linux:
+    - "/etc/github/%%"
+    - "/opt/github/conf/%%"
+  windows: []

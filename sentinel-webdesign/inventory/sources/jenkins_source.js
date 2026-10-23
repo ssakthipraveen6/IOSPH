@@ -7,6 +7,7 @@
 const resolver = require('../entity_resolver');
 const store = require('../store');
 
+// Adds Jenkins controllers and agents to the inventory.
 async function syncJenkinsInventory(jenkinsData = null) {
   // If data is provided (from collector or test fixture), process it.
   // Otherwise degrade gracefully without throwing.

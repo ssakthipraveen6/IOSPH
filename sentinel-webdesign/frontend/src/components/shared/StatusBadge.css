@@ -1,0 +1,62 @@
+/* StatusBadge / StatusDot — co-located styles (U4). */
+.shr-status-dot {
+  display: inline-block;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.shr-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.shr-status-badge--sm {
+  padding: 2px 7px;
+  font-size: 0.68rem;
+}
+
+.shr-status-badge--healthy {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--sev-healthy);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.shr-status-badge--critical {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--sev-critical);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.shr-status-badge--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--sev-warning);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.shr-status-badge--info {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--sev-info);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.shr-status-badge--unavailable {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--sev-unavailable);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.shr-status-badge--auth-failed {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--sev-auth-failed);
+  border-color: rgba(249, 115, 22, 0.35);
+}
