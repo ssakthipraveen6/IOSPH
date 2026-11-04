@@ -1979,16 +1979,18 @@ app.post('/api/recovery/approve', requireRole(['Super Admin', 'SRE Lead']), asyn
 
 // Trigger recovery action (enforces Segregation of Duties tagging)
 app.post('/api/recovery/trigger', requireRole(['Super Admin', 'SRE Lead', 'Operator']), (req, res) => {
-  const { component, reason, options = {} } = req.body;
+  const { component, reason } = req.body || {};
   if (!component) {
     return res.status(400).json({ error: 'Missing component' });
   }
   const initiatedBy = req.user?.username || 'devsecops-operator';
-  const triggerOptions = {
-    ...options,
-    initiatedBy
-  };
-  auditLog(req, 'RECOVERY_TRIGGERED', { component, reason, initiatedBy });
+  const triggerOptions = { manual: false, env: req.sentinelEnv || resolveEnvironment(req), initiatedBy };
+  auditLog(req, 'RECOVERY_TRIGGERED', {
+    component,
+    reason,
+    initiatedBy,
+    ignoredOptions: Object.keys(req.body?.options || {})
+  });
   const run = recovery.triggerRecovery(component, reason || 'Manual operator trigger', triggerOptions);
   res.json({ success: true, run });
 });
