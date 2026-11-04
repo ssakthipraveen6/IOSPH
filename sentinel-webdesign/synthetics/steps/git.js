@@ -289,7 +289,7 @@ async function executePushReset(step, context, repoUrl, t0) {
       lsOut = await git(['ls-remote', '--heads', '--', repoUrl, ref]);
     } catch (err) { throw fail(err, 'ls-remote'); }
     const branchExisted = parseLsRemote(lsOut.stdout, ref) !== null;
-    const cloneArgs = ['clone', '--depth', '1', '--no-tags', '--quiet'];
+    const cloneArgs = ['-c', 'core.symlinks=false', 'clone', '--depth', '1', '--no-tags', '--quiet'];
     if (branchExisted) cloneArgs.push('--single-branch', '--branch', branch);
     cloneArgs.push('--', repoUrl, cloneDir);
     try {
@@ -307,10 +307,14 @@ async function executePushReset(step, context, repoUrl, t0) {
     // 2. commit
     phase = 'commit';
     ts = performance.now();
+    const name = step.canary_file || '.sentinel-canary';
+    if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new Error('canary_file must be a plain file name');
+    const target = path.join(cloneDir, name);
+    if (fs.existsSync(target) && fs.lstatSync(target).isSymbolicLink()) throw new Error('canary path is a symlink; refusing to write');
     const stamp = `sentinel canary ${new Date().toISOString()} run=${context.traceId || crypto.randomBytes(8).toString('hex')}\n`;
-    fs.writeFileSync(path.join(cloneDir, step.canary_file || '.sentinel-canary'), stamp);
+    fs.writeFileSync(target, stamp, { flag: 'w' });
     try {
-      await git(['add', '--', step.canary_file || '.sentinel-canary'], cloneDir);
+      await git(['add', '--', name], cloneDir);
       await git(['commit', '--quiet', '--no-verify', '--no-gpg-sign', '-m', step.commit_message || 'SENTINEL synthetic canary commit (auto-reset)'], cloneDir);
       newSha = (await git(['rev-parse', '--verify', 'HEAD'], cloneDir)).stdout.trim();
     } catch (err) { throw fail(err, 'commit'); }

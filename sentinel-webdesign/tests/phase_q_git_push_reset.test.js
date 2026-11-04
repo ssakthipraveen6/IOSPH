@@ -96,7 +96,11 @@ function assertCredentialHandling(calls) {
     assert(!argvText.includes(credential), `credential in argv: ${argvText}`);
     assert(!argvText.includes(Buffer.from(credential).toString('base64')), 'encoded credential in argv');
     assert(!argvText.includes('extraHeader'), 'header config must not be in argv');
-    assert(!c.argv.includes('-c'), 'no -c config overrides in argv');
+    const cIdx = c.argv.indexOf('-c');
+    if (cIdx !== -1) {
+      assert.strictEqual(c.argv[cIdx + 1], 'core.symlinks=false', 'only core.symlinks=false allowed via -c');
+      assert.strictEqual(c.argv.indexOf('-c', cIdx + 1), -1, 'no other -c config overrides in argv');
+    }
     assert.strictEqual(c.env.GIT_CONFIG_KEY_0, 'http.extraHeader');
     assert.strictEqual(c.env.GIT_CONFIG_VALUE_0, `Authorization: Bearer ${credential}`);
     assert.strictEqual(c.env.GIT_TERMINAL_PROMPT, '0');
@@ -232,6 +236,35 @@ async function main() {
   assert(stepSpan, 'step span recorded');
   assert.strictEqual(remoteSha(bare, 'sentinel-canary'), null);
   console.log('  -> PASSED: runner emitted journey.git.{clone,commit,push,reset}_ms');
+
+  // 7. Git canary step refuses symlinks (SF-16)
+  console.log('[SF-16] git canary step refuses symlinks');
+  const victimPath = path.join(scratch, 'victim.txt');
+  fs.writeFileSync(victimPath, 'ORIGINAL CONTENT');
+  const symlinkRepoDir = path.join(scratch, 'symlink-repo.git');
+  sh(['init', '--bare', '--quiet', '--initial-branch=main', symlinkRepoDir]);
+  const seedCloneDir = path.join(scratch, 'seed-clone');
+  sh(['clone', '--quiet', symlinkRepoDir, seedCloneDir]);
+  let symlinkCreated = false;
+  try {
+    fs.symlinkSync(victimPath, path.join(seedCloneDir, '.sentinel-canary'));
+    symlinkCreated = true;
+  } catch (err) {
+    console.log('  -> SKIPPED symlink test (symlink creation not permitted on this OS/user):', err.message);
+  }
+  if (symlinkCreated) {
+    sh(['add', '--', '.sentinel-canary'], seedCloneDir);
+    sh(['commit', '--quiet', '-m', 'add symlink canary'], seedCloneDir);
+    sh(['push', '--quiet', 'origin', 'main:canary-symlink'], seedCloneDir);
+    const symlinkRes = await executeGitStep({
+      action: 'push_reset',
+      repo_url: `file://${symlinkRepoDir.replace(/\\/g, '/')}`,
+      branch: 'canary-symlink'
+    }, ctx);
+    assert.strictEqual(symlinkRes.success, false, 'step must fail when canary target is a symlink');
+    assert.strictEqual(fs.readFileSync(victimPath, 'utf8'), 'ORIGINAL CONTENT', 'victim file must remain unchanged');
+    console.log('  -> PASSED: symlink canary refused and victim preserved');
+  }
 
   delete process.env.SENTINEL_GIT_BIN;
   console.log('\nphase_q_git_push_reset: ALL PASSED');
