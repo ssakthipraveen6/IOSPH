@@ -15,10 +15,10 @@ license: "Proprietary"
 overrides:
   deb:
     depends:
-      - "nodejs (>= 18)"
+      - "nodejs (>= 22.23.4)"
   rpm:
     depends:
-      - "nodejs >= 18"
+      - "nodejs (>= 22.23.4)"
 
 contents:
   # OpenTelemetry collector (otelcol-builder output, agent/otelcol-builder.yaml)
