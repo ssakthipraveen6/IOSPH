@@ -10,6 +10,15 @@ param(
     [string]$ServiceAccount = $env:SENTINEL_SERVICE_ACCOUNT
 )
 
+$machineNodeEnv = [Environment]::GetEnvironmentVariable('NODE_ENV', 'Machine')
+if ([string]::IsNullOrWhiteSpace($machineNodeEnv)) {
+    [Environment]::SetEnvironmentVariable('NODE_ENV', 'production', 'Machine')
+    $machineNodeEnv = 'production'
+    Write-Host "[INFO] Set Machine environment variable NODE_ENV=production" -ForegroundColor Cyan
+} else {
+    Write-Host "[INFO] Machine environment variable NODE_ENV: $machineNodeEnv" -ForegroundColor Cyan
+}
+
 # Ensure execution context is Administrator; auto-elevate if not
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {

@@ -64,6 +64,8 @@ echo.
 echo [INFO] Starting observability daemon server...
 echo [INFO] Project Sentinel will be available at http://localhost:3001
 echo.
+if not defined NODE_ENV set NODE_ENV=production
+if not defined HOST set HOST=0.0.0.0
 call npm run start
 if %errorlevel% neq 0 (
     echo [ERROR] Observability daemon stopped unexpectedly.
