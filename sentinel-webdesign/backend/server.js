@@ -2354,10 +2354,25 @@ process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
 const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
+
+// Refuses to listen on a network address unless running in production mode or explicitly in dev mode.
+function assertSafeStartup(env = process.env, host = HOST) {
+  const loopback = ['127.0.0.1', '::1', 'localhost'].includes(host);
+  if (!loopback && env.NODE_ENV !== 'production' && env.SENTINEL_DEV !== 'true') {
+    return `Refusing to listen on ${host}: set NODE_ENV=production (or SENTINEL_DEV=true for development).`;
+  }
+  return null;
+}
 
 if (require.main === module) {
   (async () => {
+    const startupErr = assertSafeStartup();
+    if (startupErr) {
+      console.error('[FATAL] ' + startupErr);
+      process.exit(1);
+    }
+
     // [T2b.6] Fail-fast config validation at startup
     try {
       yamlConfig.validateConfig();
@@ -2397,4 +2412,4 @@ if (require.main === module) {
   })();
 }
 
-module.exports = { app, server };
+module.exports = { app, server, assertSafeStartup };

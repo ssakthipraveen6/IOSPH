@@ -61,7 +61,19 @@ function ensureSecret() {
     return;
   }
 
-  if (IS_PROD) {
+  let isGlobalProd = false;
+  try {
+    const globalPath = path.join(CONFIG_DIR, 'global.yaml');
+    if (fs.existsSync(globalPath)) {
+      const yaml = require('js-yaml');
+      const doc = yaml.load(fs.readFileSync(globalPath, 'utf8'));
+      if (doc && doc.environment === 'production') {
+        isGlobalProd = true;
+      }
+    }
+  } catch (_) {}
+
+  if (IS_PROD || isGlobalProd) {
     console.error('');
     console.error('  SENTINEL_JWT_SECRET is not set and NODE_ENV=production.');
     console.error('  Refusing to generate one automatically: a generated secret would');

@@ -217,8 +217,16 @@ async function authenticate(username, password) {
 
   // The real LDAP bind is used whenever NODE_ENV=production. The simulated login (any user, any
   // password) used to be reachable on a production server whose config said environment: staging,
-  // because one server serves both the PRD and STG views. It now needs an explicit opt-in.
-  const isProduction = process.env.NODE_ENV === 'production' && process.env.SENTINEL_ALLOW_SIMULATED_LOGIN !== 'true';
+  // because one server serves both the PRD and STG views. It now needs an explicit opt-in,
+  // which is ignored when the global configuration specifies environment: production.
+  const allowSimulated = process.env.SENTINEL_ALLOW_SIMULATED_LOGIN === 'true';
+  const isGlobalProd = (globalConfig.environment || '').toLowerCase() === 'production';
+  let effectiveAllowSimulated = allowSimulated;
+  if (isGlobalProd && allowSimulated) {
+    console.warn('[LDAP] [SEC] Ignoring SENTINEL_ALLOW_SIMULATED_LOGIN: global configuration environment is production.');
+    effectiveAllowSimulated = false;
+  }
+  const isProduction = process.env.NODE_ENV === 'production' && !effectiveAllowSimulated;
 
   // =========================================================================
   // PRODUCTION PATH — Real LDAP Bind via ldapjs (T0.6)
