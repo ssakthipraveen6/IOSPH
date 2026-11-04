@@ -11,6 +11,9 @@ const config = require('@sentinel/config');
 // [SEC-03 REMEDIATED] — CWE-287: Authentication Bypass
 // LDAP role mapping table — roles assigned from LDAP group memberships, NOT from username substrings.
 // In production, this table is authoritative. Extend it to match your AD group naming convention.
+// Escapes a value for use inside an LDAP search filter (RFC 4515).
+function escapeFilter(v) { return String(v).replace(/[\\*()\x00]/g, c => '\\' + c.charCodeAt(0).toString(16).padStart(2, '0')); }
+
 const LDAP_GROUP_ROLE_MAP = {
   'cn=sentinel-superadmins,ou=Groups,dc=enterprise,dc=corp': 'Super Admin',
   'cn=sentinel-sreleads,ou=Groups,dc=enterprise,dc=corp':    'SRE Lead',
@@ -104,7 +107,8 @@ async function performLdapBind(opts) {
       }
 
       // 2. Search for user by sAMAccountName, userPrincipalName, or mail
-      const searchFilter = `(|(sAMAccountName=${username})(userPrincipalName=${username})(mail=${username}))`;
+      const escaped = escapeFilter(username);
+      const searchFilter = `(|(sAMAccountName=${escaped})(userPrincipalName=${escaped})(mail=${escaped}))`;
       const searchOptions = {
         scope: 'sub',
         filter: searchFilter,
@@ -118,8 +122,10 @@ async function performLdapBind(opts) {
         }
 
         let userEntry = null;
+        let matchCount = 0;
 
         res.on('searchEntry', (entry) => {
+          matchCount++;
           userEntry = entry.object;
         });
 
@@ -130,6 +136,10 @@ async function performLdapBind(opts) {
 
         res.on('end', (result) => {
           client.unbind(() => {});
+
+          if (matchCount > 1) {
+            return resolve({ success: false, error: 'Ambiguous account' });
+          }
 
           if (!userEntry || !userEntry.dn) {
             return resolve({ success: false, error: 'User not found in directory.' });
@@ -163,7 +173,7 @@ async function performLdapBind(opts) {
             return resolve({
               success: true,
               user: {
-                username,
+                username: String(userEntry.sAMAccountName || username).toLowerCase(),
                 role,
                 email,
                 dn: userEntry.dn,
@@ -278,7 +288,7 @@ async function authenticate(username, password) {
   return {
     success: true,
     user: {
-      username,
+      username: lowerUser,
       role,
       email,
       bindAccount: ldapConfig.bind_dn || 'cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp',

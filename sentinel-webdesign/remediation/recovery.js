@@ -330,6 +330,9 @@ function triggerRecovery(component, triggerReason, options = {}) {
  * @param {string} runId
  * @param {object|string} approvingUser - User object from JWT { username, role }
  */
+// Normalises an approver identity for comparison.
+function idOf(u) { return String(u || '').trim().toLowerCase(); }
+
 function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', role: 'Super Admin' }) {
   const userIdentifier = typeof approvingUser === 'string' 
     ? approvingUser 
@@ -346,7 +349,7 @@ function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', r
   }
 
   // [SEC-SOD] Segregation of Duties: Initiator cannot approve their own recovery action
-  if (run.initiated_by && userIdentifier === run.initiated_by) {
+  if (run.initiated_by && idOf(userIdentifier) === idOf(run.initiated_by)) {
     try {
       const { writeNasLog } = require('@sentinel/logger');
       writeNasLog('SECURITY', 'RECOVERY', `[SOD VIOLATION] User '${userIdentifier}' attempted to approve recovery '${runId}' which they initiated.`);
@@ -362,7 +365,7 @@ function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', r
   // Deduplicate by username to prevent self-double-approval
   const alreadyApproved = run.approvals.some(a => {
     const existingName = typeof a === 'string' ? a : (a.username || a.email);
-    return existingName === userIdentifier;
+    return idOf(existingName) === idOf(userIdentifier);
   });
 
   if (!alreadyApproved) {

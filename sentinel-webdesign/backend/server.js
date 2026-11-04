@@ -936,7 +936,7 @@ app.post('/api/settings', requireRole(['Super Admin', 'SRE Lead']), (req, res) =
         });
       } else {
         // Second approver attempting to finalize
-        if (pending.requestedBy === currentUser || (pending.signatures && pending.signatures.includes(currentUser))) {
+        if (idOf(pending.requestedBy) === idOf(currentUser) || (pending.signatures && pending.signatures.some(sig => idOf(sig) === idOf(currentUser)))) {
           return res.status(403).json({
             error: 'SOD violation: Approver must be distinct from requester',
             code: 'SOD_VIOLATION'
@@ -2367,6 +2367,9 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 const PORT = process.env.PORT || 3001;
 const HOST = process.env.HOST || '127.0.0.1';
+
+// Normalises an approver identity for comparison.
+function idOf(u) { return String(u || '').trim().toLowerCase(); }
 
 // Refuses to listen on a network address unless running in production mode or explicitly in dev mode.
 function assertSafeStartup(env = process.env, host = HOST) {
