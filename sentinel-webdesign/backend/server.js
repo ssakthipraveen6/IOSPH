@@ -969,6 +969,9 @@ app.post('/api/settings', requireRole(['Super Admin', 'SRE Lead']), (req, res) =
     }
   }
 
+  const WRITABLE_SETTINGS = []; // add UI-editable keys here when the UI needs them
+  const rejected = Object.keys(req.body || {}).filter(k => !WRITABLE_SETTINGS.includes(k));
+  if (rejected.length) return res.status(400).json({ error: `Settings not writable: ${rejected.join(', ')}` });
   const settings = db.updateSettings(req.body);
   global.broadcastStateChange();
   res.json(settings);

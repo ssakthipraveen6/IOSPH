@@ -47,7 +47,7 @@ async function runTests() {
   try {
     // --- SF-08: Client cannot skip approval on POST /api/recovery/trigger ---
     console.log('--- SF-08: POST /api/recovery/trigger cannot bypass four-eyes approval ---');
-    db.updateSettings({ autonomousMode: false });
+    db.updateSettings({ autonomousMode: false, pendingApproval: null });
     const operatorToken = session.generateToken({ username: 'op.dummy', role: 'Operator', environment: 'staging' });
     const triggerRes = await httpRequest({
       port,
@@ -66,6 +66,34 @@ async function runTests() {
     assert.ok(run, 'Run object must be returned');
     assert.strictEqual(run.status, 'Awaiting-Approval', `Expected Awaiting-Approval but got ${run.status}`);
     console.log('✔ SF-08 Passed: manual:true option ignored; status is Awaiting-Approval');
+
+    // --- SF-09: Allowlist the generic settings update ---
+    console.log('--- SF-09: Generic settings update allowlist ---');
+    const sreToken = session.generateToken({ username: 'sre.lead', role: 'SRE Lead', environment: 'staging' });
+    const fakePending = { pendingApproval: { requestedBy: 'ghost', signatures: ['ghost'] } };
+    const initialPending = db.getSettings().pendingApproval;
+
+    const forgeRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/settings',
+      headers: { 'Authorization': `Bearer ${sreToken}` },
+      body: fakePending
+    });
+    assert.strictEqual(forgeRes.status, 400, `Expected 400 when posting unauthorized settings, got ${forgeRes.status}`);
+    assert.deepStrictEqual(db.getSettings().pendingApproval, initialPending, 'pendingApproval must remain unchanged');
+
+    // Then POST {autonomousMode:true} with ?env=prod and assert autonomousMode is still false
+    const autoProdRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/settings?env=prod',
+      headers: { 'Authorization': `Bearer ${sreToken}` },
+      body: { autonomousMode: true }
+    });
+    assert.strictEqual(autoProdRes.status, 200, `Expected 200, got ${autoProdRes.status}`);
+    assert.strictEqual(db.getSettings().autonomousMode, false, 'autonomousMode must remain false after single signer in prod');
+    console.log('✔ SF-09 Passed: Unallowlisted settings update rejected with 400; pendingApproval not forged');
 
   } finally {
     server.close();
