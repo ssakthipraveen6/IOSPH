@@ -95,6 +95,23 @@ async function runTests() {
     assert.strictEqual(db.getSettings().autonomousMode, false, 'autonomousMode must remain false after single signer in prod');
     console.log('✔ SF-09 Passed: Unallowlisted settings update rejected with 400; pendingApproval not forged');
 
+    // --- SF-10: Dual approval whenever autonomous mode is switched on ---
+    console.log('--- SF-10: Dual approval required for autonomousMode regardless of env ---');
+    db.updateSettings({ autonomousMode: false, pendingApproval: null });
+    const leadToken = session.generateToken({ username: 'lead.test', role: 'SRE Lead', environment: 'staging' });
+
+    const stagingAutoRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/settings?environment=staging',
+      headers: { 'Authorization': `Bearer ${leadToken}` },
+      body: { autonomousMode: true }
+    });
+    assert.strictEqual(stagingAutoRes.status, 200);
+    assert.strictEqual(stagingAutoRes.body.autonomousMode, false, 'Must not enable autonomousMode with 1 signer in staging');
+    assert.ok(stagingAutoRes.body.pendingApproval, 'pendingApproval must be created in staging');
+    console.log('✔ SF-10 Passed: Single signer in staging results in pendingApproval and autonomousMode:false');
+
   } finally {
     server.close();
   }

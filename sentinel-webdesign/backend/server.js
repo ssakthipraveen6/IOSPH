@@ -904,9 +904,16 @@ app.post('/api/settings', requireRole(['Super Admin', 'SRE Lead']), (req, res) =
   if (req.body.autonomousMode !== undefined) {
     const wantAutonomous = Boolean(req.body.autonomousMode);
 
-    // If enabling in PROD, require two distinct approvers (four-eyes workflow)
-    if (wantAutonomous && env === 'prod') {
-      const pending = currentSettings.pendingApproval;
+    // If enabling autonomous mode, require two distinct approvers (four-eyes workflow) regardless of environment
+    if (wantAutonomous) {
+      let pending = currentSettings.pendingApproval;
+      if (pending && pending.requestedAt) {
+        const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+        const age = Date.now() - new Date(pending.requestedAt).getTime();
+        if (age > FOUR_HOURS_MS || isNaN(age)) {
+          pending = null;
+        }
+      }
 
       if (!pending) {
         // First approver requests activation
@@ -925,7 +932,7 @@ app.post('/api/settings', requireRole(['Super Admin', 'SRE Lead']), (req, res) =
         global.broadcastStateChange();
         return res.json({
           ...updated,
-          message: 'Four-eyes approval request created for PROD. Requires second distinct approver.'
+          message: 'Four-eyes approval request created for Autonomous mode (all environments). Requires second distinct approver.'
         });
       } else {
         // Second approver attempting to finalize
@@ -951,19 +958,19 @@ app.post('/api/settings', requireRole(['Super Admin', 'SRE Lead']), (req, res) =
         global.broadcastStateChange();
         return res.json({
           ...updated,
-          message: 'Autonomous mode enabled in PROD with dual approval.'
+          message: 'Autonomous mode (all environments) enabled with dual approval.'
         });
       }
     } else {
-      // Non-prod OR turning OFF: update directly
+      // Turning OFF: update directly
       const updated = db.updateSettings({
         ...currentSettings,
-        autonomousMode: wantAutonomous,
-        pendingApproval: wantAutonomous ? currentSettings.pendingApproval : null,
+        autonomousMode: false,
+        pendingApproval: null,
         lastChangedBy: currentUser,
         lastChangedAt: new Date().toISOString()
       });
-      auditLog(req, 'SETTINGS_AUTONOMOUS_UPDATED', { autonomousMode: wantAutonomous, user: currentUser, env });
+      auditLog(req, 'SETTINGS_AUTONOMOUS_UPDATED', { autonomousMode: false, user: currentUser, env });
       global.broadcastStateChange();
       return res.json(updated);
     }
