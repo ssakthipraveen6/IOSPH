@@ -154,6 +154,7 @@ function generateToken(user, ttlMs = TOKEN_TTL_MS) {
     role: user.role || 'Operator',
     email: user.email || `${user.username}@enterprise.corp`,
     environment: user.environment || 'staging',
+    auth_time: user.auth_time || now,
     iat: now,
     exp: now + ttlMs,
     jti
@@ -218,6 +219,12 @@ function verifyToken(token) {
   }
 
   if (!signatureValid) return null;
+
+  // Session lifetime cap check
+  const MAX_SESSION_MS = parseInt(process.env.SENTINEL_MAX_SESSION_MS, 10) || (12 * 60 * 60 * 1000);
+  if (payload.auth_time && (Date.now() - payload.auth_time > MAX_SESSION_MS)) {
+    return null;
+  }
 
   // Expiration check
   if (payload.exp && payload.exp < Date.now()) {

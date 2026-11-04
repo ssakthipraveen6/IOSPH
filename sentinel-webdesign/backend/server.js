@@ -464,8 +464,11 @@ app.post('/api/environment', (req, res) => {
 
   let newToken = null;
   if (req.user) {
-    const updatedUser = { ...req.user, environment };
+    const updatedUser = { ...req.user, environment, auth_time: req.user.auth_time };
     newToken = session.generateToken(updatedUser);
+    if (req.user.jti) {
+      session.revokeToken(req.user.jti, 'environment-switch');
+    }
     const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('sentinel_session', newToken, {
       httpOnly: true,
@@ -1081,6 +1084,17 @@ app.post('/api/auth/sso/login', async (req, res) => {
       authenticatedAt: new Date().toISOString()
     }
   });
+});
+
+// Signs out: revokes the current session token, clears session/csrf cookies, and audit logs.
+app.post('/api/auth/logout', (req, res) => {
+  if (req.user?.jti) {
+    session.revokeToken(req.user.jti, 'logout');
+  }
+  res.clearCookie('sentinel_session', { path: '/' });
+  res.clearCookie('sentinel_csrf', { path: '/' });
+  auditLog(req, 'LOGOUT', { user: req.user?.username || 'anonymous' });
+  res.json({ success: true });
 });
 
 // [L6] Current authenticated user identity and node metadata

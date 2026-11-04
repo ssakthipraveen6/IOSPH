@@ -144,6 +144,53 @@ async function runTests() {
     assert.strictEqual(prodRes.status, 200, `Expected 200 when querying prod problem from prod, got ${prodRes.status}`);
     console.log('✔ SF-13 Passed: Cross-environment evidence pack access blocked with 404');
 
+    // --- SF-14: Session lifetime cap, refresh revocation, logout ---
+    console.log('--- SF-14: Session lifetime cap, refresh revocation, and logout ---');
+    // 14a: Max session ms expiry
+    process.env.SENTINEL_MAX_SESSION_MS = '1000';
+    try {
+      const expiredToken = session.generateToken({
+        username: 'time.user',
+        role: 'Operator',
+        environment: 'staging',
+        auth_time: Date.now() - 2000
+      });
+      assert.strictEqual(session.verifyToken(expiredToken), null, 'Token exceeding max session lifetime must fail verifyToken');
+      console.log('✔ SF-14a Passed: Token past max session lifetime is rejected');
+    } finally {
+      delete process.env.SENTINEL_MAX_SESSION_MS;
+    }
+
+    // 14b: Environment switch revokes old token
+    const envSwitchUserToken = session.generateToken({ username: 'switch.user', role: 'Super Admin', environment: 'staging' });
+    const envSwitchRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/environment',
+      headers: {
+        'Authorization': `Bearer ${envSwitchUserToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: { environment: 'prod' }
+    });
+    assert.strictEqual(envSwitchRes.status, 200, `Expected 200 from environment switch, got ${envSwitchRes.status}`);
+    assert.strictEqual(session.verifyToken(envSwitchUserToken), null, 'Old token must be revoked after environment switch');
+    console.log('✔ SF-14b Passed: Old token revoked after environment switch');
+
+    // 14c: Logout revokes token
+    const logoutUserToken = session.generateToken({ username: 'logout.user', role: 'Operator', environment: 'staging' });
+    const logoutRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/auth/logout',
+      headers: {
+        'Authorization': `Bearer ${logoutUserToken}`
+      }
+    });
+    assert.strictEqual(logoutRes.status, 200, `Expected 200 from logout, got ${logoutRes.status}`);
+    assert.strictEqual(session.verifyToken(logoutUserToken), null, 'Token must be revoked after logout');
+    console.log('✔ SF-14c Passed: Token revoked after logout');
+
   } finally {
     server.close();
   }
