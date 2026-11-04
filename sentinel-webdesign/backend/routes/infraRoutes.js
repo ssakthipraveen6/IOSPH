@@ -15,6 +15,7 @@ const { sameHost } = require('./agentRoutes');
 const { shapeHost } = require('./fleetRoutes');
 const yamlConfig = require('../config/yaml_config');
 const accessPolicy = require('../auth/access_policy');
+const { requireRole, SRE_LEAD_PLUS } = require('../auth/require_role');
 
 const METRIC_FRESH_MS = 15 * 60 * 1000;
 
@@ -231,7 +232,7 @@ function createInfraRouter({ inv = null, ch = null, processProvider = null, metr
   });
 
   // Requests a process dump on a host (audited).
-  router.post('/hosts/:host/processes/:pid/dump', async (req, res) => {
+  router.post('/hosts/:host/processes/:pid/dump', requireRole(SRE_LEAD_PLUS), async (req, res) => {
     const env = req.sentinelEnv || req.query.environment || 'staging';
     if (!env || env === 'forbidden' || (req.user && !accessPolicy.isEntitled(req.user, env))) {
       return res.status(403).json({ error: 'Access denied for requested environment' });

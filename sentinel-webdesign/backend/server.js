@@ -296,7 +296,7 @@ app.use('/api', (req, res, next) => {
 
 // Role-Based Access Control (RBAC) Middleware Generator
 // [Phase S] One role guard shared with the route modules.
-const { requireRole } = require('./auth/require_role');
+const { requireRole, SRE_LEAD_PLUS } = require('./auth/require_role');
 
 // Serve static files with caching headers for high performance
 const distPath = path.resolve(ROOT_DIR, 'frontend/dist');
@@ -1836,10 +1836,11 @@ app.get('/api/v2/events', async (req, res) => {
 });
 
 // Receives an external event (deployment, change) for correlation.
-app.post('/api/v2/events', async (req, res) => {
+app.post('/api/v2/events', requireRole(SRE_LEAD_PLUS), async (req, res) => {
   try {
     const event = req.body;
     if (!event) return res.status(400).json({ error: 'Missing event payload' });
+    event.environment = req.sentinelEnv || 'staging';
     const saved = await eventStore.addEvent(event);
     res.status(201).json(saved);
   } catch (err) {
@@ -1915,7 +1916,7 @@ app.get('/api/v2/rca/hypotheses/:id', async (req, res) => {
 });
 
 // [PHASE 4 / T4.4] Operator Feedback Loop (Confirmed / Rejected)
-app.post('/api/v2/rca/hypotheses/:id/verdict', async (req, res) => {
+app.post('/api/v2/rca/hypotheses/:id/verdict', requireRole(SRE_LEAD_PLUS), async (req, res) => {
   try {
     const { verdict, notes } = req.body || {};
     if (!verdict) {
@@ -1964,7 +1965,7 @@ app.get('/api/v2/rca/blast-radius', async (req, res) => {
 });
 
 // [PHASE 4 / T4.3] Trigger On-Demand Correlation Analysis
-app.post('/api/v2/correlation/trigger', async (req, res) => {
+app.post('/api/v2/correlation/trigger', requireRole(SRE_LEAD_PLUS), async (req, res) => {
   try {
     const triggerEvent = req.body;
     if (!triggerEvent || !triggerEvent.entity_id) {

@@ -76,7 +76,7 @@ async function main() {
     const appInfra = express();
     appInfra.use(express.json());
     appInfra.use((req, res, next) => {
-      req.sentinelEnv = 'prod';
+      req.sentinelEnv = 'prod'; req.user = { username: 'sre.lead', role: 'SRE Lead', environment: 'prod' };
       req.processProvider = {
         getProcesses: async (env, host) => [
           { pid: 101, name: 'java', cpu_pct: 92.5, memory_rss_bytes: 4294967296, fds: 120, fd_limit: 1024, threads: 84 },

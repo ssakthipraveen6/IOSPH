@@ -15,6 +15,7 @@
 const express = require('express');
 const { getGlobalRunner } = require('../../synthetics/runner');
 const accessPolicy = require('../auth/access_policy');
+const { requireRole, SRE_LEAD_PLUS } = require('../auth/require_role');
 
 // Router for health checks (synthetic journeys).
 function createHealthCheckRouter({ runner = null } = {}) {
@@ -63,7 +64,7 @@ function createHealthCheckRouter({ runner = null } = {}) {
   });
 
   // Runs one check now.
-  router.post('/:id/run', async (req, res) => {
+  router.post('/:id/run', requireRole(SRE_LEAD_PLUS), async (req, res) => {
     try {
       const env = req.sentinelEnv || 'staging';
       const r = getRunner();
@@ -81,7 +82,7 @@ function createHealthCheckRouter({ runner = null } = {}) {
   });
 
   // Runs every check now.
-  router.post('/run-all', async (req, res) => {
+  router.post('/run-all', requireRole(SRE_LEAD_PLUS), async (req, res) => {
     try {
       const env = req.sentinelEnv || 'staging';
       const r = getRunner();

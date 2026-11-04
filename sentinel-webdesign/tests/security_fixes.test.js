@@ -233,6 +233,125 @@ async function runTests() {
     assert.strictEqual(prodMessages[0].data.message, 'X');
     console.log('✔ SF-15 Passed: Only prod ws client received prod log');
 
+    // -------------------------------------------------------------------------
+    // SF-18: Role gates on unrestricted state-changing routes
+    // -------------------------------------------------------------------------
+    console.log('--- SF-18: Role gates on unrestricted state-changing routes ---');
+    const viewerToken = session.generateToken({ username: 'viewer.sf18', role: 'Viewer', environment: 'staging' });
+    const sreLeadToken = session.generateToken({ username: 'lead.sf18', role: 'SRE Lead', environment: 'staging' });
+
+    // 1. POST /api/v2/health-checks/:id/run
+    const hcViewerRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/health-checks/hc-dummy/run',
+      headers: { Authorization: `Bearer ${viewerToken}` }
+    });
+    assert.strictEqual(hcViewerRes.status, 403, 'Viewer should receive 403 on health check run');
+
+    const hcLeadRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/health-checks/nonexistent/run',
+      headers: { Authorization: `Bearer ${sreLeadToken}` }
+    });
+    assert.notStrictEqual(hcLeadRes.status, 403, 'SRE Lead should pass role gate on health check run');
+
+    // 2. POST /api/v2/health-checks/run-all
+    const hcAllViewerRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/health-checks/run-all',
+      headers: { Authorization: `Bearer ${viewerToken}` }
+    });
+    assert.strictEqual(hcAllViewerRes.status, 403, 'Viewer should receive 403 on health checks run-all');
+
+    const hcAllLeadRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/health-checks/run-all',
+      headers: { Authorization: `Bearer ${sreLeadToken}` }
+    });
+    assert.notStrictEqual(hcAllLeadRes.status, 403, 'SRE Lead should pass role gate on health checks run-all');
+
+    // 3. POST /api/v2/infra/hosts/:host/processes/:pid/dump
+    const dumpViewerRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/infra/hosts/host-01/processes/123/dump',
+      headers: { Authorization: `Bearer ${viewerToken}` }
+    });
+    assert.strictEqual(dumpViewerRes.status, 403, 'Viewer should receive 403 on infra dump');
+
+    const dumpLeadRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/infra/hosts/host-01/processes/123/dump',
+      headers: { Authorization: `Bearer ${sreLeadToken}` }
+    });
+    assert.notStrictEqual(dumpLeadRes.status, 403, 'SRE Lead should pass role gate on infra dump');
+
+    // 4. POST /api/v2/events
+    const evViewerRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/events',
+      headers: { Authorization: `Bearer ${viewerToken}` },
+      body: { kind: 'deployment', entity_id: 'svc-1' }
+    });
+    assert.strictEqual(evViewerRes.status, 403, 'Viewer should receive 403 on POST /api/v2/events');
+
+    const evLeadRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/events',
+      headers: { Authorization: `Bearer ${sreLeadToken}` },
+      body: { kind: 'deployment', entity_id: 'svc-1', environment: 'tampered-env' }
+    });
+    assert.notStrictEqual(evLeadRes.status, 403, 'SRE Lead should pass role gate on POST /api/v2/events');
+    if (evLeadRes.status === 201) {
+      assert.strictEqual(evLeadRes.body.environment, 'staging', 'Environment must be forced to caller environment (staging)');
+    }
+
+    // 5. POST /api/v2/correlation/trigger
+    const corrViewerRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/correlation/trigger',
+      headers: { Authorization: `Bearer ${viewerToken}` },
+      body: { entity_id: 'svc-1' }
+    });
+    assert.strictEqual(corrViewerRes.status, 403, 'Viewer should receive 403 on correlation trigger');
+
+    const corrLeadRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/correlation/trigger',
+      headers: { Authorization: `Bearer ${sreLeadToken}` },
+      body: { entity_id: 'svc-1' }
+    });
+    assert.notStrictEqual(corrLeadRes.status, 403, 'SRE Lead should pass role gate on correlation trigger');
+
+    // 6. POST /api/v2/rca/hypotheses/:id/verdict
+    const rcaViewerRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/rca/hypotheses/hypo-1/verdict',
+      headers: { Authorization: `Bearer ${viewerToken}` },
+      body: { verdict: 'confirmed' }
+    });
+    assert.strictEqual(rcaViewerRes.status, 403, 'Viewer should receive 403 on RCA hypothesis verdict');
+
+    const rcaLeadRes = await httpRequest({
+      port,
+      method: 'POST',
+      path: '/api/v2/rca/hypotheses/hypo-1/verdict',
+      headers: { Authorization: `Bearer ${sreLeadToken}` },
+      body: { verdict: 'confirmed' }
+    });
+    assert.notStrictEqual(rcaLeadRes.status, 403, 'SRE Lead should pass role gate on RCA hypothesis verdict');
+    console.log('✔ SF-18 Passed: Viewer gets 403 and SRE Lead is permitted across all state-changing routes');
+
   } finally {
     server.close();
   }
