@@ -31,19 +31,19 @@ Every task has an ID (SF-nn) that matches the Jira import file `docs/jira_securi
 | SF-03 | High | S1 Patch runtimes (Node.js, PHP check) | Raise the Node.js floor for the agent package on fleet hosts | [ ] |
 | SF-04 | High | S1 Patch runtimes (Node.js, PHP check) | PHP: confirm not used by Sentinel; find and patch PHP elsewhere in the estate | [ ] |
 | SF-05 | Medium | S1 Patch runtimes (Node.js, PHP check) | Audit npm dependencies on the release machine | [ ] |
-| SF-06 | Blocker | S2 Fail closed when not configured for production | Refuse to start in an unsafe mode | [ ] |
-| SF-07 | Blocker | S2 Fail closed when not configured for production | Set NODE_ENV in the scheduled-task install | [ ] |
-| SF-08 | Blocker | S3 Four-eyes approval integrity | Stop the client from skipping approval on /api/recovery/trigger | [ ] |
-| SF-09 | Blocker | S3 Four-eyes approval integrity | Allowlist the generic settings update | [ ] |
-| SF-10 | Blocker | S3 Four-eyes approval integrity | Require dual approval for autonomous mode regardless of selected environment | [ ] |
-| SF-11 | High | S3 Four-eyes approval integrity | Use the directory account name as the session identity | [ ] |
-| SF-12 | High | S4 Deployment pipeline injection | Remove shell interpolation of TARGET_HOSTS in the deploy pipeline | [ ] |
-| SF-13 | Medium | S5 Environment isolation and sessions | Bind the evidence pack to the caller environment | [ ] |
-| SF-14 | Medium | S5 Environment isolation and sessions | Session lifetime cap, revocation and logout | [ ] |
-| SF-15 | Medium | S5 Environment isolation and sessions | Send WebSocket log lines only to the matching environment | [ ] |
-| SF-16 | Medium | S6 Synthetic git step | Refuse symlinks in the git canary write | [ ] |
+| SF-06 | Blocker | S2 Fail closed when not configured for production | Refuse to start in an unsafe mode | [x] |
+| SF-07 | Blocker | S2 Fail closed when not configured for production | Set NODE_ENV in the scheduled-task install | [x] |
+| SF-08 | Blocker | S3 Four-eyes approval integrity | Stop the client from skipping approval on /api/recovery/trigger | [x] |
+| SF-09 | Blocker | S3 Four-eyes approval integrity | Allowlist the generic settings update | [x] |
+| SF-10 | Blocker | S3 Four-eyes approval integrity | Require dual approval for autonomous mode regardless of selected environment | [x] |
+| SF-11 | High | S3 Four-eyes approval integrity | Use the directory account name as the session identity | [x] |
+| SF-12 | High | S4 Deployment pipeline injection | Remove shell interpolation of TARGET_HOSTS in the deploy pipeline | [x] |
+| SF-13 | Medium | S5 Environment isolation and sessions | Bind the evidence pack to the caller environment | [x] |
+| SF-14 | Medium | S5 Environment isolation and sessions | Session lifetime cap, revocation and logout | [x] |
+| SF-15 | Medium | S5 Environment isolation and sessions | Send WebSocket log lines only to the matching environment | [x] |
+| SF-16 | Medium | S6 Synthetic git step | Refuse symlinks in the git canary write | [x] |
 | SF-17 | High | S7 Close the audit gaps | Run a standard-depth audit on the 15 deferred areas | [ ] |
-| SF-18 | Medium | S7 Close the audit gaps | Quick role gates on unrestricted state-changing routes | [ ] |
+| SF-18 | Medium | S7 Close the audit gaps | Quick role gates on unrestricted state-changing routes | [x] |
 | SF-19 | High | S8 Verify and release | Turn the audit validation plans into regression tests | [ ] |
 | SF-20 | High | S8 Verify and release | Release, verify and update the readiness plan | [ ] |
 
