@@ -264,6 +264,10 @@ router.get('/:id/evidence', async (req, res) => {
     return res.status(404).json({ error: `Problem not found: ${id}` });
   }
 
+  if ((problem.environment || 'staging').toLowerCase() !== req.sentinelEnv) {
+    return res.status(404).json({ error: `Problem not found: ${id}` });
+  }
+
   // Calculate incident time window (60-minute correlation window)
   const toTs = problem.updated_at || problem.created_at || new Date().toISOString();
   const toDate = new Date(toTs);
@@ -387,6 +391,9 @@ function getAttachment(id) {
 router.get('/attachments/:id', (req, res) => {
   const att = getAttachment(req.params.id);
   if (!att) return res.status(404).json({ error: 'Attachment not found' });
+  if (att.environment && att.environment.toLowerCase() !== req.sentinelEnv) {
+    return res.status(404).json({ error: 'Attachment not found' });
+  }
   res.json(att);
 });
 

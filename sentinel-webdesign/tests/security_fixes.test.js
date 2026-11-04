@@ -112,6 +112,38 @@ async function runTests() {
     assert.ok(stagingAutoRes.body.pendingApproval, 'pendingApproval must be created in staging');
     console.log('✔ SF-10 Passed: Single signer in staging results in pendingApproval and autonomousMode:false');
 
+    // --- SF-13: Evidence pack bound to the caller's environment ---
+    console.log('--- SF-13: Evidence pack bound to caller environment ---');
+    const problemStore = require('../correlation/problem_store');
+    problemStore.setPool(null);
+    await problemStore.save({
+      id: 'PRB-test0001',
+      environment: 'prod',
+      title: 'dummy'
+    });
+
+    const superAdminProdToken = session.generateToken({ username: 'admin.super', role: 'Super Admin', environment: 'prod' });
+    const superAdminStgToken = session.generateToken({ username: 'admin.super', role: 'Super Admin', environment: 'staging' });
+
+    // Staging caller should get 404
+    const stgRes = await httpRequest({
+      port,
+      method: 'GET',
+      path: '/api/problems/PRB-test0001/evidence?environment=staging',
+      headers: { 'Authorization': `Bearer ${superAdminStgToken}` }
+    });
+    assert.strictEqual(stgRes.status, 404, `Expected 404 when querying prod problem from staging, got ${stgRes.status}`);
+
+    // Prod caller should get 200
+    const prodRes = await httpRequest({
+      port,
+      method: 'GET',
+      path: '/api/problems/PRB-test0001/evidence?environment=prod',
+      headers: { 'Authorization': `Bearer ${superAdminProdToken}` }
+    });
+    assert.strictEqual(prodRes.status, 200, `Expected 200 when querying prod problem from prod, got ${prodRes.status}`);
+    console.log('✔ SF-13 Passed: Cross-environment evidence pack access blocked with 404');
+
   } finally {
     server.close();
   }
