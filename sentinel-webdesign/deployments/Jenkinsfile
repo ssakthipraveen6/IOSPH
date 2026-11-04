@@ -64,6 +64,11 @@ pipeline {
                 echo "Dry Run:      ${params.DRY_RUN}"
                 echo "=========================================================="
 
+                // SF-12: Reject invalid TARGET_HOSTS
+                if (!(params.TARGET_HOSTS ==~ /^[A-Za-z0-9_.,:-]+$/)) {
+                    error("Invalid TARGET_HOSTS: '${params.TARGET_HOSTS}' contains forbidden characters")
+                }
+
                 // Validate YAML Syntax
                 sh '''
                     echo "[VALIDATION] Checking OpenTelemetry YAML syntax..."
@@ -81,7 +86,7 @@ pipeline {
                 ]) {
                     sh '''
                         echo "[CONNECTIVITY] Pinging target hosts: ${TARGET_HOSTS}..."
-                        ansible ${TARGET_HOSTS} \
+                        ansible "${TARGET_HOSTS}" \
                             -i ${INVENTORY_FILE} \
                             -m ping \
                             --user ${SSH_USER} \
@@ -102,17 +107,24 @@ pipeline {
                 ]) {
                     script {
                         def checkFlag = params.DRY_RUN ? '--check --diff' : ''
-                        sh """
-                            echo "[ANSIBLE] Deploying ONLY '${params.COLLECTOR_TYPE}' across fleet..."
-                            ansible-playbook ${PLAYBOOK_FILE} \\
-                                -i ${INVENTORY_FILE} \\
-                                --limit "${params.TARGET_HOSTS}" \\
-                                --user ${SSH_USER} \\
-                                --private-key ${SSH_KEY} \\
-                                --extra-vars "collector_type=${params.COLLECTOR_TYPE} sentinel_url=${env.SENTINEL_URL} otel_token=${env.SF_INFRA_OTEL_TOKEN}" \\
-                                ${checkFlag} \\
-                                ${params.ANSIBLE_VERBOSITY}
-                        """
+                        withEnv([
+                            "TARGET_HOSTS=${params.TARGET_HOSTS}",
+                            "COLLECTOR_TYPE=${params.COLLECTOR_TYPE}",
+                            "ANSIBLE_VERBOSITY=${params.ANSIBLE_VERBOSITY}",
+                            "CHECK_FLAG=${checkFlag}"
+                        ]) {
+                            sh '''
+                                echo "[ANSIBLE] Deploying ONLY '$COLLECTOR_TYPE' across fleet..."
+                                ansible-playbook "$PLAYBOOK_FILE" \\
+                                    -i "$INVENTORY_FILE" \\
+                                    --limit "$TARGET_HOSTS" \\
+                                    --user "$SSH_USER" \\
+                                    --private-key "$SSH_KEY" \\
+                                    --extra-vars "collector_type=$COLLECTOR_TYPE sentinel_url=$SENTINEL_URL otel_token=$SF_INFRA_OTEL_TOKEN" \\
+                                    $CHECK_FLAG \\
+                                    $ANSIBLE_VERBOSITY
+                            '''
+                        }
                     }
                 }
             }
@@ -128,7 +140,7 @@ pipeline {
                 ]) {
                     sh '''
                         echo "[ANSIBLE] Restarting otelcol-contrib across target fleet..."
-                        ansible ${TARGET_HOSTS} \
+                        ansible "${TARGET_HOSTS}" \
                             -i ${INVENTORY_FILE} \
                             -m systemd \
                             -a "name=otelcol-contrib state=restarted" \
@@ -147,7 +159,7 @@ pipeline {
                 ]) {
                     sh '''
                         echo "[VERIFY] Checking systemd status of otelcol-contrib..."
-                        ansible ${TARGET_HOSTS} \
+                        ansible "${TARGET_HOSTS}" \
                             -i ${INVENTORY_FILE} \
                             -m command \
                             -a "systemctl is-active otelcol-contrib" \
