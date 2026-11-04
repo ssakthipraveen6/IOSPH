@@ -1,9 +1,10 @@
 // Regression test suite for Sentinel security fixes (SF-08 to SF-18)
 const assert = require('assert');
 const http = require('http');
+const WebSocket = require('ws');
 const db = require('../database/db');
 const session = require('../backend/auth/session');
-const { app } = require('../backend/server');
+const { app, server } = require('../backend/server');
 
 // Helper to send HTTP requests to test server
 function httpRequest({ port, method, path, headers = {}, body }) {
@@ -40,7 +41,6 @@ function httpRequest({ port, method, path, headers = {}, body }) {
 // Executes security fixes regression tests
 async function runTests() {
   console.log('=== RUNNING SECURITY FIXES REGRESSION TEST SUITE ===');
-  const server = http.createServer(app);
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
 
@@ -190,6 +190,48 @@ async function runTests() {
     assert.strictEqual(logoutRes.status, 200, `Expected 200 from logout, got ${logoutRes.status}`);
     assert.strictEqual(session.verifyToken(logoutUserToken), null, 'Token must be revoked after logout');
     console.log('✔ SF-14c Passed: Token revoked after logout');
+
+    // --- SF-15: WebSocket log lines only to matching environment ---
+    console.log('--- SF-15: WebSocket log lines environment segregation ---');
+    const wsStgToken = session.generateToken({ username: 'ws.admin', role: 'Super Admin', environment: 'staging' });
+    const wsProdToken = session.generateToken({ username: 'ws.admin', role: 'Super Admin', environment: 'prod' });
+
+    const wsStg = new WebSocket(`ws://127.0.0.1:${port}/ws?environment=staging&token=${wsStgToken}`);
+    const wsProd = new WebSocket(`ws://127.0.0.1:${port}/ws?environment=prod&token=${wsProdToken}`);
+
+    await Promise.all([
+      new Promise(r => wsStg.on('open', r)),
+      new Promise(r => wsProd.on('open', r))
+    ]);
+
+    const stgMessages = [];
+    const prodMessages = [];
+    wsStg.on('message', data => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg.type === 'log') stgMessages.push(msg);
+      } catch (_) {}
+    });
+    wsProd.on('message', data => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg.type === 'log') prodMessages.push(msg);
+      } catch (_) {}
+    });
+
+    // Broadcast a prod log line
+    global.broadcastLog({ message: 'X', environment: 'prod' });
+
+    // Wait 200ms for websocket delivery
+    await new Promise(r => setTimeout(r, 200));
+
+    wsStg.close();
+    wsProd.close();
+
+    assert.strictEqual(stgMessages.length, 0, `Staging ws client must NOT receive prod log (received ${stgMessages.length})`);
+    assert.strictEqual(prodMessages.length, 1, `Prod ws client must receive exactly 1 log (received ${prodMessages.length})`);
+    assert.strictEqual(prodMessages[0].data.message, 'X');
+    console.log('✔ SF-15 Passed: Only prod ws client received prod log');
 
   } finally {
     server.close();

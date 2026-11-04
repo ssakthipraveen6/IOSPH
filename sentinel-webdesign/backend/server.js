@@ -318,9 +318,13 @@ function broadcast(data) {
   });
 }
 
-// Global helpers that collector and recovery use to broadcast details
+// Sends a log line only to sockets whose environment matches the line's environment.
 global.broadcastLog = (logLine) => {
-  broadcast({ type: 'log', data: logLine });
+  const env = (logLine && typeof logLine === 'object' && logLine.environment) || null;
+  const payload = JSON.stringify({ type: 'log', data: logLine });
+  clients.forEach(c => {
+    if (c.readyState === WebSocket.OPEN && env && c.environment === env) c.send(payload);
+  });
 };
 
 global.broadcastStateChange = (targetEnv = null) => {
@@ -731,7 +735,11 @@ app.post(['/v1/metrics', '/api/metrics/otlp'], ingestKeys.requireIngestKey('metr
       }
 
       if (global.broadcastLog && routedMetrics.length > 0) {
-        global.broadcastLog(`[OTEL OTLP INGEST] Ingested ${routedMetrics.length} metrics from OpenTelemetry agent.`);
+        const effectiveOtelEnv = routedMetrics[0]?.env || req.ingestEnv || defaultEnv;
+        global.broadcastLog({
+          message: `[OTEL OTLP INGEST] Ingested ${routedMetrics.length} metrics from OpenTelemetry agent.`,
+          environment: effectiveOtelEnv
+        });
       }
     }
 
@@ -848,7 +856,10 @@ app.post(['/v1/logs', '/api/logs/otlp', '/api/v2/logs/ingest'], ingestKeys.requi
 
     if (global.broadcastLog && rawRecords.length > 0) {
       const sampleMsg = rawRecords[0].message || '';
-      global.broadcastLog(`[LOG INGEST] [${effectiveEnv.toUpperCase()}] Ingested ${ingestedCount} logs. Sample: ${sampleMsg.substring(0, 100)}`);
+      global.broadcastLog({
+        message: `[LOG INGEST] [${effectiveEnv.toUpperCase()}] Ingested ${ingestedCount} logs. Sample: ${sampleMsg.substring(0, 100)}`,
+        environment: effectiveEnv
+      });
     }
 
     res.status(200).json({ status: 'SUCCESS', count: ingestedCount });
