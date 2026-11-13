@@ -468,19 +468,13 @@ app.post('/api/environment', (req, res) => {
 
   let newToken = null;
   if (req.user) {
+    const { issueSession } = require('./auth/issue_session');
     const updatedUser = { ...req.user, environment, auth_time: req.user.auth_time };
-    newToken = session.generateToken(updatedUser);
     if (req.user.jti) {
       session.revokeToken(req.user.jti, 'environment-switch');
     }
-    const isProduction = process.env.NODE_ENV === 'production';
-    res.cookie('sentinel_session', newToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'Strict',
-      path: '/',
-      maxAge: 8 * 60 * 60 * 1000
-    });
+    const issued = issueSession(res, updatedUser);
+    newToken = issued.token;
   }
 
   auditLog(req, 'ENVIRONMENT_SWITCH', { user: req.user?.username || 'anonymous', to: environment });
@@ -1052,8 +1046,24 @@ app.post('/api/auth/sso/login', async (req, res) => {
 
   const authResult = await ldapClient.authenticate(username, password);
   if (!authResult.success) {
-    return res.status(401).json({ error: authResult.error || 'eLDAP authentication failed.' });
+    const status = authResult.code === 'BAD_CREDENTIALS' ? 401
+      : authResult.code === 'NO_ACCESS' ? 403
+      : authResult.code === 'UNAVAILABLE' ? 503
+      : 401;
+    return res.status(status).json({
+      error: authResult.error || 'eLDAP authentication failed.',
+      code: authResult.code
+    });
   }
+
+  const defaultEnv = accessPolicy.defaultEnvironment(authResult.user, config.ENVIRONMENT);
+  if (!defaultEnv) {
+    return res.status(403).json({
+      error: 'Your account has no Sentinel environment access (groups: sentinel-env-prod / sentinel-env-staging).',
+      code: 'NO_ACCESS'
+    });
+  }
+  authResult.user.environment = defaultEnv;
 
   const usersDb = require('../database/postgres_users');
   try { await usersDb.addSsoLog({
@@ -1064,34 +1074,20 @@ app.post('/api/auth/sso/login', async (req, res) => {
   }); } catch (e) { console.warn('[SSO] login event not recorded:', e.message); }
   auditLog(req, 'SSO_LOGIN', { user: authResult.user.username, role: authResult.user.role });
 
-  const token = session.generateToken(authResult.user);
-  const csrfToken = crypto.randomBytes(32).toString('hex');
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  // [T0.21] Store session in httpOnly Secure SameSite=Strict cookie
-  res.cookie('sentinel_session', token, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'Strict',
-    path: '/',
-    maxAge: 8 * 60 * 60 * 1000
-  });
-
-  // CSRF token readable by client script to send in X-CSRF-Token header
-  res.cookie('sentinel_csrf', csrfToken, {
-    httpOnly: false,
-    secure: isProduction,
-    sameSite: 'Strict',
-    path: '/',
-    maxAge: 8 * 60 * 60 * 1000
-  });
+  const { issueSession } = require('./auth/issue_session');
+  const { token, csrfToken } = issueSession(res, authResult.user);
+  const allowedEnvs = accessPolicy.allowedEnvironments(authResult.user);
 
   res.json({
     authenticated: true,
     token, // Preserved for API / test client backward compatibility
     csrfToken,
     user: {
-      ...authResult.user,
+      username: authResult.user.username,
+      role: authResult.user.role,
+      email: authResult.user.email,
+      environment: authResult.user.environment,
+      allowedEnvironments: allowedEnvs,
       authenticatedAt: new Date().toISOString()
     }
   });
@@ -1118,13 +1114,8 @@ app.get('/api/auth/me', (req, res) => {
   const os = require('os');
   const username = user.username;
   const role = user.role || 'Viewer';
-  const env = req.sentinelEnv || req.session?.environment || config.ENVIRONMENT || 'staging';
-  const yamlConfig = require('./config/yaml_config');
-  let allowedEnvs = ['prod', 'staging'];
-  try {
-    const entitlements = (((yamlConfig.loadGlobalConfig() || {}).security || {}).environment_entitlements || {});
-    if (entitlements[role]) allowedEnvs = entitlements[role];
-  } catch (_) {}
+  const env = user.environment || req.sentinelEnv || req.session?.environment || config.ENVIRONMENT || 'staging';
+  const allowedEnvs = accessPolicy.allowedEnvironments(user);
 
   const meData = {
     username,
@@ -2277,8 +2268,15 @@ wss.on('connection', (ws, request) => {
     }
   } catch (_) {}
   const wsUser = request?.user || null;
-  if (wsUser && !accessPolicy.isEntitled(wsUser, initialEnv)) {
-    initialEnv = accessPolicy.allowedEnvironments(wsUser)[0] || 'staging';
+  if (wsUser) {
+    const allowed = accessPolicy.allowedEnvironments(wsUser);
+    if (!allowed || allowed.length === 0) {
+      ws.close(1008, 'No environment access');
+      return;
+    }
+    if (!accessPolicy.isEntitled(wsUser, initialEnv)) {
+      initialEnv = allowed[0];
+    }
   }
 
   ws.environment = initialEnv;
@@ -2296,6 +2294,7 @@ wss.on('connection', (ws, request) => {
         ws.send(JSON.stringify({
           type: 'state',
           data: {
+            environment: ws.environment,
             alerts: db.getAlerts(ws.environment),
             recovery: db.getRecoveryLogs(ws.environment),
             settings: db.getSettings(),
@@ -2311,6 +2310,7 @@ wss.on('connection', (ws, request) => {
   ws.send(JSON.stringify({
     type: 'init',
     data: {
+      environment: ws.environment,
       health: calculateHealthState(ws.environment),
       alerts: db.getAlerts(ws.environment),
       recovery: db.getRecoveryLogs(ws.environment),

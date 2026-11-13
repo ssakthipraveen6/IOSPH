@@ -8,6 +8,9 @@
  *     public_read_paths: ['/api/ui-config']
  *     environment_entitlements:             # role -> environments it may read
  *       Viewer: [staging, demo]
+ *     environment_groups:                   # group DN -> environments granted
+ *       "cn=sentinel-env-prod,ou=Groups,dc=enterprise,dc=corp": [prod]
+ *       "cn=sentinel-env-staging,ou=Groups,dc=enterprise,dc=corp": [staging]
  *
  * Defaults: reads require a session when NODE_ENV=production and stay open
  * otherwise, so local development and the test suites keep working. Roles not
@@ -59,14 +62,57 @@ function isPublicReadPath(path) {
   return Array.isArray(extra) && extra.includes(path);
 }
 
+// Union of mapped environments for memberOf DNs, or null when environment_groups is empty or absent.
+function environmentsFromGroups(memberOf) {
+  const groupsMap = securityConfig().environment_groups;
+  if (!groupsMap || typeof groupsMap !== 'object' || Object.keys(groupsMap).length === 0) {
+    return null;
+  }
+  const normalizedMap = new Map();
+  for (const [dn, envs] of Object.entries(groupsMap)) {
+    if (Array.isArray(envs)) {
+      normalizedMap.set(dn.toLowerCase().trim(), envs);
+    }
+  }
+  const granted = new Set();
+  const groups = Array.isArray(memberOf) ? memberOf : [];
+  for (const group of groups) {
+    const key = String(group).toLowerCase().trim();
+    if (normalizedMap.has(key)) {
+      for (const env of normalizedMap.get(key)) {
+        const clean = String(env).toLowerCase().trim();
+        if (ENVIRONMENTS.includes(clean)) granted.add(clean);
+      }
+    }
+  }
+  return Array.from(granted);
+}
+
+// Decides the default environment after sign-in based on configured default and allowed environments.
+function defaultEnvironment(user, configured) {
+  const allowed = allowedEnvironments(user);
+  if (!allowed || allowed.length === 0) return null;
+  const normConfig = configured ? String(configured).toLowerCase().trim() : null;
+  if (normConfig && allowed.includes(normConfig)) return normConfig;
+  for (const preferred of ['prod', 'staging']) {
+    if (allowed.includes(preferred)) return preferred;
+  }
+  return allowed[0] || null;
+}
+
 // Environments a user may read; Super Admin and unauthenticated internal calls get all.
 function allowedEnvironments(user) {
   if (!user) return ENVIRONMENTS;
   if (user.role === 'Super Admin') return ENVIRONMENTS;
+  if (Array.isArray(user.environments)) {
+    return user.environments
+      .map(e => String(e).toLowerCase().trim())
+      .filter(e => ENVIRONMENTS.includes(e));
+  }
   const map = securityConfig().environment_entitlements || {};
   const list = map[user.role];
   if (!Array.isArray(list)) return ENVIRONMENTS;
-  return list.map(e => String(e).toLowerCase()).filter(e => ENVIRONMENTS.includes(e));
+  return list.map(e => String(e).toLowerCase().trim()).filter(e => ENVIRONMENTS.includes(e));
 }
 
 // True when the user may read data of this environment.
@@ -74,4 +120,12 @@ function isEntitled(user, env) {
   return allowedEnvironments(user).includes(env);
 }
 
-module.exports = { requiresAuthForReads, isPublicReadPath, allowedEnvironments, isEntitled, ENVIRONMENTS };
+module.exports = {
+  requiresAuthForReads,
+  isPublicReadPath,
+  environmentsFromGroups,
+  defaultEnvironment,
+  allowedEnvironments,
+  isEntitled,
+  ENVIRONMENTS
+};

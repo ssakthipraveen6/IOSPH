@@ -103,7 +103,11 @@ async function testLdapCanonical() {
           object: {
             dn: 'cn=jsmith,dc=enterprise,dc=corp',
             sAMAccountName: 'jsmith',
-            mail: 'jsmith@enterprise.corp'
+            mail: 'jsmith@enterprise.corp',
+            memberOf: [
+              'cn=sentinel-operators,ou=Groups,dc=enterprise,dc=corp',
+              'cn=sentinel-env-staging,ou=Groups,dc=enterprise,dc=corp'
+            ]
           }
         });
         resEmitter.emit('end', { status: 0 });

@@ -209,6 +209,9 @@ security:
   # Super Admin always may.
   environment_entitlements: {}
     # Viewer: ["staging"]
+  environment_groups: {}
+    # cn=sentinel-env-prod,ou=Groups,dc=enterprise,dc=corp: [prod]
+    # cn=sentinel-env-staging,ou=Groups,dc=enterprise,dc=corp: [staging]
   ingest:
     # enforce | warn | off. Default: enforce in production, warn elsewhere.
     # Create keys with: npm run ingest-key -- create <name> <prod|staging>

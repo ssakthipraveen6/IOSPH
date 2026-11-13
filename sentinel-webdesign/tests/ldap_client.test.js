@@ -46,8 +46,8 @@ async function runLdapTests() {
   const defaultRole = ldapClient.resolveRoleFromGroups([
     'cn=unrecognized-group,ou=Groups,dc=enterprise,dc=corp'
   ]);
-  assert.strictEqual(defaultRole, 'Operator');
-  console.log('✔ Test 5 Passed: memberOf group DNs correctly map to roles');
+  assert.strictEqual(defaultRole, null);
+  console.log('✔ Test 5 Passed: memberOf group DNs correctly map to roles (null when unmapped)');
 
   // Test 6: performLdapBind handles connection failure gracefully
   const bindResult = await ldapClient.performLdapBind({
