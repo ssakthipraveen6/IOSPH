@@ -159,6 +159,9 @@ function generateToken(user, ttlMs = TOKEN_TTL_MS) {
     exp: now + ttlMs,
     jti
   };
+  if (Array.isArray(user.environments)) {
+    payload.environments = user.environments;
+  }
   return sign(header, payload, JWT_SECRET);
 }
 
