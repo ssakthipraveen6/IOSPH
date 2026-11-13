@@ -52,11 +52,21 @@ function evaluateSlos(environment = 'staging') {
         status = errorBudgetRemaining <= 0 ? 'BUDGET_EXHAUSTED' : (errorBudgetRemaining < 25 || burnRate > 2.0) ? 'DEGRADED' : 'HEALTHY';
       }
     } else if (slo.id === 'alert_detection_latency') {
-      if (alerts.length > 0) {
-        currentSli = 98.4;
-        errorBudgetRemaining = 85.0;
-        burnRate = 0.4;
-        status = 'HEALTHY';
+      const withEventTime = alerts.filter(a => a && a.event_time != null && a.timestamp != null);
+      if (withEventTime.length > 0) {
+        const targetSeconds = slo.target_p95_seconds || 30;
+        const withinTarget = withEventTime.filter(a => {
+          let ts = typeof a.timestamp === 'number' ? a.timestamp : (new Date(a.timestamp).getTime() / 1000);
+          let et = typeof a.event_time === 'number' ? a.event_time : (new Date(a.event_time).getTime() / 1000);
+          if (ts > 1e11) ts /= 1000;
+          if (et > 1e11) et /= 1000;
+          return (ts - et) <= targetSeconds;
+        }).length;
+        currentSli = parseFloat(((withinTarget / withEventTime.length) * 100).toFixed(2));
+        const budgetSpent = Math.max(0, 100 - currentSli);
+        errorBudgetRemaining = parseFloat(Math.max(0, (1 - (budgetSpent / (budgetTotal || 0.01))) * 100).toFixed(2));
+        burnRate = currentSli < slo.target_percentage ? parseFloat(((slo.target_percentage - currentSli) / (budgetTotal || 0.01)).toFixed(2)) : 0.0;
+        status = errorBudgetRemaining <= 0 ? 'BUDGET_EXHAUSTED' : (errorBudgetRemaining < 25 || burnRate > 2.0) ? 'DEGRADED' : 'HEALTHY';
       }
     }
 
