@@ -3,10 +3,12 @@
  * Sentinel role. Outside production (or with SENTINEL_ALLOW_SIMULATED_LOGIN=true) the staging test
  * users are used instead.
  */
+const fs = require('fs');
 const ldap = require('ldapjs');
 const yamlConfig = require('@sentinel/config/yaml_config');
 const credentialProvider = require('@sentinel/config/cyberark/credential_provider');
 const config = require('@sentinel/config');
+const accessPolicy = require('./access_policy');
 
 // [SEC-03 REMEDIATED] — CWE-287: Authentication Bypass
 // LDAP role mapping table — roles assigned from LDAP group memberships, NOT from username substrings.
@@ -29,7 +31,9 @@ const STAGING_TEST_USERS = {
   'admin_user@enterprise.corp': 'Super Admin', // sample-data-ok
   'sre_lead_test':              'SRE Lead',
   'noc_operator':               'NOC Operator',
-  'viewer_readonly':            'Viewer'
+  'viewer_readonly':            'Viewer',
+  'stg_operator':               'NOC Operator',
+  'prod_operator':              'NOC Operator'
 };
 
 /**
@@ -50,27 +54,27 @@ function getActiveLdapRoleMap() {
 
 /**
  * Resolves a user role from LDAP memberOf groups.
- * Falls back to 'Operator' if no matching group is found.
+ * Returns null if no matching group is found.
  * @param {string[]} memberOfGroups  Array of LDAP group DNs from the user's memberOf attribute
- * @returns {string} Resolved role
+ * @returns {string|null} Resolved role or null
  */
 function resolveRoleFromGroups(memberOfGroups = []) {
   const roleMap = getActiveLdapRoleMap();
   for (const groupDn of memberOfGroups) {
-    const normalizedDn = groupDn.toLowerCase();
+    const normalizedDn = String(groupDn).toLowerCase();
     for (const [mapDn, role] of Object.entries(roleMap)) {
       if (normalizedDn === mapDn.toLowerCase()) {
         return role;
       }
     }
   }
-  return 'Operator';
+  return null;
 }
 
 /**
  * Performs real LDAP bind and group lookup using ldapjs (T0.6).
  * @param {object} opts Connection and bind options
- * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
+ * @returns {Promise<{ success: boolean, user?: object, error?: string, code?: string }>}
  */
 async function performLdapBind(opts) {
   const {
@@ -80,19 +84,37 @@ async function performLdapBind(opts) {
     searchBase,
     username,
     password,
+    tlsCaFile,
     timeout = 5000
   } = opts;
 
   return new Promise((resolve) => {
     let client;
+    const clientOptions = {
+      url,
+      timeout,
+      connectTimeout: timeout
+    };
+    if (tlsCaFile) {
+      try {
+        clientOptions.tlsOptions = { ca: [fs.readFileSync(tlsCaFile)] };
+      } catch (err) {
+        return resolve({
+          success: false,
+          code: 'UNAVAILABLE',
+          error: `Sign-in service unavailable. Try again or contact the Sentinel admins.`
+        });
+      }
+    }
+
     try {
-      client = ldap.createClient({
-        url,
-        timeout,
-        connectTimeout: timeout
-      });
+      client = ldap.createClient(clientOptions);
     } catch (e) {
-      return resolve({ success: false, error: `LDAP client error: ${e.message}` });
+      return resolve({
+        success: false,
+        code: 'UNAVAILABLE',
+        error: 'Sign-in service unavailable. Try again or contact the Sentinel admins.'
+      });
     }
 
     client.on('error', (err) => {
@@ -103,7 +125,11 @@ async function performLdapBind(opts) {
     client.bind(bindDn, bindPassword, (bindErr) => {
       if (bindErr) {
         client.unbind(() => {});
-        return resolve({ success: false, error: `LDAP service bind failed: ${bindErr.message}` });
+        return resolve({
+          success: false,
+          code: 'UNAVAILABLE',
+          error: 'Sign-in service unavailable. Try again or contact the Sentinel admins.'
+        });
       }
 
       // 2. Search for user by sAMAccountName, userPrincipalName, or mail
@@ -112,13 +138,17 @@ async function performLdapBind(opts) {
       const searchOptions = {
         scope: 'sub',
         filter: searchFilter,
-        attributes: ['dn', 'mail', 'memberOf', 'displayName', 'sAMAccountName']
+        attributes: ['dn', 'mail', 'memberof', 'memberOf', 'displayname', 'displayName', 'samaccountname', 'sAMAccountName', 'userprincipalname', 'userPrincipalName']
       };
 
       client.search(searchBase, searchOptions, (searchErr, res) => {
         if (searchErr) {
           client.unbind(() => {});
-          return resolve({ success: false, error: `LDAP search failed: ${searchErr.message}` });
+          return resolve({
+            success: false,
+            code: 'UNAVAILABLE',
+            error: 'Sign-in service unavailable. Try again or contact the Sentinel admins.'
+          });
         }
 
         let userEntry = null;
@@ -126,31 +156,63 @@ async function performLdapBind(opts) {
 
         res.on('searchEntry', (entry) => {
           matchCount++;
-          userEntry = entry.object;
+          if (entry && entry.object) {
+            userEntry = entry.object;
+          } else if (entry) {
+            const obj = {
+              dn: (entry.objectName || entry._dn || '').toString()
+            };
+            const attrs = Array.isArray(entry.attributes) ? entry.attributes : (entry.pojo && Array.isArray(entry.pojo.attributes) ? entry.pojo.attributes : []);
+            for (const a of attrs) {
+              if (a && a.type) {
+                const vals = a.values || a.vals || [];
+                const val = Array.isArray(vals) && vals.length === 1 ? vals[0] : vals;
+                obj[a.type] = val;
+                obj[a.type.toLowerCase()] = val;
+              }
+            }
+            userEntry = obj;
+          }
         });
 
         res.on('error', (err) => {
           client.unbind(() => {});
-          return resolve({ success: false, error: `LDAP search stream error: ${err.message}` });
+          return resolve({
+            success: false,
+            code: 'UNAVAILABLE',
+            error: 'Sign-in service unavailable. Try again or contact the Sentinel admins.'
+          });
         });
 
         res.on('end', (result) => {
           client.unbind(() => {});
 
           if (matchCount > 1) {
-            return resolve({ success: false, error: 'Ambiguous account' });
+            return resolve({
+              success: false,
+              code: 'BAD_CREDENTIALS',
+              error: 'Invalid LDAP credentials or bind failed.'
+            });
           }
 
           if (!userEntry || !userEntry.dn) {
-            return resolve({ success: false, error: 'User not found in directory.' });
+            return resolve({
+              success: false,
+              code: 'BAD_CREDENTIALS',
+              error: 'Invalid LDAP credentials or bind failed.'
+            });
           }
 
           // 3. Bind as the user with their password to verify credentials
           let userClient;
           try {
-            userClient = ldap.createClient({ url, timeout, connectTimeout: timeout });
+            userClient = ldap.createClient(clientOptions);
           } catch (e) {
-            return resolve({ success: false, error: `User LDAP client creation failed: ${e.message}` });
+            return resolve({
+              success: false,
+              code: 'UNAVAILABLE',
+              error: 'Sign-in service unavailable. Try again or contact the Sentinel admins.'
+            });
           }
 
           userClient.on('error', () => {});
@@ -158,28 +220,54 @@ async function performLdapBind(opts) {
           userClient.bind(userEntry.dn, password, (userBindErr) => {
             userClient.unbind(() => {});
             if (userBindErr) {
-              return resolve({ success: false, error: 'Invalid LDAP credentials or bind failed.' });
+              return resolve({
+                success: false,
+                code: 'BAD_CREDENTIALS',
+                error: 'Invalid LDAP credentials or bind failed.'
+              });
             }
 
             // Extract memberOf groups
-            let memberOf = userEntry.memberOf || [];
+            let memberOf = userEntry.memberOf || userEntry.memberof || [];
             if (!Array.isArray(memberOf)) {
               memberOf = [memberOf];
             }
 
             const role = resolveRoleFromGroups(memberOf);
+            if (!role) {
+              return resolve({
+                success: false,
+                code: 'NO_ACCESS',
+                error: 'Your account is not in a Sentinel access group.'
+              });
+            }
+
+            const envs = accessPolicy.environmentsFromGroups(memberOf);
+            if (Array.isArray(envs) && envs.length === 0 && role !== 'Super Admin') {
+              return resolve({
+                success: false,
+                code: 'NO_ACCESS',
+                error: 'Your account has no Sentinel environment access (groups: sentinel-env-prod / sentinel-env-staging).'
+              });
+            }
+
             const email = userEntry.mail || (username.includes('@') ? username : `${username}@enterprise.corp`);
+            const rawUsername = userEntry.sAMAccountName || userEntry.samaccountname || username;
+            const normalizedUsername = String(rawUsername).toLowerCase();
+
+            const userObj = {
+              username: normalizedUsername,
+              role,
+              email,
+              authenticatedVia: 'LDAP_BIND'
+            };
+            if (Array.isArray(envs)) {
+              userObj.environments = envs;
+            }
 
             return resolve({
               success: true,
-              user: {
-                username: String(userEntry.sAMAccountName || username).toLowerCase(),
-                role,
-                email,
-                dn: userEntry.dn,
-                memberOf,
-                authenticatedVia: 'LDAP_BIND'
-              }
+              user: userObj
             });
           });
         });
@@ -191,31 +279,27 @@ async function performLdapBind(opts) {
 /**
  * Authenticates user credentials against Enterprise eLDAP / Active Directory.
  *
- * Production path: Performs real LDAP bind using ldapjs with CyberArk-resolved
- * bind credentials, then reads memberOf attributes for group-based role assignment.
- *
- * Staging/Dev path: Uses a controlled test user lookup table when
- * USE_SIMULATED_COLLECTORS is true or in staging/test environments.
+ * Real LDAP path runs when NODE_ENV === 'production' OR SENTINEL_AUTH_MODE === 'ldap'.
+ * Staging test user table runs otherwise.
  *
  * @param {string} username   Username or UPN (e.g. jsmith or jsmith@enterprise.corp)
  * @param {string} password   Password
- * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
+ * @returns {Promise<{ success: boolean, user?: object, error?: string, code?: string }>}
  */
 async function authenticate(username, password) {
   // Input validation
   if (!username || typeof username !== 'string' || username.trim().length === 0) {
-    return { success: false, error: 'Username is required.' };
+    return { success: false, code: 'BAD_CREDENTIALS', error: 'Username is required.' };
   }
   if (!password || typeof password !== 'string' || password.length === 0) {
-    return { success: false, error: 'Password is required.' };
+    return { success: false, code: 'BAD_CREDENTIALS', error: 'Password is required.' };
   }
 
   // Sanitize: prevent LDAP injection by rejecting special DN characters in username
-  // RFC 4514/4515 unsafe chars: \ # + < > , ; " =
   const LDAP_UNSAFE = /[\\#+<>,;"=\x00]/;
   if (LDAP_UNSAFE.test(username)) {
     console.warn(`[LDAP] [SEC-03] Rejected username with LDAP-unsafe characters: ${username.substring(0, 20)}`);
-    return { success: false, error: 'Invalid characters in username.' };
+    return { success: false, code: 'BAD_CREDENTIALS', error: 'Invalid characters in username.' };
   }
 
   const globalConfig = yamlConfig.loadGlobalConfig();
@@ -225,10 +309,7 @@ async function authenticate(username, password) {
     infraLayers = yamlConfig.loadAllInfrastructureLayers() || {};
   } catch (_) {}
 
-  // The real LDAP bind is used whenever NODE_ENV=production. The simulated login (any user, any
-  // password) used to be reachable on a production server whose config said environment: staging,
-  // because one server serves both the PRD and STG views. It now needs an explicit opt-in,
-  // which is ignored when the global configuration specifies environment: production.
+  const isExplicitLdap = process.env.SENTINEL_AUTH_MODE === 'ldap';
   const allowSimulated = process.env.SENTINEL_ALLOW_SIMULATED_LOGIN === 'true';
   const isGlobalProd = (globalConfig.environment || '').toLowerCase() === 'production';
   let effectiveAllowSimulated = allowSimulated;
@@ -238,21 +319,26 @@ async function authenticate(username, password) {
   }
   const isProduction = process.env.NODE_ENV === 'production' && !effectiveAllowSimulated;
 
-  // =========================================================================
-  // PRODUCTION PATH — Real LDAP Bind via ldapjs (T0.6)
-  // =========================================================================
-  if (isProduction) {
-    let bindPassword = null;
-    try {
-      bindPassword = await credentialProvider.getCredential('sso_eldap', 'bind');
-    } catch (e) {
-      console.error(`[LDAP] [FATAL] Could not resolve bind credential from CyberArk: ${e.message}`);
-      return { success: false, error: 'Authentication service unavailable. Contact your administrator.' };
+  // Real LDAP Bind is invoked if production or SENTINEL_AUTH_MODE === 'ldap'
+  if (isExplicitLdap || isProduction) {
+    let bindPassword = process.env.SSO_ELDAP_BIND || null;
+    if (!bindPassword) {
+      try {
+        bindPassword = await credentialProvider.getCredential('sso_eldap', 'bind');
+      } catch (e) {
+        console.error(`[LDAP] [FATAL] Could not resolve bind credential from CyberArk or SSO_ELDAP_BIND: ${e.message}`);
+        return {
+          success: false,
+          code: 'UNAVAILABLE',
+          error: 'Sign-in service unavailable. Try again or contact the Sentinel admins.'
+        };
+      }
     }
 
     const ldapUrl = ldapConfig.ldap_url || ldapConfig.url || (infraLayers.sso_eldap && infraLayers.sso_eldap.endpoint) || 'ldaps://ldap.enterprise.corp:636';
     const bindDn = ldapConfig.bind_dn || 'cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp';
-    const searchBase = ldapConfig.search_base || 'dc=enterprise,dc=corp';
+    const searchBase = ldapConfig.search_base || ldapConfig.base_dn || 'dc=enterprise,dc=corp';
+    const tlsCaFile = ldapConfig.tls_ca_file || null;
 
     return await performLdapBind({
       url: ldapUrl,
@@ -260,23 +346,22 @@ async function authenticate(username, password) {
       bindPassword,
       searchBase,
       username,
-      password
+      password,
+      tlsCaFile
     });
   }
 
   // =========================================================================
   // STAGING / DEVELOPMENT PATH — Controlled test user table only
-  // [SEC-03] Role is looked up from a controlled allow-list, NOT inferred from username substrings
   // =========================================================================
   const lowerUser = username.toLowerCase().trim();
 
   // Explicit deny list for test credentials that should never succeed
   const DENY_PASSWORDS = ['invalid', 'wrong_password', 'test123', 'password'];
   if (DENY_PASSWORDS.includes(password.toLowerCase())) {
-    return { success: false, error: 'Invalid LDAP credentials or bind failed.' };
+    return { success: false, code: 'BAD_CREDENTIALS', error: 'Invalid LDAP credentials or bind failed.' };
   }
 
-  // [SEC-03] Role resolved from a controlled allow-list — no username substring inference
   const role = STAGING_TEST_USERS[lowerUser] || 'Operator';
   const email = username.includes('@') ? username : `${username}@enterprise.corp`;
 
@@ -285,20 +370,29 @@ async function authenticate(username, password) {
   }
   console.info(`[LDAP] [STAGING] Authenticated user: ${username} with role: ${role}`);
 
+  const userObj = {
+    username: lowerUser,
+    role,
+    email,
+    bindAccount: ldapConfig.bind_dn || 'cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp',
+    authenticatedVia: 'STAGING_SIMULATION'
+  };
+
+  if (lowerUser === 'stg_operator') {
+    userObj.environments = ['staging'];
+  } else if (lowerUser === 'prod_operator') {
+    userObj.environments = ['prod'];
+  }
+
   return {
     success: true,
-    user: {
-      username: lowerUser,
-      role,
-      email,
-      bindAccount: ldapConfig.bind_dn || 'cn=svc-sentinel-sso,ou=ServiceAccounts,dc=enterprise,dc=corp',
-      authenticatedVia: 'STAGING_SIMULATION'
-    }
+    user: userObj
   };
 }
 
 module.exports = {
   authenticate,
   resolveRoleFromGroups,
-  performLdapBind
+  performLdapBind,
+  STAGING_TEST_USERS
 };
