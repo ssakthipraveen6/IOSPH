@@ -129,14 +129,72 @@ async function testLdapCanonical() {
 }
 
 testLdapCanonical().then(() => {
+  return testTriggerEndpoint();
+}).then(() => {
   console.log('======================================================');
   console.log('✅ ALL FOUR-EYES RECOVERY TESTS PASSED!');
   console.log('======================================================\n');
   process.exit(0);
 }).catch(err => {
-  console.error('Test 6c failed:', err);
+  console.error('Test failed:', err);
   process.exit(1);
 });
-return;
+
+async function testTriggerEndpoint() {
+  const http = require('http');
+  const session = require('../backend/auth/session');
+  const { server } = require('../backend/server');
+
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+
+  function postTrigger(body, token) {
+    return new Promise((resolve, reject) => {
+      const payload = JSON.stringify(body);
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port,
+        path: '/api/recovery/trigger',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+          'Authorization': `Bearer ${token}`
+        }
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          let json = null;
+          try { json = JSON.parse(data); } catch (_) {}
+          resolve({ status: res.statusCode, body: json || data });
+        });
+      });
+      req.on('error', reject);
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  try {
+    const leadToken = session.generateToken({ username: 'lead.test', role: 'SRE Lead', environment: 'staging' });
+
+    // Unknown component -> 404
+    const resNotFound = await postTrigger({ component: 'does_not_exist', reason: 'test' }, leadToken);
+    assert.strictEqual(resNotFound.status, 404, `Expected 404 for unknown component, got ${resNotFound.status}`);
+    assert.strictEqual(resNotFound.body.success, false);
+    assert.strictEqual(resNotFound.body.error, 'No recovery workflow for does_not_exist');
+    console.log('✔ Test 7 Passed: Triggering does_not_exist returns 404 with error message');
+
+    // Known component 'artifactory' -> 200, Awaiting-Approval
+    const resArtifactory = await postTrigger({ component: 'artifactory', reason: 'high jvm memory' }, leadToken);
+    assert.strictEqual(resArtifactory.status, 200, `Expected 200 for artifactory, got ${resArtifactory.status}`);
+    assert.strictEqual(resArtifactory.body.success, true);
+    assert.strictEqual(resArtifactory.body.run.status, 'Awaiting-Approval');
+    console.log('✔ Test 8 Passed: Triggering artifactory returns 200 and status Awaiting-Approval');
+  } finally {
+    server.close();
+  }
+}
 
 

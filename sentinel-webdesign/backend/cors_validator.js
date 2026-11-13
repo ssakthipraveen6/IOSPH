@@ -6,9 +6,12 @@
  * anchored against approved corporate intranet domains.
  */
 
-function isAllowedOrigin(origin, allowedOrigins = []) {
+function isAllowedOrigin(origin, allowedOrigins = [], reqOrigin = null) {
   // No origin = same-origin request (RefWeb reverse proxy, CLI tools, server-to-server) — allow
   if (!origin) return true;
+
+  // Origin equals own origin
+  if (reqOrigin && origin === reqOrigin) return true;
 
   // [Phase S8] Loopback origins only when explicitly enabled (test runners, local dev),
   // never in production and never merely because NODE_ENV is unset.

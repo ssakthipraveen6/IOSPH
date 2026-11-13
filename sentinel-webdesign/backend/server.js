@@ -120,25 +120,34 @@ function resolveEnvironment(req) {
 
 // [SEC-05 REMEDIATED] — CORS allowlist supporting RefWeb, corporate intranet domains, and dev
 const { isAllowedOrigin } = require('./cors_validator');
-const configuredOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
-const ALLOWED_ORIGINS = [
-  process.env.ALLOWED_ORIGIN || 'https://sentinel.yourbank.internal',
-  ...configuredOrigins
-].filter(Boolean);
-// [Phase S8] Local dev origins (Vite on :5173) are allowed by cors_validator only when
-// SENTINEL_ALLOW_LOCALHOST_CORS=true (set by `npm run dev-backend` and the tests).
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // No origin = same-origin request (RefWeb reverse proxy, CLI tools, server-to-server) — allow
-    if (!origin) return callback(null, true);
-    if (isAllowedOrigin(origin, ALLOWED_ORIGINS)) {
-      return callback(null, true);
-    }
-    callback(new Error(`CORS: Origin '${origin}' is not in the allowed list.`));
-  },
-  credentials: true
+function getAllowedOrigins() {
+  const configuredOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : [];
+  return [
+    process.env.ALLOWED_ORIGIN || 'https://sentinel.yourbank.internal',
+    ...configuredOrigins
+  ].filter(Boolean);
+}
+
+app.use(cors((req, callback) => {
+  const origin = req.header('Origin');
+  const ownOrigin = `${req.protocol}://${req.get('host')}`;
+  const allowed = getAllowedOrigins();
+  if (!origin || origin === ownOrigin || isAllowedOrigin(origin, allowed, ownOrigin)) {
+    callback(null, { origin: true, credentials: true });
+  } else {
+    const err = new Error('Origin not allowed');
+    err.status = 403;
+    callback(err);
+  }
 }));
+
+app.use((err, req, res, next) => {
+  if (err && (err.status === 403 || err.message === 'Origin not allowed' || (err.message && err.message.startsWith('CORS:')))) {
+    return res.status(403).json({ error: 'Origin not allowed' });
+  }
+  next(err);
+});
 
 // [DS-01 REMEDIATED] Global body size cap — prevents oversized JSON payload attacks
 app.use(express.json({ limit: '5mb' }));
@@ -2012,13 +2021,23 @@ app.post('/api/recovery/trigger', requireRole(['Super Admin', 'SRE Lead', 'Opera
   }
   const initiatedBy = req.user?.username || 'devsecops-operator';
   const triggerOptions = { manual: false, env: req.sentinelEnv || resolveEnvironment(req), initiatedBy };
+  const run = recovery.triggerRecovery(component, reason || 'Manual operator trigger', triggerOptions);
+  if (!run) {
+    auditLog(req, 'RECOVERY_TRIGGERED', {
+      component,
+      reason,
+      initiatedBy,
+      outcome: 'NO_WORKFLOW',
+      ignoredOptions: Object.keys(req.body?.options || {})
+    });
+    return res.status(404).json({ success: false, error: `No recovery workflow for ${component}` });
+  }
   auditLog(req, 'RECOVERY_TRIGGERED', {
     component,
     reason,
     initiatedBy,
     ignoredOptions: Object.keys(req.body?.options || {})
   });
-  const run = recovery.triggerRecovery(component, reason || 'Manual operator trigger', triggerOptions);
   res.json({ success: true, run });
 });
 
