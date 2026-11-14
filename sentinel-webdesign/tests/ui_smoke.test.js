@@ -30,10 +30,26 @@ async function runUiSmokeTests() {
 
   try {
     console.log(`[TEST] Test server running on http://127.0.0.1:${testPort}`);
+    let execPath = process.env.SENTINEL_CHROMIUM_PATH;
+    if (!execPath && process.platform === 'win32') {
+      const fs = require('fs');
+      const candidates = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+      ];
+      for (const c of candidates) {
+        if (fs.existsSync(c)) {
+          execPath = c;
+          break;
+        }
+      }
+    }
     browser = await chromium.launch({
       headless: true,
       // Optional: point at a pre-installed Chromium when Playwright's own download is unavailable.
-      ...(process.env.SENTINEL_CHROMIUM_PATH ? { executablePath: process.env.SENTINEL_CHROMIUM_PATH } : {}),
+      ...(execPath ? { executablePath: execPath } : {}),
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
 
@@ -54,6 +70,16 @@ async function runUiSmokeTests() {
     page.on('pageerror', err => {
       consoleErrors.push(err.message);
     });
+
+    // 0. Sign in through the login page (the app is behind a sign-in gate)
+    console.log('\n[TEST 0] Signing in as admin_sentinel through the login page...');
+    await page.goto(`http://127.0.0.1:${testPort}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.waitForSelector('#login-username', { timeout: 15000 });
+    await page.fill('#login-username', 'admin_sentinel');
+    await page.fill('#login-password', 'Smoke-Test-Pw1');
+    await page.click('button.login-submit');
+    await page.waitForSelector('.sidebar-brand-text, .brand-pulse', { timeout: 15000 });
+    console.log('✔ Test 0 Passed: Signed in through the login page.');
 
     // 1. Visit Home Scorecard in Staging Mode; verify legacy env=demo is sanitized away
     console.log('\n[TEST 1] Visiting Home Scorecard with legacy ?env=demo and verifying sanitization...');

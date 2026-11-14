@@ -24,3 +24,4 @@ node_modules/
 apps/web/dist/
 /dist/
 .tempmediaStorage/
+.vscode/

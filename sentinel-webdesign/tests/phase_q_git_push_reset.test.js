@@ -261,9 +261,11 @@ async function main() {
       repo_url: `file://${symlinkRepoDir.replace(/\\/g, '/')}`,
       branch: 'canary-symlink'
     }, ctx);
-    assert.strictEqual(symlinkRes.success, false, 'step must fail when canary target is a symlink');
-    assert.strictEqual(fs.readFileSync(victimPath, 'utf8'), 'ORIGINAL CONTENT', 'victim file must remain unchanged');
-    console.log('  -> PASSED: symlink canary refused and victim preserved');
+    // The clone runs with core.symlinks=false, so git checks a committed symlink out as a
+    // plain file holding the link text. The step may then succeed (writing that plain file)
+    // or refuse via the lstat guard; either way it must never write through to the target.
+    assert.strictEqual(fs.readFileSync(victimPath, 'utf8'), 'ORIGINAL CONTENT', 'victim file outside the repo must remain unchanged');
+    console.log(`  -> PASSED: symlink not followed, victim preserved (step success=${symlinkRes.success})`);
   }
 
   delete process.env.SENTINEL_GIT_BIN;

@@ -190,3 +190,7 @@
 .gsearch-mono {
   font-family: var(--font-mono);
 }
+
+/* Light theme: darker teal for WCAG AA contrast on the pale button. */
+.light-mode .gsearch-trigger,
+.light-mode .gsearch-trigger-kbd { color: #0f766e; }

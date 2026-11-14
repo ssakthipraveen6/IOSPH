@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch, reportFetchError } from '../../api';
 import StatusBadge from '../shared/StatusBadge';
 import { LoadingState } from '../shared/PrototypeNotice';
+import { canAdminister, NEEDS_LEAD } from '../../roles';
 import './RemediationView.css';
 
 /**
@@ -16,7 +17,8 @@ import './RemediationView.css';
  *   - Live remediation log stream
  *   - Paginated historical runs
  */
-export default function RemediationView({ environment = 'staging' }) {
+export default function RemediationView({ environment = 'staging', userRole = null }) {
+  const mayAdminister = canAdminister(userRole);
   const [settings, setSettings] = useState(null);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -150,7 +152,8 @@ export default function RemediationView({ environment = 'staging' }) {
 
               <button
                 onClick={handleToggle}
-                disabled={toggling}
+                disabled={toggling || !mayAdminister}
+                title={mayAdminister ? undefined : NEEDS_LEAD}
                 className={`rem-btn-toggle ${autonomousOn ? 'rem-btn-toggle--on' : 'rem-btn-toggle--off'}`}
               >
                 {toggling ? 'Processing…' : (autonomousOn ? '✓ Autonomous Mode ON' : '○ Enable Autonomous Mode')}
@@ -169,7 +172,8 @@ export default function RemediationView({ environment = 'staging' }) {
               </div>
               <button
                 onClick={handleApprovePending}
-                disabled={approving}
+                disabled={approving || !mayAdminister}
+                title={mayAdminister ? undefined : NEEDS_LEAD}
                 className="rem-btn-toggle rem-btn-toggle--on"
               >
                 {approving ? 'Signing…' : '✍️ Sign as 2nd Approver'}

@@ -5,18 +5,18 @@
   flex-direction: column;
   gap: 20px;
   padding: 16px;
-  color: var(--text-main, #e0e6ed);
+  color: var(--text-primary);
 }
 
 .slo-header-banner {
-  background: var(--bg-card, #141c2b);
-  border: 1px solid var(--border-light, #223249);
+  background: var(--surface-bg);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-sm);
   backdrop-filter: blur(10px);
 }
 
@@ -35,7 +35,7 @@
 
 .slo-header-meta {
   font-size: 0.85rem;
-  color: var(--text-muted, #7e8da0);
+  color: var(--text-muted);
   margin-top: 4px;
 }
 
@@ -47,7 +47,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  color: #fca5a5;
+  color: var(--sev-critical);
   font-weight: 600;
   animation: pulse-freeze 2s infinite ease-in-out;
 }
@@ -64,8 +64,8 @@
 }
 
 .slo-card {
-  background: var(--bg-card, #141c2b);
-  border: 1px solid var(--border-light, #223249);
+  background: var(--surface-bg);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   padding: 22px;
   position: relative;
@@ -75,7 +75,7 @@
 
 .slo-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-md);
 }
 
 .slo-card-header {
@@ -100,20 +100,20 @@
 }
 
 .slo-badge.healthy {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: var(--sev-healthy-bg);
+  color: var(--sev-healthy);
   border: 1px solid #10b981;
 }
 
 .slo-badge.degraded {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
+  background: var(--sev-warning-bg);
+  color: var(--sev-warning);
   border: 1px solid #f59e0b;
 }
 
 .slo-badge.budget_exhausted {
-  background: rgba(239, 68, 68, 0.25);
-  color: #ef4444;
+  background: var(--sev-critical-bg);
+  color: var(--sev-critical);
   border: 1px solid #ef4444;
 }
 
@@ -133,7 +133,7 @@
 
 .slo-target-tag {
   font-size: 0.85rem;
-  color: var(--text-muted, #7e8da0);
+  color: var(--text-muted);
 }
 
 .error-budget-bar-wrapper {
@@ -149,7 +149,7 @@
 
 .error-budget-track {
   height: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-subtle);
   border-radius: 4px;
   overflow: hidden;
   position: relative;
@@ -166,9 +166,9 @@
   justify-content: space-between;
   margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid var(--border-light, #223249);
+  border-top: 1px solid var(--border-default);
   font-size: 0.8rem;
-  color: var(--text-muted, #7e8da0);
+  color: var(--text-muted);
 }
 
 .burn-rate-chip {
@@ -217,3 +217,9 @@
 /* Unknown SLO: no measurement yet */
 .slo-big-num.slo-big-num--none { color: var(--text-muted); }
 .burn-rate-chip.slo-burn--none { color: var(--text-muted); background: var(--surface-subtle); }
+
+/* SLOs with no data yet. */
+.slo-badge.unknown {
+  background: var(--sev-unavailable-bg);
+  color: var(--sev-unavailable);
+}

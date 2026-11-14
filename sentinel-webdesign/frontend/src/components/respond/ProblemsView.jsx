@@ -13,6 +13,8 @@ import './Respond.css';
 export default function ProblemsView({ environment = 'staging', demoData = null, readOnly = false }) {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
+  // True when the problems feed failed: show "Data unavailable", not "Zero Active Problems".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState(null);
 
   useEffect(() => {
@@ -26,8 +28,12 @@ export default function ProblemsView({ environment = 'staging', demoData = null,
       return () => { active = false; };
     }
 
+    setLoadFailed(false);
     fetch(`/api/problems?environment=${encodeURIComponent(environment)}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(data => {
         if (active) {
           setProblems(data.problems || []);
@@ -37,6 +43,7 @@ export default function ProblemsView({ environment = 'staging', demoData = null,
       .catch(() => {
         if (active) {
           setProblems([]);
+          setLoadFailed(true);
           setLoading(false);
         }
       });
@@ -146,6 +153,12 @@ export default function ProblemsView({ environment = 'staging', demoData = null,
           <div className="prb-loading">
             Loading active problems...
           </div>
+        ) : loadFailed ? (
+          <EmptyState
+            title="Data unavailable"
+            description={`Problems for ${environment} could not be loaded. Check the Sentinel server and try again.`}
+            environment={environment}
+          />
         ) : problems.length === 0 ? (
           <EmptyState
             title="Zero Active Problems"

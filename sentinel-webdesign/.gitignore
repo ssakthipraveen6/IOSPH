@@ -11,7 +11,7 @@ database/sentinel_users.json
 
 # Logs & audit logs
 logs/sentinel_audit.log
-logs/
+/logs/
 *.log
 nas_logs/
 
@@ -37,6 +37,11 @@ database/sentinel_users.json
 
 # Per-environment registry config (may contain an auth token)
 .npmrc
+
+# Local run receipts & scratch
+receipts/
+review-receipts/
+*.deps.txt
 
 # Repo-dump tooling output
 repomix-output.xml

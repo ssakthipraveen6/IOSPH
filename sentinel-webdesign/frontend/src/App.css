@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+/* Fonts are local system stacks: no runtime download from the internet (on-prem, no egress). */
 
 /* ==========================================================================
    GLASSMORPHISM THEME TOKENS & SYSTEM VARIABLES
@@ -91,8 +91,8 @@
 }
 
 :root {
-  --font-sans: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --font-mono: Consolas, "Cascadia Mono", ui-monospace, monospace;
 }
 
 /* Reset and Global Base */
@@ -3011,3 +3011,22 @@ body {
   width: 280px;
 }
 
+
+/* Live pill when the WebSocket is down: figures may be stale. */
+.live-pill.live-pill--offline {
+  background: var(--critical-glass);
+  color: var(--critical);
+  border-color: var(--critical);
+  box-shadow: none;
+}
+
+/* Light theme: darker text so small labels meet WCAG AA (4.5:1). */
+.light-mode .env-chip.active-stg { color: #92400e; }
+.light-mode .env-chip.active-prod { color: #b91c1c; }
+.light-mode .uptime-badge {
+  color: #1e293b;
+  background: #eef2f6;
+  border-color: #cbd5e1;
+}
+.light-mode .live-pill.live-pill--offline { color: #b91c1c; }
+.light-mode .live-pill:not(.live-pill--offline) { color: #0f766e; border-color: #0f766e; }
