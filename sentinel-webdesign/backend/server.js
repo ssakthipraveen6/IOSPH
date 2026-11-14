@@ -1608,7 +1608,7 @@ app.get('/api/v2/fleet/summary', async (req, res) => {
       const reg = e.region || 'GLOBAL';
       byRegion[reg] = (byRegion[reg] || 0) + 1;
 
-      const st = (e.status || 'HEALTHY').toUpperCase();
+      const st = (e.status || 'DATA_UNAVAILABLE').toUpperCase();
       byStatus[st] = (byStatus[st] || 0) + 1;
 
       if (e.last_seen && (now - new Date(e.last_seen).getTime() > staleThresholdMs)) {

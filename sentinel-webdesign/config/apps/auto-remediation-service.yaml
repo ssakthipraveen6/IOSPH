@@ -27,10 +27,10 @@ topology:
 lifecycle:
   refweb_url:
     url: https://remediation.internal.corp
-    expiry: '2027-12-31'
+    expiry: null
   license:
     type: Internal Proprietary
-    expiry: '2029-01-01'
+    expiry: null
   certificates:
     - { name: vip-tls, probe: "auto-remediation-service-prod.internal.corp:443" }
 layers:

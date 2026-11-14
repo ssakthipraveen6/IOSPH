@@ -175,7 +175,7 @@ export default function HomeScorecardView({
           label="Active Problems"
           value={failed.problems ? '—' : activeProblems.length}
           severity={failed.problems ? 'info' : activeProblems.length > 0 ? 'critical' : 'healthy'}
-          subtext={failed.problems ? 'Data unavailable' : activeProblems.length > 0 ? 'Layer contention detected' : 'All layers operating within baseline'}
+          subtext={failed.problems ? 'Data unavailable' : activeProblems.length > 0 ? 'Layer contention detected' : 'No open problems recorded'}
           onClick={() => onNavigateTab && onNavigateTab('problems')}
         />
         <StatTile

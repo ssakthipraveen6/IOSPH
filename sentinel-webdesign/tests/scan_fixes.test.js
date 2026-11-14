@@ -354,6 +354,19 @@ function request({ port, method = 'GET', path: p, headers = {}, body }) {
     assert.strictEqual(sched.getStatus().jobs[0].last_skip_reason, null);
     console.log('✔ 19 Passed: leader-only jobs retry 30 s after a NOT_LEADER skip');
 
+    // --- 20: the shipped configuration declares no sample checks and no made-up licence dates ---
+    const yamlLib = require('js-yaml');
+    const shippedChecks = yamlLib.load(fs.readFileSync(path.join(__dirname, '..', 'config', 'custom_checks.yaml'), 'utf8'));
+    assert.deepStrictEqual(shippedChecks.checks, [], 'custom_checks.yaml ships no checks');
+    const appsDir = path.join(__dirname, '..', 'config', 'apps');
+    for (const f of fs.readdirSync(appsDir).filter(n => n.endsWith('.yaml') && !n.startsWith('_'))) {
+      const m = yamlLib.load(fs.readFileSync(path.join(appsDir, f), 'utf8'));
+      const lc = m.lifecycle || {};
+      assert.ok(!(lc.license && lc.license.expiry), `${f}: licence expiry must be filled in by the owner, not shipped`);
+      assert.ok(!(lc.refweb_url && lc.refweb_url.expiry), `${f}: refweb expiry must be filled in by the owner, not shipped`);
+    }
+    console.log('✔ 20 Passed: no sample custom checks or licence dates are shipped');
+
     console.log('\n✅ ALL SCAN FIX TESTS PASSED');
   } finally {
     config.USE_SIMULATED_COLLECTORS = saved.simulated;

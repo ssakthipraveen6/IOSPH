@@ -37,10 +37,10 @@ topology:
 lifecycle:
   refweb_url:
     url: https://bitbucket.internal.corp
-    expiry: '2027-06-30'
+    expiry: null
   license:
     type: Bitbucket Data Center
-    expiry: '2027-04-01'
+    expiry: null
   certificates:
     - { name: vip-tls, probe: "bitbucket-prod.internal.corp:443" }
 layers:

@@ -164,6 +164,7 @@ export default function MiscOperations({ environment, userRole = null }) {
     return d && !isNaN(d) ? d : null;
   })();
   const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const rotaIsStale = !!rotaMonth && (rotaMonth.getFullYear() !== now.getFullYear() || rotaMonth.getMonth() !== now.getMonth());
   const rotaMonthLabel = rotaMonth ? rotaMonth.toLocaleString('en-GB', { month: 'long', year: 'numeric' }) : '';
 
@@ -389,12 +390,12 @@ export default function MiscOperations({ environment, userRole = null }) {
                   ) : filteredRows.length === 0 ? (
                     <tr>
                       <td colSpan={tableColumns.length} className="misc-table__placeholder">
-                        {searchQuery ? `No records match the search filter "${searchQuery}".` : 'Value Not Available'}
+                        {searchQuery ? `No records match the search filter "${searchQuery}".` : 'No rota uploaded for this team. Download the template, fill it in and upload it.'}
                       </td>
                     </tr>
                   ) : (
                     filteredRows.map((row, rIdx) => {
-                      const isToday = String(row['Status'] || '').toUpperCase().includes('ACTIVE') || String(row['Date'] || '').includes('2026-08-30');
+                      const isToday = String(row['Status'] || '').toUpperCase().includes('ACTIVE') || String(row['Date'] || '').startsWith(todayIso);
                       return (
                         <tr 
                           key={rIdx}

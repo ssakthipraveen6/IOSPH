@@ -83,7 +83,7 @@ function ClustersListView({ environment, onSelectCluster }) {
     <div className="k8s-root">
       <div className="k8s-strip">
         <div className="k8s-chip-row">
-          <span className="k8s-chip"><strong>Kubernetes Clusters:</strong> {clusters.length} discovered</span>
+          <span className="k8s-chip"><strong>Kubernetes Clusters:</strong> {clusters.filter(c => c.nodes_count > 0).length} reporting of {clusters.length} declared</span>
           <span className="k8s-chip"><strong>Environment:</strong> {environment.toUpperCase()}</span>
         </div>
       </div>
@@ -132,7 +132,7 @@ function ClustersListView({ environment, onSelectCluster }) {
                     onClick={() => onSelectCluster(c.cluster)}
                   >
                     <td className="k8s-name-cell">{c.cluster}</td>
-                    <td><StatusBadge status={c.status || 'HEALTHY'} /></td>
+                    <td><StatusBadge status={c.status || 'NO_DATA'} /></td>
                     <td>{c.nodes_count ?? '—'}</td>
                     <td>{c.pods_count ?? '—'}</td>
                     <td className="k8s-table-pct">{typeof c.cpu_allocatable === 'number' ? `${c.cpu_allocatable} cores` : '—'}</td>
@@ -381,7 +381,7 @@ function NamespaceDetailView({ cluster, namespace, environment, onBack, onSelect
                       <td>{w.kind}</td>
                       <td>{w.replicas_desired ?? '—'}</td>
                       <td>{w.replicas_ready ?? '—'}</td>
-                      <td><StatusBadge status={w.status || 'HEALTHY'} /></td>
+                      <td><StatusBadge status={w.status || 'NO_DATA'} /></td>
                     </tr>
                   ))}
                 </tbody>

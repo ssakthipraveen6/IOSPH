@@ -134,7 +134,10 @@ function createInfraRouter({ inv = null, ch = null, processProvider = null, metr
           host: hostname,
           os: hostOs,
           // A silent agent overrides the stored status: a host that stopped reporting is not healthy.
-          status: shaped.silent === true ? 'DEGRADED' : (entity.status || 'HEALTHY'),
+          // A host only declared in a manifest (no agent, no metric) has no status to show.
+          status: shaped.silent === true ? 'DEGRADED'
+            : (!shaped.has_agent && cpuLatest === null && memoryLatest === null && diskLatest === null) ? 'NO_DATA'
+            : (entity.status || 'HEALTHY'),
           product: matchedProduct,
           cpu_latest: cpuLatest,
           memory_latest: memoryLatest,
@@ -371,6 +374,8 @@ function createInfraRouter({ inv = null, ch = null, processProvider = null, metr
         }
       });
 
+      // A cluster only declared in a manifest, with no node reporting, has no health to show.
+      clustersMap.forEach(cl => { if (cl.nodes_count === 0) cl.status = 'NO_DATA'; });
       const clusterList = Array.from(clustersMap.values()).sort((a, b) => a.cluster.localeCompare(b.cluster));
 
       res.json({
@@ -620,7 +625,7 @@ function createInfraRouter({ inv = null, ch = null, processProvider = null, metr
           kind: l.workload_type || 'Deployment',
           replicas_desired: typeof l.replicas_desired === 'number' ? l.replicas_desired : null,
           replicas_ready: typeof l.replicas_ready === 'number' ? l.replicas_ready : null,
-          status: w.status || 'HEALTHY'
+          status: w.status || 'NO_DATA'
         };
       });
 
