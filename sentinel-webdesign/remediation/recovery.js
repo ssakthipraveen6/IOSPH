@@ -269,7 +269,7 @@ function executeRecoveryWorkflow(runId, component) {
         triggerSimulation(component, 'clear');
         
         // Resolve Dynatrace Alert and ServiceNow Tickets
-        db.resolveAlertsForComponent(component);
+        db.resolveAlertsForComponent(component, env);
         
         writeNasLog('INFO', 'RECOVERY', `[SUCCESS] Jenkins Remediation Completed for ${component} in ${duration}s.`);
         

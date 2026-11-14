@@ -91,7 +91,9 @@ export default function HostDetailView({
         <div className="host-detail-title-group">
           <div className="host-detail-title-row">
             <h2 className="host-detail-title">{hostName}</h2>
-            <StatusBadge status={(hostData && hostData.status) || 'HEALTHY'} />
+            {hostData && hostData.status
+              ? <StatusBadge status={hostData.status} />
+              : <StatusBadge status="info" label="UNKNOWN" />}
           </div>
           <div className="host-detail-meta">
             <span>OS: {os.toUpperCase()}</span>
@@ -141,7 +143,7 @@ export default function HostDetailView({
               </div>
               <div className="host-info-row">
                 <span className="host-info-label">Current Status</span>
-                <span className="host-info-value">{(hostData && hostData.status) || 'HEALTHY'}</span>
+                <span className="host-info-value">{(hostData && hostData.status) || 'Unknown'}</span>
               </div>
             </div>
 
@@ -162,7 +164,7 @@ export default function HostDetailView({
               <div className="host-info-row">
                 <span className="host-info-label">Config Drift</span>
                 <span className="host-info-value">
-                  {(hostData && hostData.agent_state && hostData.agent_state.drift) || 'in_sync'}
+                  {(hostData && hostData.agent_state && hostData.agent_state.drift) || 'unknown'}
                 </span>
               </div>
               <div className="host-info-row">

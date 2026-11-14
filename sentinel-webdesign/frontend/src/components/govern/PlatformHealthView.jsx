@@ -13,6 +13,15 @@ import './PlatformHealthView.css';
  * Combines ingest rates, buffer drops, background jobs, ClickHouse lag,
  * circuit-breaker states, and leader node info.
  */
+// Badge for one background job, from the scheduler's own fields. A job that never ran is not healthy.
+function jobBadge(j) {
+  if (j.running) return { status: 'info', label: 'RUNNING' };
+  if (j.last_error_at && (!j.last_success_at || j.last_error_at > j.last_success_at)) return { status: 'critical', label: 'FAILED' };
+  if (j.last_success_at) return { status: 'healthy', label: 'OK' };
+  if (j.enabled === false) return { status: 'info', label: 'DISABLED' };
+  return { status: 'info', label: 'NOT RUN' };
+}
+
 export default function PlatformHealthView({ environment = 'staging' }) {
   const [healthData, setHealthData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +70,9 @@ export default function PlatformHealthView({ environment = 'staging' }) {
         </div>
 
         <div className="ph-actions">
-          <StatusBadge status={healthData?.status || 'HEALTHY'} size="md" />
+          {healthData?.status
+            ? <StatusBadge status={healthData.status} size="md" />
+            : <StatusBadge status="info" label="UNKNOWN" size="md" />}
         </div>
       </div>
 
@@ -74,8 +85,8 @@ export default function PlatformHealthView({ environment = 'staging' }) {
           <div className="ph-grid">
             <div className="ph-tile">
               <span className="ph-tile-label">Leader Node</span>
-              <span className="ph-tile-val">{leader.role || 'LEADER'}</span>
-              <span className="ph-tile-sub ph-mono">{leader.leaderId || 'node-01'}</span>
+              <span className="ph-tile-val">{leader.role || '—'}</span>
+              <span className="ph-tile-sub ph-mono">{leader.leaderId || '—'}</span>
             </div>
 
             <div className="ph-tile">
@@ -132,12 +143,12 @@ export default function PlatformHealthView({ environment = 'staging' }) {
                           <strong>{j.name || j.id}</strong>
                         </td>
                         <td className="ph-mono">{j.schedule || 'Periodic'}</td>
-                        <td className="ph-mono">{j.lastRun ? new Date(j.lastRun).toLocaleTimeString() : 'Pending'}</td>
-                        <td className="ph-mono">{typeof j.durationMs === 'number' ? `${j.durationMs} ms` : '—'}</td>
+                        <td className="ph-mono">{j.last_finish_at ? new Date(j.last_finish_at).toLocaleTimeString() : 'Not run yet'}</td>
+                        <td className="ph-mono">{typeof j.last_duration_ms === 'number' ? `${j.last_duration_ms} ms` : '—'}</td>
                         <td>
-                          <StatusBadge status={j.status === 'ERROR' ? 'CRITICAL' : 'HEALTHY'} size="sm" />
+                          <StatusBadge {...jobBadge(j)} size="sm" />
                         </td>
-                        <td className="ph-mono">{j.error || 'Clean execution'}</td>
+                        <td className="ph-mono">{j.last_error || j.last_skip_reason || (j.last_success_at ? 'Last run succeeded' : '—')}</td>
                       </tr>
                     ))
                   )}

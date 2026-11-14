@@ -270,6 +270,50 @@ function request({ port, method = 'GET', path: p, headers = {}, body }) {
     assert.strictEqual(hostStatus['scan-fresh'], 'HEALTHY', 'a reporting host keeps its stored status');
     console.log('✔ 13 Passed: a silent host is DEGRADED, a reporting host stays HEALTHY');
 
+    // --- 15: mTLS sends the client certificate, keeps server verification on ---
+    const fwf = require('../metrics_collection/shared/fetch_with_fallback');
+    credentialProvider.getCredential = async () => '-----BEGIN CERTIFICATE-----\nTEST\n-----END CERTIFICATE-----';
+    const mtlsOpts = await fwf.applyAuthentication('https://mtls.example.test/api', {}, { scheme: 'mtls', cert_purpose: 'client_cert' }, 'scan_app');
+    credentialProvider.getCredential = async () => 'svc:token';
+    assert.ok(mtlsOpts.agent, 'an https agent carries the client certificate');
+    assert.notStrictEqual(mtlsOpts.agent.options.rejectUnauthorized, false, 'server certificate verification stays on');
+    await assert.rejects(fwf.fetchWithTimeout('http://127.0.0.1:1/x', { agent: mtlsOpts.agent }, 500), /mTLS requires an https URL/,
+      'a request with an agent goes through https.request, not the global fetch that ignores it');
+    console.log('✔ 15 Passed: mTLS agent is used and keeps certificate verification');
+
+    // --- 16: a successful recovery resolves only its own environment's alerts ---
+    const jenkinsOk = await fakeJenkins();
+    servers.push(jenkinsOk.srv);
+    config.PROD_URLS.jenkins_master_url = jenkinsOk.masterUrl;
+    recovery.getActiveRecoveries().clear();
+    recovery.resetCircuitBreaker();
+    db.addAlert('database', 'Critical', 'scan fix prod alert', 'Active', 'prod');
+    db.addAlert('database', 'Critical', 'scan fix staging alert', 'Active', 'staging');
+    const resolveRun = recovery.triggerRecovery('database', 'scan fix resolve test', { manual: true, env: 'prod' });
+    for (let i = 0; i < 50 && db.getRecoveryLogs('prod').find(x => x.id === resolveRun.id).status === 'In-Progress'; i++) await sleep(100);
+    assert.strictEqual(db.getRecoveryLogs('prod').find(x => x.id === resolveRun.id).status, 'Success');
+    const alertState = (env, msg) => db.getAlerts(env).find(a => a.message === msg)?.status;
+    assert.strictEqual(alertState('prod', 'scan fix prod alert'), 'Resolved', 'the prod alert is resolved');
+    assert.strictEqual(alertState('staging', 'scan fix staging alert'), 'Active', 'the staging alert is untouched');
+    console.log('✔ 16 Passed: recovery success resolves alerts of its own environment only');
+
+    // --- 17: platform health names this node; sign-in source is reported truthfully ---
+    r = await request({ port, path: '/api/v2/platform/health', headers: bearer({ username: 'ph.admin', role: 'Super Admin', environment: 'staging' }) });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.body.leader.leaderId, process.env.SENTINEL_NODE_ID || require('os').hostname(), 'leader id is this host, not a made-up name');
+    r = await request({ port, method: 'POST', path: '/api/auth/sso/login', body: { username: 'admin_sentinel', password: 'Scan-Pass-1234' } });
+    const simCookie = /sentinel_session=([^;]+)/.exec([].concat(r.headers['set-cookie'] || []).join(';'))[1];
+    r = await request({ port, path: '/api/auth/me', headers: { Authorization: `Bearer ${simCookie}` } });
+    assert.strictEqual(r.body.signInSource, 'Simulated sign-in', 'a simulated sign-in is not labelled AD/eLDAP');
+    assert.ok(!/Active Directory/.test(r.body.directory));
+    console.log('✔ 17 Passed: real node name and truthful sign-in source');
+
+    // --- 18: the app shell is revalidated, so a new build is picked up at once ---
+    r = await request({ port, path: '/' });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.headers['cache-control'], 'no-cache', 'index.html must not be cached for a day');
+    console.log('✔ 18 Passed: index.html is served with Cache-Control no-cache');
+
     // --- 14: the dump endpoint records a request, claims no capture, and is audited ---
     const lead = bearer({ username: 'dump.lead', role: 'SRE Lead', environment: 'staging' });
     r = await request({ port, method: 'POST', path: '/api/v2/infra/hosts/scan-host/processes/abc/dump', headers: lead });

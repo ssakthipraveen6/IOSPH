@@ -168,7 +168,8 @@ export default function AppMapView({
         <div className="app-map-kpi-card">
           <div className="app-map-kpi-label">Application Status</div>
           <div className="app-map-kpi-value">
-            {openProblem ? 'DEGRADED' : (mapData ? 'HEALTHY' : '—')}
+            {/* HEALTHY needs journey telemetry; no open problem alone is not evidence of health. */}
+            {openProblem ? 'DEGRADED' : (typeof journey?.success_rate === 'number' ? 'HEALTHY' : (mapData ? 'NO DATA' : '—'))}
           </div>
           <div className="app-map-kpi-note">Correlated system posture</div>
         </div>

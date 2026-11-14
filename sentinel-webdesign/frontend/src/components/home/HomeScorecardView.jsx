@@ -169,7 +169,7 @@ export default function HomeScorecardView({
           label="Tracked Toolchain Products"
           value={!failed.scorecards && scorecards.length > 0 ? scorecards.length : '—'}
           severity={failed.scorecards ? 'info' : null}
-          subtext={failed.scorecards ? 'Data unavailable' : 'Golden journeys active'}
+          subtext={failed.scorecards ? 'Data unavailable' : (scorecards.length > 0 ? 'Golden journeys active' : 'No scorecards yet')}
         />
         <StatTile
           label="Active Problems"

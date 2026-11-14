@@ -36,8 +36,7 @@ async function httpFetchJson(url, options = {}) {
     const req = client.request(url, {
       method: options.method || 'GET',
       headers,
-      timeout: timeoutMs,
-      rejectUnauthorized: false
+      timeout: timeoutMs
     }, (res) => {
       let data = '';
       res.on('data', chunk => { data += chunk; });

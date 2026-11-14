@@ -8,6 +8,9 @@
 
 const { SEVERITY, normalizeSeverity } = require('@sentinel/shared-constants');
 
+// A slow or unreachable webhook must not hold the notifying job.
+const WEBHOOK_TIMEOUT_MS = 10000;
+
 /**
  * Sends a problem notification to Microsoft Teams via Incoming Webhook
  * @param {Object} problem Problem details
@@ -92,7 +95,8 @@ async function sendProblemNotification(problem, webhookUrl = null, options = {})
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cardPayload)
+      body: JSON.stringify(cardPayload),
+      signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS)
     });
 
     return {
@@ -137,7 +141,7 @@ async function sendScorecardSummary(scorecards = [], { environment = 'staging', 
     }))
   };
   try {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cardPayload) });
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cardPayload), signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS) });
     return { status: res.ok ? 'DELIVERED' : 'FAILED', httpStatus: res.status };
   } catch (err) {
     return { status: 'FAILED', error: err.message };

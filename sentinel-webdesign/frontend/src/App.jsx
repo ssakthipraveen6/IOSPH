@@ -757,7 +757,7 @@ export default function App({ authUser = null, onSignOut = null } = {}) {
                     </span>
                   </div>
                   <span className="user-name">{currentUser ? (currentUser.name || currentUser.username) : 'Signing in…'}</span>
-                  <span className="user-role">{currentUser ? `${currentUser.role} · AD/eLDAP` : 'Authenticating…'}</span>
+                  <span className="user-role">{currentUser ? `${currentUser.role} · ${currentUser.signInSource || 'Unknown'}` : 'Authenticating…'}</span>
                 </div>
                 <span className="user-chevron">▾</span>
               </div>
@@ -776,7 +776,7 @@ export default function App({ authUser = null, onSignOut = null } = {}) {
                     <div className="dropdown-divider"></div>
                     <div className="dropdown-section">
                       <div className="dropdown-label">IDENTITY &amp; AUTHENTICATION</div>
-                      <div className="dropdown-item-info">Directory: <strong>{currentUser.directory || 'Corporate Active Directory (eLDAP)'}</strong></div>
+                      <div className="dropdown-item-info">Directory: <strong>{currentUser.directory || 'Unknown'}</strong></div>
                       <div className="dropdown-item-info">Assigned Role: <strong style={{ color: 'var(--primary)' }}>{currentUser.role}</strong></div>
                       <div className="dropdown-item-info">MFA Status: <strong style={{ color: 'var(--healthy)' }}>{currentUser.mfaEnforced ? 'Enforced (FIDO2 / TOTP)' : 'Disabled'}</strong></div>
                       <div className="dropdown-item-info">Telemetry Node: <span className="mono" style={{ fontSize: '10px', color: 'var(--primary)' }}>{currentUser.nodeName || 'lon-noc-gw-01'}</span></div>

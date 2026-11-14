@@ -143,10 +143,10 @@ async function applyAuthentication(url, options = {}, authConfig = null, appId =
       if (auth.cert_purpose) {
         const certData = await credentialProvider.getCredential(effectiveAppId, auth.cert_purpose, { skipCache });
         if (certData) {
+          // Server certificate is verified (system CAs plus NODE_EXTRA_CA_CERTS).
           mergedOptions.agent = new https.Agent({
             cert: certData,
-            key: certData,
-            rejectUnauthorized: false
+            key: certData
           });
         }
       }
@@ -159,11 +159,47 @@ async function applyAuthentication(url, options = {}, authConfig = null, appId =
 }
 
 /**
+ * HTTPS request through an https.Agent (client certificate for mTLS). The global fetch ignores
+ * `agent`, so this path uses https.request and returns a standard Response. Redirects are not
+ * followed, as with fetchWithTimeout.
+ */
+function requestWithAgent(url, options, timeoutMs) {
+  if (!url.startsWith('https:')) {
+    return Promise.reject(new Error(`mTLS requires an https URL: ${url}`));
+  }
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, {
+      method: options.method || 'GET',
+      headers: options.headers || {},
+      agent: options.agent,
+      timeout: timeoutMs
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('error', reject);
+      res.on('end', () => {
+        const headers = new Headers();
+        for (const [k, v] of Object.entries(res.headers)) [].concat(v).forEach(x => headers.append(k, x));
+        const noBody = [101, 204, 205, 304].includes(res.statusCode);
+        resolve(new Response(noBody ? null : Buffer.concat(chunks), { status: res.statusCode, headers }));
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error(`Request timed out after ${timeoutMs}ms`)));
+    req.on('error', reject);
+    if (options.body) req.write(options.body);
+    req.end();
+  });
+}
+
+/**
  * Low-level HTTP fetch with timeout and redirect isolation.
  */
 async function fetchWithTimeout(url, options = {}, timeoutMs = 3500) {
   if (!url || typeof url !== 'string' || !url.startsWith('http')) {
     throw new Error(`Invalid target URL: ${url}`);
+  }
+  if (options.agent) {
+    return requestWithAgent(url, options, timeoutMs);
   }
 
   const controller = new AbortController();

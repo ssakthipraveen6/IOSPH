@@ -56,9 +56,10 @@ function createPlatformRouter() {
 
       // 6. Leader node
       const isLeader = leaderLock && typeof leaderLock.isLeader === 'function' ? leaderLock.isLeader() : true;
+      // This node's real name; the other node's name is not known here.
       const leaderNode = {
         isLeader,
-        leaderId: isLeader ? 'node-sentinel-leader-01' : 'node-sentinel-standby-02',
+        leaderId: process.env.SENTINEL_NODE_ID || require('os').hostname(),
         role: isLeader ? 'LEADER' : 'STANDBY'
       };
 

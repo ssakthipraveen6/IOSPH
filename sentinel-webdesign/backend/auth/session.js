@@ -162,6 +162,11 @@ function generateToken(user, ttlMs = TOKEN_TTL_MS) {
   if (Array.isArray(user.environments)) {
     payload.environments = user.environments;
   }
+  // How the user signed in (LDAP_BIND or STAGING_SIMULATION); kept across environment switches.
+  const authSource = user.authenticatedVia || user.auth_source;
+  if (authSource) {
+    payload.auth_source = authSource;
+  }
   return sign(header, payload, JWT_SECRET);
 }
 

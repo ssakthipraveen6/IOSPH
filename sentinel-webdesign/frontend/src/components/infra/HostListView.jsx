@@ -38,7 +38,8 @@ export default function HostListView({
   const kpis = useMemo(() => {
     const total = rawHosts.length;
     const healthy = rawHosts.filter(h => h.status === 'HEALTHY').length;
-    const withAgent = rawHosts.filter(h => h.agent_state && h.agent_state.has_agent).length;
+    // Active = has an agent that is still sending heartbeats; a silent agent is not active.
+    const withAgent = rawHosts.filter(h => h.agent_state && h.agent_state.has_agent && h.agent_state.silent !== true).length;
     const cpuVals = rawHosts.map(h => h.cpu_latest).filter(v => typeof v === 'number');
     const avgCpu = cpuVals.length > 0 ? (cpuVals.reduce((a, b) => a + b, 0) / cpuVals.length).toFixed(1) : '—';
     return { total, healthy, withAgent, avgCpu };

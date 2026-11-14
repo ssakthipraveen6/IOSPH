@@ -88,7 +88,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:  ["'self'"],
-      connectSrc:  isDev ? ["'self'", "ws:", "wss:", "http:", "https:"] : ["'self'", "ws:", "wss:", "https:"],
+      // Production: same origin only ('self' also covers ws/wss to this host).
+      connectSrc:  isDev ? ["'self'", "ws:", "wss:", "http:", "https:"] : ["'self'"],
       scriptSrc:   isDev ? ["'self'", "'unsafe-inline'"] : ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`],
       styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc:      ["'self'", "data:", "blob:"],
@@ -318,7 +319,11 @@ const { requireRole, SRE_LEAD_PLUS } = require('./auth/require_role');
 const distPath = path.resolve(ROOT_DIR, 'frontend/dist');
 app.use(express.static(distPath, {
   maxAge: '1d',
-  etag: true
+  etag: true,
+  // index.html names the hashed bundles: it must be revalidated, or a deploy stays invisible for a day.
+  setHeaders: (res, filePath) => {
+    if (path.basename(filePath) === 'index.html') res.setHeader('Cache-Control', 'no-cache');
+  }
 }));
 
 // WebSockets connections list
@@ -1145,7 +1150,13 @@ app.get('/api/auth/me', (req, res) => {
   };
 
   if (user.mfaEnforced !== undefined) meData.mfaEnforced = user.mfaEnforced;
-  if (user.directory !== undefined) meData.directory = user.directory;
+  // Say how the user really signed in; never label a simulated sign-in as the corporate directory.
+  meData.signInSource = user.auth_source === 'LDAP_BIND' ? 'AD/eLDAP'
+    : user.auth_source === 'STAGING_SIMULATION' ? 'Simulated sign-in'
+    : 'Unknown';
+  meData.directory = user.directory || (user.auth_source === 'LDAP_BIND' ? 'Corporate Active Directory (eLDAP)'
+    : user.auth_source === 'STAGING_SIMULATION' ? 'Staging test users (no directory check)'
+    : 'Unknown');
 
   res.json(meData);
 });
