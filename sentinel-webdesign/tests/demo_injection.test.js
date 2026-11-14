@@ -56,7 +56,7 @@ async function main() {
   try {
     await waitUp(base, child);
     const login = await fetch(`${base}/api/auth/sso/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin_sentinel', password: 'Sim-Pass-1234' }) });
-    const authed = { Authorization: `Bearer ${(await login.json()).token}` };
+    const authed = { Authorization: `Bearer ${/sentinel_session=([^;]+)/.exec(login.headers.get('set-cookie'))[1]}` };
     const get = async (p) => (await fetch(`${base}${p}`, { headers: authed })).json();
 
     const result = await sim.run({ url: base, key: KEY, env: 'staging', hosts: 20, once: true, scenario: 'incident', log: quiet });

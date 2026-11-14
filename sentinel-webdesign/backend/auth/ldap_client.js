@@ -311,7 +311,9 @@ async function authenticate(username, password) {
 
   const isExplicitLdap = process.env.SENTINEL_AUTH_MODE === 'ldap';
   const allowSimulated = process.env.SENTINEL_ALLOW_SIMULATED_LOGIN === 'true';
-  const isGlobalProd = (globalConfig.environment || '').toLowerCase() === 'production';
+  // Every spelling of production (prod, prd, production) counts, not only the literal word.
+  const isGlobalProd = !!globalConfig.environment
+    && config.normalizeEnvironment(globalConfig.environment, 'config/global.yaml') === 'prod';
   let effectiveAllowSimulated = allowSimulated;
   if (isGlobalProd && allowSimulated) {
     console.warn('[LDAP] [SEC] Ignoring SENTINEL_ALLOW_SIMULATED_LOGIN: global configuration environment is production.');

@@ -117,8 +117,7 @@ async function runHttpTests() {
 
   function wsOpen(path, token) {
     return new Promise((resolve, reject) => {
-      const url = `ws://127.0.0.1:${port}${path}${path.includes('?') ? '&' : '?'}token=${token}`;
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`, { headers: { Authorization: `Bearer ${token}` } });
       const queue = [];
       const waiters = [];
 
@@ -178,7 +177,10 @@ async function runHttpTests() {
     assert.strictEqual(r.status, 200);
     assert.strictEqual(r.body.user.environment, 'staging');
     assert.deepStrictEqual(r.body.user.allowedEnvironments, ['staging']);
-    const stg = r.body.token;
+    // The session token is issued only as the httpOnly cookie, never in the body.
+    const sessionOf = (resp) => /sentinel_session=([^;]+)/.exec([].concat(resp.headers['set-cookie'] || []).join(';'))[1];
+    assert.strictEqual(r.body.token, undefined);
+    const stg = sessionOf(r);
     assert.strictEqual((await get('/api/alerts?environment=prod', stg)).status, 403);
     // The session environment wins over the header (resolveEnvironment order), so this is staging data:
     r = await get('/api/alerts', stg, { 'X-Sentinel-Environment': 'prod' });
@@ -190,7 +192,7 @@ async function runHttpTests() {
     // prod_operator lands on prod even though the server default is staging
     r = await post('/api/auth/sso/login', { username: 'prod_operator', password: 'Pw1!' });
     assert.strictEqual(r.body.user.environment, 'prod');
-    const prod = r.body.token;
+    const prod = sessionOf(r);
     assert.strictEqual((await get('/api/alerts?environment=staging', prod)).status, 403);
     assert.deepStrictEqual((await get('/api/auth/me', prod)).body.allowedEnvironments, ['prod']);
 

@@ -5,7 +5,7 @@
  * (requireRole in backend/server.js); the UI only disables what would be refused.
  */
 
-const OPERATE_ROLES = ['Super Admin', 'SRE Lead', 'Operator'];
+const OPERATE_ROLES = ['Super Admin', 'SRE Lead', 'NOC Operator', 'Operator'];
 const ADMINISTER_ROLES = ['Super Admin', 'SRE Lead'];
 
 // Tooltip shown on a control the current role cannot use.

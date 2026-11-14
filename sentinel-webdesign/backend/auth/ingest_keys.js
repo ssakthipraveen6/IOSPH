@@ -25,6 +25,7 @@ const POSITIVE_TTL_MS = 60 * 1000;
 const NEGATIVE_TTL_MS = 30 * 1000;
 const LAST_USED_WRITE_MS = 5 * 60 * 1000;
 const WARN_INTERVAL_MS = 60 * 1000;
+const MAX_CACHE_ENTRIES = 5000;
 
 const cache = new Map(); // hash -> { key|null, expires }
 const lastUsedWritten = new Map();
@@ -91,6 +92,13 @@ async function lookup(hash) {
 
   const cached = cache.get(hash);
   if (cached && cached.expires > Date.now()) return cached.key;
+
+  // Bound the cache: unknown keys would otherwise add one entry each, forever.
+  if (cache.size >= MAX_CACHE_ENTRIES) {
+    const now = Date.now();
+    for (const [h, entry] of cache) if (entry.expires <= now) cache.delete(h);
+    if (cache.size >= MAX_CACHE_ENTRIES) cache.clear();
+  }
 
   let key = null;
   try {
@@ -177,4 +185,9 @@ function clearCache() {
   cache.clear();
 }
 
-module.exports = { hashKey, generateKey, mode, authenticate, requireIngestKey, extractKey, clearCache, ENVIRONMENTS };
+// Number of cached key lookups (for the bound check in tests).
+function cacheSize() {
+  return cache.size;
+}
+
+module.exports = { hashKey, generateKey, mode, authenticate, requireIngestKey, extractKey, clearCache, cacheSize, ENVIRONMENTS };

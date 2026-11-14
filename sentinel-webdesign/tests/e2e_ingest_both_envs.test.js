@@ -66,7 +66,7 @@ async function main() {
     await waitUp(base, child);
     const login = await fetch(`${base}/api/auth/sso/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin_sentinel', password: 'E2e-Pass-1234' }) });
     assert.strictEqual(login.status, 200);
-    const authed = { Authorization: `Bearer ${(await login.json()).token}` };
+    const authed = { Authorization: `Bearer ${/sentinel_session=([^;]+)/.exec(login.headers.get('set-cookie'))[1]}` };
     const get = async (p) => { const r = await fetch(`${base}${p}`, { headers: authed }); return { status: r.status, body: await r.json().catch(() => null) }; };
     const post = (p, env, body, raw) => fetch(`${base}${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Sentinel-Api-Key': KEYS[env] }, body: raw !== undefined ? raw : JSON.stringify(body) });
 

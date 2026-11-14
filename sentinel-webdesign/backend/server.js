@@ -209,6 +209,8 @@ const INGEST_PATHS = new Set([
   '/api/v1/metrics/ingest',
   '/api/v2/changes/events'
 ]);
+// Agents pull their configuration with an ingest key (scope agent); they have no session.
+const AGENT_CONFIG_PATHS = new Set(['/api/v2/agent/config', '/api/agent/config']);
 // rcaEngine imported from ai_analysis
 
 // Authentication and Role Middleware (T0.5, T0.21)
@@ -247,6 +249,11 @@ function requireAuth(req, res, next) {
 
   // Telemetry push: guarded by requireIngestKey on the route itself (M1.5).
   if (req.method === 'POST' && INGEST_PATHS.has(req.path)) {
+    return next();
+  }
+
+  // Agent config pull: a presented key is checked by requireIngestKey('agent') on the route.
+  if (req.method === 'GET' && AGENT_CONFIG_PATHS.has(req.path) && ingestKeys.extractKey(req)) {
     return next();
   }
 
@@ -475,19 +482,18 @@ app.post('/api/environment', (req, res) => {
     return res.status(403).json({ error: `Role '${req.user.role}' is not entitled to the ${environment} environment.` });
   }
 
-  let newToken = null;
   if (req.user) {
     const { issueSession } = require('./auth/issue_session');
     const updatedUser = { ...req.user, environment, auth_time: req.user.auth_time };
     if (req.user.jti) {
       session.revokeToken(req.user.jti, 'environment-switch');
     }
-    const issued = issueSession(res, updatedUser);
-    newToken = issued.token;
+    // The new session travels only in the httpOnly cookie, never in the response body.
+    issueSession(res, updatedUser);
   }
 
   auditLog(req, 'ENVIRONMENT_SWITCH', { user: req.user?.username || 'anonymous', to: environment });
-  res.json({ success: true, environment, token: newToken });
+  res.json({ success: true, environment });
 });
 
 // AVI Load Balancer & Reverse Proxy Health Check Probe
@@ -1036,13 +1042,14 @@ app.get('/api/auth/sso/status', (req, res) => {
     });
   }
 
+  // Directory details (server address, base DN) are shown only to signed-in users.
   res.json({
     status: ldapConfig.ldap_url ? 'ACTIVE' : 'NOT_CONFIGURED',
     provider: ldapConfig.provider || null,
-    ldapUrl: ldapConfig.ldap_url || null,
-    baseDn: ldapConfig.base_dn || null,
+    ldapUrl: req.user ? (ldapConfig.ldap_url || null) : null,
+    baseDn: req.user ? (ldapConfig.base_dn || null) : null,
     csrfToken,
-    ssoEndpoint: globalCfg.prod_urls?.sso_api || null
+    ssoEndpoint: req.user ? (globalCfg.prod_urls?.sso_api || null) : null
   });
 });
 
@@ -1059,6 +1066,7 @@ app.post('/api/auth/sso/login', async (req, res) => {
       : authResult.code === 'NO_ACCESS' ? 403
       : authResult.code === 'UNAVAILABLE' ? 503
       : 401;
+    auditLog(req, 'SSO_LOGIN_FAILED', { attemptedUser: String(username).slice(0, 100), code: authResult.code || 'BAD_CREDENTIALS' });
     return res.status(status).json({
       error: authResult.error || 'eLDAP authentication failed.',
       code: authResult.code
@@ -1084,12 +1092,12 @@ app.post('/api/auth/sso/login', async (req, res) => {
   auditLog(req, 'SSO_LOGIN', { user: authResult.user.username, role: authResult.user.role });
 
   const { issueSession } = require('./auth/issue_session');
-  const { token, csrfToken } = issueSession(res, authResult.user);
+  // The session token travels only in the httpOnly cookie, never in the response body.
+  const { csrfToken } = issueSession(res, authResult.user);
   const allowedEnvs = accessPolicy.allowedEnvironments(authResult.user);
 
   res.json({
     authenticated: true,
-    token, // Preserved for API / test client backward compatibility
     csrfToken,
     user: {
       username: authResult.user.username,
@@ -2004,17 +2012,24 @@ app.post('/api/recovery/approve', requireRole(['Super Admin', 'SRE Lead']), asyn
   if (db.refreshRecoveryRun) {
     await db.refreshRecoveryRun(runId);
   }
-  const approvingUser = req.user || { username: 'devsecops-admin', role: 'Super Admin' };
-  auditLog(req, 'RECOVERY_APPROVED', { runId, approver: approvingUser.username });
+  const approvingUser = req.user;
+  // An approver may sign only runs of an environment they are entitled to.
+  const targetRun = [...db.getRecoveryLogs('prod'), ...db.getRecoveryLogs('staging')].find(r => r.id === runId);
+  if (targetRun && targetRun.env && !accessPolicy.isEntitled(approvingUser, targetRun.env)) {
+    auditLog(req, 'RECOVERY_APPROVAL_REFUSED', { runId, approver: approvingUser.username, reason: 'ENVIRONMENT_NOT_ENTITLED', env: targetRun.env });
+    return res.status(403).json({ success: false, error: `Not entitled to approve recoveries in the ${targetRun.env} environment.`, code: 'ENVIRONMENT_NOT_ENTITLED' });
+  }
   const result = recovery.approveRecovery(runId, approvingUser);
   if (result && typeof result === 'object' && result.error) {
+    auditLog(req, 'RECOVERY_APPROVAL_REFUSED', { runId, approver: approvingUser.username, reason: result.error });
     return res.status(403).json({ success: false, error: result.error, code: result.code });
   }
+  if (result) auditLog(req, 'RECOVERY_APPROVED', { runId, approver: approvingUser.username });
   res.json({ success: !!result });
 });
 
 // Trigger recovery action (enforces Segregation of Duties tagging)
-app.post('/api/recovery/trigger', requireRole(['Super Admin', 'SRE Lead', 'Operator']), (req, res) => {
+app.post('/api/recovery/trigger', requireRole(['Super Admin', 'SRE Lead', 'NOC Operator', 'Operator']), (req, res) => {
   const { component, reason } = req.body || {};
   if (!component) {
     return res.status(400).json({ error: 'Missing component' });
@@ -2245,8 +2260,8 @@ server.on('upgrade', (request, socket, head) => {
     const tokenFromHeader = request.headers['authorization']?.startsWith('Bearer ')
       ? request.headers['authorization'].substring(7)
       : null;
-    const tokenFromQuery = url.searchParams.get('token');
-    const token = tokenFromCookie || tokenFromHeader || tokenFromQuery;
+    // No token in the query string: URLs are written to proxy and access logs.
+    const token = tokenFromCookie || tokenFromHeader;
 
     let user = null;
     if (token) {

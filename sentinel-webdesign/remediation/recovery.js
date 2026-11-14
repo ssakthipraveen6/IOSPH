@@ -133,12 +133,20 @@ function resetCircuitBreaker() {
   jenkinsCircuitBreaker.lastTripped = null;
 }
 
+// One recovery at a time per component per environment: a staging run must not block prod.
+function lockKey(component, env) {
+  return `${env || global.runtimeEnvironment || 'staging'}:${component}`;
+}
+
 // Function to run the recovery workflow step-by-step
 function executeRecoveryWorkflow(runId, component) {
+  const storedRun = [...db.getRecoveryLogs('prod'), ...db.getRecoveryLogs('staging')].find(r => r.id === runId);
+  const env = (storedRun && storedRun.env) || null;
+  const key = lockKey(component, env);
   const workflow = resolveWorkflow(component);
   if (!workflow) {
     db.updateRecoveryRun(runId, { status: 'Failed', step: 'Error: No recovery workflow defined for this component.' });
-    activeRecoveries.delete(component);
+    activeRecoveries.delete(key);
     return;
   }
   
@@ -160,7 +168,7 @@ function executeRecoveryWorkflow(runId, component) {
         duration: 0,
         step: breakerMsg
       });
-      activeRecoveries.delete(component);
+      activeRecoveries.delete(key);
       try {
         db.addAlert(component, 'Critical', breakerMsg, 'Active');
       } catch (_) {}
@@ -195,14 +203,36 @@ function executeRecoveryWorkflow(runId, component) {
     try {
       db.addAlert(component, 'Critical', timeoutMsg, 'Active');
     } catch (_) {}
-    activeRecoveries.delete(component);
+    activeRecoveries.delete(key);
     if (global.broadcastStateChange) {
       global.broadcastStateChange();
     }
   }, RECOVERY_TIMEOUT_MS);
   if (timeoutTimer.unref) timeoutTimer.unref();
-  
-  try {
+
+  // The trigger is async: its rejection must be handled here, or the process exits.
+  const onFailed = (err) => {
+    if (isDone) return;
+    isDone = true;
+    clearTimeout(timeoutTimer);
+    jenkinsCircuitBreaker.consecutiveFailures++;
+    if (jenkinsCircuitBreaker.consecutiveFailures >= jenkinsCircuitBreaker.maxFailures) {
+      jenkinsCircuitBreaker.state = 'OPEN';
+      jenkinsCircuitBreaker.lastTripped = Date.now();
+    }
+    db.updateRecoveryRun(runId, {
+      status: 'Failed',
+      duration: parseFloat(((Date.now() - startTime) / 1000).toFixed(1)),
+      step: `Jenkins remediation failed: ${err.message}`
+    });
+    writeNasLog('ERROR', 'RECOVERY', `[FAILED] Jenkins remediation for ${component}: ${err.message}`);
+    activeRecoveries.delete(key);
+    if (global.broadcastStateChange) {
+      global.broadcastStateChange();
+    }
+  };
+
+  Promise.resolve().then(() =>
     triggerJenkinsSelfHealingJob(
       component,
       jobName,
@@ -247,25 +277,11 @@ function executeRecoveryWorkflow(runId, component) {
           global.broadcastStateChange();
         }
         
-        activeRecoveries.delete(component);
-      }
-    );
-  } catch (err) {
-    if (!isDone) {
-      isDone = true;
-      clearTimeout(timeoutTimer);
-      jenkinsCircuitBreaker.consecutiveFailures++;
-      if (jenkinsCircuitBreaker.consecutiveFailures >= jenkinsCircuitBreaker.maxFailures) {
-        jenkinsCircuitBreaker.state = 'OPEN';
-        jenkinsCircuitBreaker.lastTripped = Date.now();
-      }
-      db.updateRecoveryRun(runId, {
-        status: 'Failed',
-        step: `Jenkins invocation failed: ${err.message}`
-      });
-      activeRecoveries.delete(component);
-    }
-  }
+        activeRecoveries.delete(key);
+      },
+      env
+    )
+  ).catch(onFailed);
 }
 
 // Manual trigger or automated initiation of a pending action
@@ -287,14 +303,15 @@ function triggerRecovery(component, triggerReason, options = {}) {
   if (!workflow) return null;
   
   // Don't run multiple recoveries concurrently for the same component
-  if (activeRecoveries.has(component)) {
-    return activeRecoveries.get(component);
+  const key = lockKey(component, env);
+  if (activeRecoveries.has(key)) {
+    return activeRecoveries.get(key);
   }
-  
+
   const settings = db.getSettings();
   const run = db.addRecoveryRun(component, workflow.actionName, triggerReason, env, initiatedBy);
-  
-  activeRecoveries.set(component, run);
+
+  activeRecoveries.set(key, run);
   
   if (settings.autonomousMode || isManualTrigger) {
     db.updateRecoveryRun(run.id, { status: 'In-Progress' });
@@ -385,7 +402,7 @@ function approveRecovery(runId, approvingUser = { username: 'devsecops-admin', r
       step: `Dual-authorization verified (2 of 2 signatures by: ${approverNames}). Initiating self-healing sequence...`
     });
     
-    activeRecoveries.set(run.component, run);
+    activeRecoveries.set(lockKey(run.component, run.env), run);
     executeRecoveryWorkflow(runId, run.component);
     
     if (global.broadcastStateChange) {

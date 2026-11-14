@@ -60,7 +60,8 @@ async function main() {
 
     const login = await fetch(`${base}/api/auth/sso/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'admin_sentinel', password: 'E2e-Pass-1234' }) });
     assert.strictEqual(login.status, 200, 'staging test login works');
-    const { token } = await login.json();
+    const token = /sentinel_session=([^;]+)/.exec(login.headers.get('set-cookie'))[1];
+    assert.strictEqual((await login.json()).token, undefined, 'the session token is not returned in the response body');
     const authed = { Authorization: `Bearer ${token}` };
     const get = async (p) => { const r = await fetch(`${base}${p}`, { headers: authed }); return { status: r.status, body: await r.json() }; };
     const find = (hosts) => (hosts || []).find(h => h.host === HOST);

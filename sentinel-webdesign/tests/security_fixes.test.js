@@ -196,8 +196,8 @@ async function runTests() {
     const wsStgToken = session.generateToken({ username: 'ws.admin', role: 'Super Admin', environment: 'staging' });
     const wsProdToken = session.generateToken({ username: 'ws.admin', role: 'Super Admin', environment: 'prod' });
 
-    const wsStg = new WebSocket(`ws://127.0.0.1:${port}/ws?environment=staging&token=${wsStgToken}`);
-    const wsProd = new WebSocket(`ws://127.0.0.1:${port}/ws?environment=prod&token=${wsProdToken}`);
+    const wsStg = new WebSocket(`ws://127.0.0.1:${port}/ws?environment=staging`, { headers: { Authorization: `Bearer ${wsStgToken}` } });
+    const wsProd = new WebSocket(`ws://127.0.0.1:${port}/ws?environment=prod`, { headers: { Authorization: `Bearer ${wsProdToken}` } });
 
     await Promise.all([
       new Promise(r => wsStg.on('open', r)),
