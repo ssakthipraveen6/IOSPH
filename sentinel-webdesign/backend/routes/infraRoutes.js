@@ -133,7 +133,8 @@ function createInfraRouter({ inv = null, ch = null, processProvider = null, metr
           entity_id: entity.entity_id,
           host: hostname,
           os: hostOs,
-          status: entity.status || (shaped.silent ? 'DEGRADED' : 'HEALTHY'),
+          // A silent agent overrides the stored status: a host that stopped reporting is not healthy.
+          status: shaped.silent === true ? 'DEGRADED' : (entity.status || 'HEALTHY'),
           product: matchedProduct,
           cpu_latest: cpuLatest,
           memory_latest: memoryLatest,
@@ -239,44 +240,47 @@ function createInfraRouter({ inv = null, ch = null, processProvider = null, metr
     }
 
     const host = req.params.host;
-    const pid = parseInt(req.params.pid, 10);
+    if (!/^\d+$/.test(req.params.pid) || Number(req.params.pid) < 1) {
+      return res.status(400).json({ error: 'pid must be a positive integer' });
+    }
+    const pid = Number(req.params.pid);
+    const requestedBy = req.user?.username || 'unknown';
+    const requestedAt = new Date().toISOString();
     const attachmentId = `dump-${host}-${pid}-${Date.now()}`;
 
-    // Store evidence attachment
+    // SENTINEL has no dump collector: this records the request only. The attachment must never
+    // read as if a dump was taken.
     try {
       const evidenceRoutes = require('./evidenceRoutes');
       if (typeof evidenceRoutes.storeAttachment === 'function') {
         evidenceRoutes.storeAttachment(attachmentId, {
           id: attachmentId,
-          type: 'diagnostic_dump',
+          type: 'diagnostic_dump_request',
+          status: 'REQUESTED',
           host,
           pid,
           environment: env,
-          content: `Thread & stack diagnostic dump captured for PID ${pid} on ${host} at ${new Date().toISOString()}`
+          requested_by: requestedBy,
+          requested_at: requestedAt,
+          content: `Diagnostic dump requested for PID ${pid} on ${host} by ${requestedBy} at ${requestedAt}. No dump is attached: SENTINEL does not capture dumps; take it on the host.`
         });
       }
     } catch (_) {}
 
-    // Audit log
     try {
       const { auditLog } = require('../audit_logger');
-      auditLog({
-        action: 'CAPTURE_DIAGNOSTIC_DUMP',
-        user: req.user?.username || 'operator',
-        host,
-        pid,
-        attachment_id: attachmentId,
-        environment: env
-      });
-    } catch (_) {}
+      auditLog(req, 'DIAGNOSTIC_DUMP_REQUESTED', { target: `host:${host}`, host, pid, attachment_id: attachmentId, environment: env });
+    } catch (err) {
+      console.error('[INFRA_DUMP_AUDIT_ERROR]', err.message);
+    }
 
     res.json({
       success: true,
       host,
       pid,
       attachment_id: attachmentId,
-      status: 'QUEUED',
-      message: `Diagnostic dump requested for PID ${pid} on ${host}. Output stored as evidence attachment ${attachmentId}.`
+      status: 'REQUESTED',
+      message: `Diagnostic dump request recorded for PID ${pid} on ${host} as ${attachmentId}. No dump has been captured: SENTINEL does not capture dumps; take it on the host.`
     });
   });
 

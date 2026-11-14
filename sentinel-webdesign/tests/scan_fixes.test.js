@@ -245,6 +245,51 @@ function request({ port, method = 'GET', path: p, headers = {}, body }) {
     assert.ok(ingestKeys.cacheSize() <= 5000, `cache must stay bounded, has ${ingestKeys.cacheSize()} entries`);
     console.log('✔ 11 Passed: ingest key cache stays within its bound');
 
+    // --- 13: a host whose agent went silent is not reported HEALTHY ---
+    const express = require('express');
+    const { createInfraRouter } = require('../backend/routes/infraRoutes');
+    const hostEntity = (name, heartbeat) => ({
+      entity_id: `host:${name}`, name, kind: 'host', environment: 'staging', status: 'HEALTHY',
+      labels: { os: 'linux', agent_version: '3.0.4', last_heartbeat: heartbeat }
+    });
+    const infraApp = express();
+    infraApp.use((req, res, next) => { req.sentinelEnv = 'staging'; next(); });
+    infraApp.use('/api/v2/infra', createInfraRouter({
+      inv: { getEntities: async () => [
+        hostEntity('scan-silent', new Date(Date.now() - 9 * 24 * 3600 * 1000).toISOString()),
+        hostEntity('scan-fresh', new Date().toISOString())
+      ] },
+      metricsProvider: async () => new Map()
+    }));
+    const infraSrv = infraApp.listen(0, '127.0.0.1');
+    servers.push(infraSrv);
+    await new Promise(resolve => infraSrv.on('listening', resolve));
+    r = await request({ port: infraSrv.address().port, path: '/api/v2/infra/hosts' });
+    const hostStatus = Object.fromEntries(r.body.hosts.map(h => [h.host, h.status]));
+    assert.strictEqual(hostStatus['scan-silent'], 'DEGRADED', 'a host silent for 9 days must not be HEALTHY');
+    assert.strictEqual(hostStatus['scan-fresh'], 'HEALTHY', 'a reporting host keeps its stored status');
+    console.log('✔ 13 Passed: a silent host is DEGRADED, a reporting host stays HEALTHY');
+
+    // --- 14: the dump endpoint records a request, claims no capture, and is audited ---
+    const lead = bearer({ username: 'dump.lead', role: 'SRE Lead', environment: 'staging' });
+    r = await request({ port, method: 'POST', path: '/api/v2/infra/hosts/scan-host/processes/abc/dump', headers: lead });
+    assert.strictEqual(r.status, 400, 'a non-numeric pid is refused');
+    r = await request({ port, method: 'POST', path: '/api/v2/infra/hosts/scan-host/processes/321/dump', headers: lead });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.body.status, 'REQUESTED');
+    assert.ok(/No dump has been captured/.test(r.body.message), 'the answer says no dump was captured');
+    const dumpId = r.body.attachment_id;
+    r = await request({ port, path: `/api/problems/attachments/${encodeURIComponent(dumpId)}`, headers: lead });
+    assert.strictEqual(r.status, 200);
+    assert.strictEqual(r.body.type, 'diagnostic_dump_request');
+    assert.ok(!/dump captured/i.test(r.body.content), 'the attachment does not claim a captured dump');
+    assert.ok(/No dump is attached/.test(r.body.content));
+    const dumpAudit = fs.readFileSync(auditFile, 'utf8').trim().split('\n').slice(-20).map(l => JSON.parse(l))
+      .find(e => e.action === 'DIAGNOSTIC_DUMP_REQUESTED' && e.detail.attachment_id === dumpId);
+    assert.ok(dumpAudit, 'the dump request is written to the audit log');
+    assert.strictEqual(dumpAudit.user, 'dump.lead');
+    console.log('✔ 14 Passed: dump request is validated, honest about no capture, and audited');
+
     console.log('\n✅ ALL SCAN FIX TESTS PASSED');
   } finally {
     config.USE_SIMULATED_COLLECTORS = saved.simulated;

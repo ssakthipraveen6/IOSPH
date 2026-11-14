@@ -56,11 +56,16 @@ export default function HostDetailView({
     apiFetch(`/api/v2/infra/hosts/${encodeURIComponent(hostName)}/processes/${pid}/dump`, {
       method: 'POST'
     })
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        return data;
+      })
       .then(data => {
+        // The server records the request only; no dump is captured by SENTINEL.
         setDumpStatus(prev => ({
           ...prev,
-          [pid]: `Queued (${data.attachment_id || 'OK'})`
+          [pid]: `Request recorded (${data.attachment_id}). Take the dump on the host.`
         }));
       })
       .catch(err => {
@@ -275,7 +280,7 @@ export default function HostDetailView({
                               type="button"
                               className="host-dump-btn"
                               onClick={() => handleCaptureDump(p.pid)}
-                              disabled={dumpStatus[p.pid] && dumpStatus[p.pid].startsWith('Queued')}
+                              disabled={dumpStatus[p.pid] && dumpStatus[p.pid].startsWith('Request recorded')}
                             >
                               {dumpStatus[p.pid] || 'Capture Dump'}
                             </button>
