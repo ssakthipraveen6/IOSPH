@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Project Sentinel is an observability and autonomous-recovery portal: Node.js/Express backend + React 19/Vite SPA. It ingests telemetry (OpenTelemetry OTLP push, per-app collectors, Selenium synthetic probers), detects log anomalies, correlates them against an entity graph to find shared-infrastructure root causes, and triggers Jenkins remediation runbooks under four-eyes governance. Target hosting is two Windows Servers behind AVI + IIS. Node is pinned in `.nvmrc` (24.x).
 
-**Trust the code and the documents below.** The old design and plan documents were removed; the README holds the architecture and docs/PRODUCTION_READINESS_PLAN.md holds the production work.
+**Trust the code and the documents below.** The old design documents were removed; the README holds the architecture and docs/PRODUCTION_READINESS_PLAN.md holds the production work. The security fix plan (`docs/SECURITY_FIX_PLAN.md`, `docs/jira_security_fixes.csv`) and the login work order (`docs/SENTINEL_REWORK_AND_LOGIN_WORK_ORDER.md`) are still open work items.
 
 ## Orientation
 
@@ -47,7 +47,7 @@ Run from the repo root (npm workspaces). The backend has no build step.
 - `npm run dev` — backend + Vite HMR on :5173, proxying `/api` `/v1` `/ws` to :3001
 
 **Verify**
-- `npm test` — **36** suites, plain `node` + `assert`, sequential. Single: `node tests/otlp_normalizer.test.js`
+- `npm test` — **97** test files, plain `node` + `assert`, sequential. Single: `node tests/otlp_normalizer.test.js`
 - `npm run config:check` — validates every manifest, prints enabled/endpoint per app. Exits 1 on error
 - `npm run verify:dist` — fails if `frontend/dist` is stale relative to `frontend/src` or has unreferenced assets
 - `npm run preflight` — walks every configured endpoint: reachable / auth-OK / unreachable
@@ -111,9 +111,9 @@ Files prefixed `_` are ignored by the loader.
 
 `backend/server.js` is the single Express + `ws` entry point. Middleware order: compression → helmet → CORS (**exact-match allowlist** in `cors_validator.js`) → body parser → rate limiters → `requireAuth` → routes → static → SPA fallback.
 
-`trust proxy` at **line 51** takes an explicit proxy set — **add your AVI SNAT addresses** or all users share one rate-limit bucket.
+`trust proxy` (around line 61) takes an explicit proxy set from the `TRUSTED_PROXIES` environment variable (comma-separated) — **add your AVI SNAT addresses** or all users share one rate-limit bucket.
 
-Auth is eLDAP via `ldapjs` in `ldap_client.js` (reads `ldap_url`, not `url`), with `jose` JWTs in `session.js`. The session token is an **httpOnly cookie**, not `localStorage`. Audit entries go to a durable file, the append-only `audit_event` table, and stdout for SIEM.
+Auth is eLDAP via `ldapjs` in `ldap_client.js` (reads `ldap_url`, not `url`), with HS256 JWTs signed by `crypto.createHmac` in `session.js` (the `jose` dependency is unused; see PR-48). The session token is an **httpOnly cookie**, not `localStorage`. Audit entries go to a durable file, the append-only `audit_event` table, and stdout for SIEM.
 
 ### Frontend
 

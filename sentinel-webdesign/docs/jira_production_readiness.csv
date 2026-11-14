@@ -57,8 +57,8 @@ Acceptance criteria:
 Where:
 * scripts/ingest_key.js:4 - usage: create <name> <prod|staging>
 * backend/auth/ingest_keys.js:56 - SENTINEL_INGEST_API_KEYS parsing (no database needed)
-* backend/server.js:682 - POST /v1/metrics needs scope metrics
-* backend/server.js:1594 - POST /api/v2/shipper/heartbeat needs scope heartbeat
+* backend/server.js:703 - POST /v1/metrics needs scope metrics
+* backend/server.js:1648 - POST /api/v2/shipper/heartbeat needs scope heartbeat
 
 Steps:
 1. Run the command twice (prod, staging). The raw key is shown once; store it in CyberArk and in the Ansible vault.
@@ -84,7 +84,7 @@ Acceptance criteria:
 
 Where:
 * config/cyberark.yaml:81 - sso_eldap entry (safe and object names)
-* backend/auth/ldap_client.js:226 - reads credential sso_eldap/bind
+* backend/auth/ldap_client.js:329 - reads credential sso_eldap/bind
 
 Steps:
 1. Confirm safe and object names with the security team.
@@ -99,7 +99,7 @@ Where:
 * config/global.yaml:63 - sre_lead_group
 * config/global.yaml:64 - noc_operator_group
 * config/global.yaml:65 - security_auditor_group
-* backend/auth/ldap_client.js:54 - resolveRoleFromGroups
+* backend/auth/ldap_client.js:61 - resolveRoleFromGroups
 
 Steps:
 1. Replace each group DN with the real one.
@@ -110,7 +110,7 @@ Acceptance criteria:
 "17","Task","PR-09 Make sure simulated login is off in production","Plan: docs/PRODUCTION_READINESS_PLAN.md, PR-09
 
 Where:
-* backend/auth/ldap_client.js:221 - production uses LDAP unless SENTINEL_ALLOW_SIMULATED_LOGIN=true
+* backend/auth/ldap_client.js:313 - production uses LDAP unless SENTINEL_ALLOW_SIMULATED_LOGIN=true
 * tests/prod_login_lockdown.test.js:1 - regression test
 
 Steps:
@@ -123,7 +123,7 @@ Acceptance criteria:
 
 Where:
 * config/global.yaml:210 - environment_entitlements (empty = everyone sees both)
-* backend/auth/access_policy.js:63 - allowedEnvironments
+* backend/auth/access_policy.js:104 - allowedEnvironments
 
 Steps:
 1. Decide per role; Super Admin always sees both.
@@ -328,7 +328,7 @@ Where:
 * install_service.ps1:56 - task runs start.bat --daemon
 * start.bat:67 - npm run start = node backend/server.js (start.bat also runs npm install and a front-end build when files are missing)
 * stop_service.bat:3 - stops the task and frees port 3001
-* backend/server.js:2356 - PORT (default 3001) and HOST (default 0.0.0.0)
+* backend/server.js:2439 - PORT (default 3001) and HOST (default 0.0.0.0)
 * ... 1 more in the plan
 
 Steps:
@@ -533,8 +533,8 @@ Acceptance criteria:
 
 Where:
 * backend/auth/access_policy.js:1 - read/ingest policy
-* backend/auth/ldap_client.js:221 - sign-in path
-* backend/server.js:682 - public ingest endpoint
+* backend/auth/ldap_client.js:313 - sign-in path
+* backend/server.js:703 - public ingest endpoint
 
 Steps:
 1. Scope: sign-in, ingest key handling, CORS, rate limits, audit trail, secret masking in the Configuration view.

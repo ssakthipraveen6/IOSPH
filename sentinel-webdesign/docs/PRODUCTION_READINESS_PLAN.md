@@ -174,8 +174,8 @@ environment: "production"
 |---|---|---|
 | `scripts/ingest_key.js` | 4 | usage: create <name> <prod|staging> |
 | `backend/auth/ingest_keys.js` | 56 | SENTINEL_INGEST_API_KEYS parsing (no database needed) |
-| `backend/server.js` | 682 | POST /v1/metrics needs scope metrics |
-| `backend/server.js` | 1594 | POST /api/v2/shipper/heartbeat needs scope heartbeat |
+| `backend/server.js` | 703 | POST /v1/metrics needs scope metrics |
+| `backend/server.js` | 1648 | POST /api/v2/shipper/heartbeat needs scope heartbeat |
 
 **Steps**
 
@@ -228,7 +228,7 @@ bind_dn: "cn=svc-sentinel-sso,ou=ServiceAccounts,dc=<your>,dc=<domain>"
 | File | Line | What is there |
 |---|---|---|
 | `config/cyberark.yaml` | 81 | sso_eldap entry (safe and object names) |
-| `backend/auth/ldap_client.js` | 226 | reads credential sso_eldap/bind |
+| `backend/auth/ldap_client.js` | 329 | reads credential sso_eldap/bind |
 
 **Steps**
 
@@ -257,7 +257,7 @@ sso_eldap:
 | `config/global.yaml` | 63 | sre_lead_group |
 | `config/global.yaml` | 64 | noc_operator_group |
 | `config/global.yaml` | 65 | security_auditor_group |
-| `backend/auth/ldap_client.js` | 54 | resolveRoleFromGroups |
+| `backend/auth/ldap_client.js` | 61 | resolveRoleFromGroups |
 
 **Steps**
 
@@ -280,7 +280,7 @@ sre_lead_group: "cn=SRE-Leads,ou=Groups,dc=<your>,dc=<domain>"
 
 | File | Line | What is there |
 |---|---|---|
-| `backend/auth/ldap_client.js` | 221 | production uses LDAP unless SENTINEL_ALLOW_SIMULATED_LOGIN=true |
+| `backend/auth/ldap_client.js` | 313 | production uses LDAP unless SENTINEL_ALLOW_SIMULATED_LOGIN=true |
 | `tests/prod_login_lockdown.test.js` | 1 | regression test |
 
 **Steps**
@@ -305,7 +305,7 @@ sre_lead_group: "cn=SRE-Leads,ou=Groups,dc=<your>,dc=<domain>"
 | File | Line | What is there |
 |---|---|---|
 | `config/global.yaml` | 210 | environment_entitlements (empty = everyone sees both) |
-| `backend/auth/access_policy.js` | 63 | allowedEnvironments |
+| `backend/auth/access_policy.js` | 104 | allowedEnvironments |
 
 **Steps**
 
@@ -718,7 +718,7 @@ New-Website -Name "Sentinel" -PhysicalPath "D:\Apps\Sentinel" -ApplicationPool "
 | `install_service.ps1` | 56 | task runs start.bat --daemon |
 | `start.bat` | 67 | npm run start = node backend/server.js (start.bat also runs npm install and a front-end build when files are missing) |
 | `stop_service.bat` | 3 | stops the task and frees port 3001 |
-| `backend/server.js` | 2356 | PORT (default 3001) and HOST (default 0.0.0.0) |
+| `backend/server.js` | 2439 | PORT (default 3001) and HOST (default 0.0.0.0) |
 | `backend/server.js` | 641 | /api/health used by the installer check |
 
 **Steps**
@@ -1135,8 +1135,8 @@ GET /api/v2/console/app/sonarqube?environment=prod
 | File | Line | What is there |
 |---|---|---|
 | `backend/auth/access_policy.js` | 1 | read/ingest policy |
-| `backend/auth/ldap_client.js` | 221 | sign-in path |
-| `backend/server.js` | 682 | public ingest endpoint |
+| `backend/auth/ldap_client.js` | 313 | sign-in path |
+| `backend/server.js` | 703 | public ingest endpoint |
 
 **Steps**
 
@@ -1323,7 +1323,7 @@ GET /api/v2/console/geo?environment=prod
 
 ### What was verified and what was not
 
-Verified with automated tests (90 test files): ingest of both environments, environment kept separate by ingest key, 200 simulated hosts per environment, live Console screens and per-application pages, production sign-in lock-down, the demo simulator, the CyberArk script against a stand-in service.
+Verified with automated tests (97 test files): ingest of both environments, environment kept separate by ingest key, 200 simulated hosts per environment, live Console screens and per-application pages, production sign-in lock-down, the demo simulator, the CyberArk script against a stand-in service.
 
 Not verified, because it needs your systems: every collector against the real tool, a 2,000-host load, a browser walk of every view, failover, backup restore, the security review. These are PR-38 to PR-42.
 

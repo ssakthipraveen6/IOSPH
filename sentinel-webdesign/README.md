@@ -85,7 +85,7 @@ database/           PostgreSQL / Timescale and ClickHouse access, migrations
 agent/              Collection agent: OTel build, osquery packs, probe, packaging (RPM, DEB, MSI, systemd)
 deployments/        Ansible roles and playbooks, Helm chart, plain Kubernetes manifests, PowerShell
 scripts/            Bootstrap, lint, migration, ingest keys, readiness check, demo simulator
-tests/              Plain Node test files (88)
+tests/              Plain Node test files (97)
 ```
 
 ## Run it

@@ -334,6 +334,26 @@ function request({ port, method = 'GET', path: p, headers = {}, body }) {
     assert.strictEqual(dumpAudit.user, 'dump.lead');
     console.log('✔ 14 Passed: dump request is validated, honest about no capture, and audited');
 
+    // --- 19: a leader-only job skipped before election retries in 30 s, not after its full interval ---
+    const { JobScheduler } = require('../backend/jobs/scheduler');
+    let clock = 1_000_000;
+    let leader = false;
+    let ran = 0;
+    const sched = new JobScheduler({ isLeader: () => leader, now: () => clock, log: () => {} });
+    sched.register({ name: 'daily', intervalMs: 86400000, run: async () => { ran++; } });
+    await sched.tick();
+    assert.strictEqual(ran, 0);
+    assert.strictEqual(sched.getStatus().jobs[0].last_skip_reason, 'NOT_LEADER');
+    leader = true;
+    clock += 10000;
+    await sched.tick();
+    assert.strictEqual(ran, 0, 'no retry on every tick');
+    clock += 25000;
+    await sched.tick();
+    assert.strictEqual(ran, 1, 'the job runs once the node is leader, without waiting a day');
+    assert.strictEqual(sched.getStatus().jobs[0].last_skip_reason, null);
+    console.log('✔ 19 Passed: leader-only jobs retry 30 s after a NOT_LEADER skip');
+
     console.log('\n✅ ALL SCAN FIX TESTS PASSED');
   } finally {
     config.USE_SIMULATED_COLLECTORS = saved.simulated;

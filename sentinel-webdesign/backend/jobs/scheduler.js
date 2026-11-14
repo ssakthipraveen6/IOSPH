@@ -18,6 +18,8 @@ try {
 }
 
 const TICK_MS = Number(process.env.SENTINEL_JOBS_TICK_MS) || 5000;
+// How long a follower waits before asking again whether it has become the leader.
+const LEADER_RETRY_MS = 30000;
 
 // Simple job scheduler: runs due jobs on the leader node only.
 class JobScheduler {
@@ -64,6 +66,7 @@ class JobScheduler {
         lastError: null,
         lastResult: null,
         lastSkipReason: null,
+        nextLeaderCheckAt: null,
         nextDueAt: null
       }
     });
@@ -72,6 +75,7 @@ class JobScheduler {
 
   // True when a job is due.
   isDue(job, nowMs) {
+    if (job.state.nextLeaderCheckAt && nowMs < job.state.nextLeaderCheckAt) return false;
     if (typeof job.due === 'function') return job.due(nowMs, job.state);
     if (!job.state.lastStartAt) return true;
     return nowMs - new Date(job.state.lastStartAt).getTime() >= job.intervalMs;
@@ -89,13 +93,15 @@ class JobScheduler {
     }
     if (job.leaderOnly && !this.isLeader()) {
       st.lastSkipReason = 'NOT_LEADER';
-      // A follower checks again on the next interval, not on every tick.
-      st.lastStartAt = new Date(this.now()).toISOString();
+      // Retry soon, not after a full interval: at startup the lock is still being taken,
+      // and a daily job would otherwise wait a day after every restart.
+      st.nextLeaderCheckAt = this.now() + Math.min(job.intervalMs || LEADER_RETRY_MS, LEADER_RETRY_MS);
       return { skipped: true, reason: 'NOT_LEADER' };
     }
 
     st.running = true;
     st.lastSkipReason = null;
+    st.nextLeaderCheckAt = null;
     const started = this.now();
     st.lastStartAt = new Date(started).toISOString();
     this.log('info', `[JOBS] ${job.task || ''} ${name} started`);
