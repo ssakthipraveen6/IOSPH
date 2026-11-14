@@ -21,10 +21,13 @@ export default function HomeScorecardView({
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Which feeds failed to load: a failed feed shows "Data unavailable", never a healthy zero.
+  const [failed, setFailed] = useState({ scorecards: false, problems: false });
 
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
+    setFailed({ scorecards: false, problems: false });
 
     // Demo view: render the supplied sample payload, never call the live API.
     if (demoData) {
@@ -36,14 +39,17 @@ export default function HomeScorecardView({
 
     async function loadData() {
       try {
+        // A non-2xx answer or a network error marks that feed as failed (null).
+        const load = (url) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
         const [scRes, prbRes] = await Promise.all([
-          fetch(`/api/scorecards?environment=${encodeURIComponent(environment)}`).then(r => r.json()).catch(() => ({ scorecards: [] })),
-          fetch(`/api/problems?environment=${encodeURIComponent(environment)}`).then(r => r.json()).catch(() => ({ problems: [] }))
+          load(`/api/scorecards?environment=${encodeURIComponent(environment)}`),
+          load(`/api/problems?environment=${encodeURIComponent(environment)}`)
         ]);
 
         if (isMounted) {
-          setScorecards(scRes.scorecards || []);
-          setProblems(prbRes.problems || []);
+          setScorecards((scRes && scRes.scorecards) || []);
+          setProblems((prbRes && prbRes.problems) || []);
+          setFailed({ scorecards: scRes === null, problems: prbRes === null });
           setLoading(false);
         }
       } catch (err) {
@@ -161,14 +167,15 @@ export default function HomeScorecardView({
       <div className="home-stats">
         <StatTile
           label="Tracked Toolchain Products"
-          value={scorecards.length > 0 ? scorecards.length : '—'}
-          subtext="Golden journeys active"
+          value={!failed.scorecards && scorecards.length > 0 ? scorecards.length : '—'}
+          severity={failed.scorecards ? 'info' : null}
+          subtext={failed.scorecards ? 'Data unavailable' : 'Golden journeys active'}
         />
         <StatTile
           label="Active Problems"
-          value={activeProblems.length}
-          severity={activeProblems.length > 0 ? 'critical' : 'healthy'}
-          subtext={activeProblems.length > 0 ? 'Layer contention detected' : 'All layers operating within baseline'}
+          value={failed.problems ? '—' : activeProblems.length}
+          severity={failed.problems ? 'info' : activeProblems.length > 0 ? 'critical' : 'healthy'}
+          subtext={failed.problems ? 'Data unavailable' : activeProblems.length > 0 ? 'Layer contention detected' : 'All layers operating within baseline'}
           onClick={() => onNavigateTab && onNavigateTab('problems')}
         />
         <StatTile

@@ -47,3 +47,7 @@
   letter-spacing: 0.3px;
   box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
 }
+
+/* Light theme: dark amber text on the pale banner for WCAG AA contrast. */
+.light-mode .shr-maint-banner,
+.light-mode .shr-maint-badge { color: #92400e; }

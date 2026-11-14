@@ -206,31 +206,24 @@ function isTabEnabled(tabId) {
 
 // Root component: holds session, environment and active tab, and renders the sidebar plus the selected
 // view.
-export default function App() {
+export default function App({ authUser = null, onSignOut = null } = {}) {
   const router = useUrlRouter({ defaultTab: 'home', defaultEnv: 'staging' });
   const activeTab = resolveCanonicalTab(router.tab);
   const environment = router.env;
   const { navigate, switchEnvironment } = router;
   const setActiveTab = (tabId) => navigate({ tab: tabId });
   const [selectedComponent, setSelectedComponent] = useState('database');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Phone and small tablet widths start with the navigation collapsed so it does not cover the content.
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 900);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const envRef = useRef(environment);
   const wsRef = useRef(null);
   useEffect(() => { envRef.current = environment; }, [environment]);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
-
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data && data.username) {
-          setCurrentUser(data);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  // The sign-in gate (components/auth/AuthGate.jsx) supplies the signed-in user.
+  const currentUser = authUser;
+  const allowedEnvs = (currentUser && Array.isArray(currentUser.allowedEnvironments) && currentUser.allowedEnvironments.length)
+    ? currentUser.allowedEnvironments : ['prod', 'staging'];
 
   // Connective Architecture Layer State: Entity-Centric Drill-Down
   const [selectedEntityId, setSelectedEntityId] = useState(null);
@@ -407,8 +400,11 @@ export default function App() {
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     let ws = null;
     let reconnectTimeout = null;
+    // Set on unmount (for example on sign-out) so a closing socket does not schedule a reconnect.
+    let disposed = false;
 
     function connect() {
+      if (disposed) return;
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws?environment=${encodeURIComponent(envRef.current || 'staging')}`;
       ws = new WebSocket(wsUrl);
@@ -470,8 +466,9 @@ export default function App() {
       };
 
       ws.onclose = () => {
-        console.warn('[WS] Connection closed, retrying in 3s...');
         setWsConnected(false);
+        if (disposed) return;
+        console.warn('[WS] Connection closed, retrying in 3s...');
         reconnectTimeout = setTimeout(connect, 3000);
       };
 
@@ -484,9 +481,10 @@ export default function App() {
     connect();
 
     return () => {
-      if (ws) ws.close();
+      disposed = true;
       clearTimeout(reconnectTimeout);
       clearInterval(metricsPoll);
+      if (ws) ws.close();
     };
   }, []);
 
@@ -565,7 +563,7 @@ export default function App() {
   };
 
   const handleEnvironmentSwitch = async (newEnv) => {
-    if (newEnv === environment) return;
+    if (newEnv === environment || !allowedEnvs.includes(newEnv)) return;
     try {
       localStorage.setItem('sentinel_environment', newEnv);
       switchEnvironment(newEnv);
@@ -658,8 +656,8 @@ export default function App() {
                           {item.label}
                         </span>
                       )}
-                      {item.id === 'problems' && healthData.pendingApprovals > 0 && (
-                        <span className="pending-badge">{healthData.pendingApprovals}</span>
+                      {item.id === 'remediation' && healthData.pendingApprovals > 0 && (
+                        <span className="pending-badge" title="Recovery runs waiting for approval">{healthData.pendingApprovals}</span>
                       )}
                     </button>
                   );
@@ -684,7 +682,9 @@ export default function App() {
         <header className="sentinel-top-brand-header">
           <div className="top-brand-title-group">
             <h2>Intelligent Observability &amp; Autonomous Recovery Framework</h2>
-            <span className="live-pill">LIVE NOC ENGINE</span>
+            <span className={`live-pill ${wsConnected ? '' : 'live-pill--offline'}`} title={wsConnected ? 'Live updates connected' : 'Live updates disconnected; figures may be out of date'}>
+              {wsConnected ? 'LIVE NOC ENGINE' : 'OFFLINE'}
+            </span>
             
             {/* Command Palette Trigger Button (⌘K) */}
             <div 
@@ -797,11 +797,11 @@ export default function App() {
                   >
                     🛡️ Manage RBAC &amp; Audit Logs
                   </button>
-                  <button 
-                    className="dropdown-btn dropdown-btn-danger" 
-                    onClick={() => { alert('Session locked. Re-authenticate via SSO.'); setIsUserDropdownOpen(false); }}
+                  <button
+                    className="dropdown-btn dropdown-btn-danger"
+                    onClick={() => { setIsUserDropdownOpen(false); if (onSignOut) onSignOut(); }}
                   >
-                    🔒 Lock Session
+                    Sign out
                   </button>
                 </div>
               </div>
@@ -814,7 +814,7 @@ export default function App() {
               {[
                 { id: 'prod', label: 'PROD', cls: 'active-prod' },
                 { id: 'staging', label: 'STAG', cls: 'active-stg' }
-              ].map(env => (
+              ].filter(env => allowedEnvs.includes(env.id)).map(env => (
                 <button
                   key={env.id}
                   className={`env-chip ${environment === env.id ? env.cls : ''}`}
@@ -858,7 +858,7 @@ export default function App() {
               <span>🔒 <strong>PRODUCTION ENVIRONMENT:</strong> Connected to live cluster nodes, VMware AVI ingress, TimescaleDB &amp; Snowflake.</span>
             )}
           </div>
-          <span className="uptime-badge" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--primary)' }}>
+          <span className="uptime-badge">
             Uptime: {healthData.uptime || '—'}
           </span>
         </div>
@@ -1034,12 +1034,14 @@ export default function App() {
           {activeTab === 'misc' && (
             <MiscOperations 
               environment={environment}
+              userRole={currentUser ? currentUser.role : null}
             />
           )}
 
           {activeTab === 'on_call' && (
             <MiscOperations 
               environment={environment}
+              userRole={currentUser ? currentUser.role : null}
             />
           )}
 
@@ -1058,6 +1060,7 @@ export default function App() {
           {activeTab === 'remediation' && (
             <RemediationView 
               environment={environment}
+              userRole={currentUser ? currentUser.role : null}
             />
           )}
 
@@ -1236,6 +1239,7 @@ export default function App() {
                 { id: 'sim-bitbucket', label: 'Trigger Bitbucket JVM Memory Spike Simulation', icon: '⚡', action: () => { handleSimulate('bitbucket', 'memory', 92); setIsCommandPaletteOpen(false); } },
                 { id: 'sim-db', label: 'Trigger Database Connection Spike Simulation', icon: '⚡', action: () => { handleSimulate('database', 'connections', 96); setIsCommandPaletteOpen(false); } }
               ]
+              .filter(item => item.id === 'env-prod' ? allowedEnvs.includes('prod') : item.id === 'env-stg' ? allowedEnvs.includes('staging') : true)
               .filter(item => item.label.toLowerCase().includes(paletteQuery.toLowerCase()))
               .map(item => (
                 <div

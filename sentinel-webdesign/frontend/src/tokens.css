@@ -8,8 +8,8 @@
 
 :root {
   /* Typography */
-  --font-sans: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --font-mono: Consolas, "Cascadia Mono", ui-monospace, monospace;
 
   /* Font Sizes */
   --font-xs: 0.75rem;     /* 12px */

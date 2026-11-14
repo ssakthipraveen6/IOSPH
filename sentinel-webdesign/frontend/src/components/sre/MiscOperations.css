@@ -450,3 +450,16 @@
   gap: var(--space-3);
   margin-top: var(--space-2);
 }
+
+/* Warning when the loaded rota is not for the current month. */
+.misc-stale-rota {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--sev-warning);
+  background: var(--sev-warning-bg);
+  border: 1px solid var(--sev-warning-border);
+}
+.light-mode .misc-stale-rota { color: #92400e; }

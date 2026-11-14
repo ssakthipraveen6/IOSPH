@@ -5,10 +5,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MAINTENANCE_CONFIG } from '../../maintenanceConfig';
 import { MaintenanceBadge } from '../shared/MaintenanceNotice';
 import { apiFetch } from '../../api';
+import { canAdminister, NEEDS_LEAD } from '../../roles';
 import './MiscOperations.css';
 
 // SRE operations page.
-export default function MiscOperations({ environment }) {
+export default function MiscOperations({ environment, userRole = null }) {
+  const mayEditRota = canAdminister(userRole);
   const [mainTab, setMainTab] = useState('rota'); // 'rota' | 'dynatrace'
   const [selectedRotaCategory, setSelectedRotaCategory] = useState('core'); // 'core' | 'bau' | 'montreal'
   const [allRotas, setAllRotas] = useState(null);
@@ -155,6 +157,16 @@ export default function MiscOperations({ environment }) {
   const activeRota = allRotas ? allRotas[selectedRotaCategory] : null;
   const rawRows = activeRota?.tableRows || [];
 
+  // The rota month comes from the first row's date; warn when it is not the current month.
+  const rotaMonth = (() => {
+    const first = rawRows.find(r => r && r['Date']);
+    const d = first ? new Date(`${String(first['Date']).slice(0, 10)}T00:00:00`) : null;
+    return d && !isNaN(d) ? d : null;
+  })();
+  const now = new Date();
+  const rotaIsStale = !!rotaMonth && (rotaMonth.getFullYear() !== now.getFullYear() || rotaMonth.getMonth() !== now.getMonth());
+  const rotaMonthLabel = rotaMonth ? rotaMonth.toLocaleString('en-GB', { month: 'long', year: 'numeric' }) : '';
+
   // Filter rows based on search and status
   const filteredRows = rawRows.filter(row => {
     const matchesSearch = Object.values(row).some(val => 
@@ -290,8 +302,8 @@ export default function MiscOperations({ environment }) {
               <button
                 className="btn-action secondary misc-btn"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingFile}
-                title="Upload full month Excel spreadsheet (.xlsx, .xls, .csv)"
+                disabled={uploadingFile || !mayEditRota}
+                title={mayEditRota ? 'Upload full month Excel spreadsheet (.xlsx, .xls, .csv)' : NEEDS_LEAD}
               >
                 📁 Upload Excel Table
               </button>
@@ -307,6 +319,8 @@ export default function MiscOperations({ environment }) {
               <button
                 className="btn-action primary misc-btn"
                 onClick={() => setShowAddShiftModal(true)}
+                disabled={!mayEditRota}
+                title={mayEditRota ? undefined : NEEDS_LEAD}
               >
                 ➕ Add Shift Row
               </button>
@@ -342,6 +356,12 @@ export default function MiscOperations({ environment }) {
               <span>Roster: <strong className="misc-stats__main">{activeRota?.name}</strong></span>
             </div>
           </div>
+
+          {rotaIsStale && (
+            <div className="misc-stale-rota" role="status">
+              This rota is for {rotaMonthLabel}. Upload the current month's rota.
+            </div>
+          )}
 
           {/* Full Month Excel Spreadsheet Table */}
           <div className="metrics-panel-card misc-table-card">
