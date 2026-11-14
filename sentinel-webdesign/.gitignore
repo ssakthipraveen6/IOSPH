@@ -31,6 +31,8 @@ apps/web/dist/
 # Validation harness browser profile (98MB, never commit)
 tools/validation/chrome-profile/
 tools/validation/screenshots/
+tools/validation/ui_validation_report.json
+tools/validation/detailed_tiles.json
 
 # [T0.19] Dev-only identity fallback — never the system of record, never committed
 database/sentinel_users.json
